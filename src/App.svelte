@@ -161,11 +161,15 @@
   /** Saves everything that's waiting to be written. */
   const flushAll = () => Promise.all([store.flush(), planner.flush(), databases.flush()]);
 
+  // Only the kind: `store.current` is a new object on every edit (a title
+  // keystroke, a save's new timestamp), which mustn't reload the page.
+  const currentKind = $derived(store.current?.kind);
+
   // Load the full page (with content) whenever the selection changes.
   $effect(() => {
     const id = store.currentId;
     // A database shows its rows, not a body.
-    if (!id || store.current?.kind === 'database') {
+    if (!id || currentKind === 'database') {
       page = null;
       return;
     }

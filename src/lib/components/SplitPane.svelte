@@ -27,10 +27,14 @@
   const meta = $derived(split.pageId ? store.byId.get(split.pageId) : undefined);
   const showing = $derived(split.duplicate ? null : (meta ?? null));
 
+  // Its id and kind, not the page object: that's new on every edit.
+  const showingId = $derived(showing?.id);
+  const showingKind = $derived(showing?.kind);
+
   // Load the page (with its body) whenever what the pane shows changes.
   $effect(() => {
-    const id = showing?.id;
-    if (!id || showing?.kind === 'database') {
+    const id = showingId;
+    if (!id || showingKind === 'database') {
       page = null;
       return;
     }
