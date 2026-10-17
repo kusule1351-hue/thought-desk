@@ -394,6 +394,17 @@ CREATE INDEX pages_trashed ON pages(deleted_at) WHERE deleted_at IS NOT NULL;
 ALTER TABLE db_rows ADD COLUMN cover TEXT;
 ";
 
+/// Indexes behind the links to pages and files: deleting a page or a file
+/// looks these up (the foreign keys clear or cascade them), and without an
+/// index that's a full scan of each table per deleted page.
+const SCHEMA_V10: &str = "
+CREATE INDEX assignments_page ON assignments(page_id);
+CREATE INDEX events_page ON events(page_id);
+CREATE INDEX courses_page ON courses(page_id);
+CREATE INDEX occurrence_pages_page ON occurrence_pages(page_id);
+CREATE INDEX attachments_file ON attachments(file_id);
+";
+
 const WELCOME_HTML: &str = r#"<p>Thought Desk is a quiet place to write. Everything stays on this computer, in a single local database.</p>
 <h2>The basics</h2>
 <ul data-type="taskList">
@@ -552,6 +563,12 @@ impl Db {
             tx.execute_batch(SCHEMA_V9)?;
             crate::databases::fill_covers(&tx)?;
             tx.execute_batch("PRAGMA user_version = 9;")?;
+            tx.commit()?;
+        }
+        if version < 10 {
+            let tx = conn.transaction()?;
+            tx.execute_batch(SCHEMA_V10)?;
+            tx.execute_batch("PRAGMA user_version = 10;")?;
             tx.commit()?;
         }
         Ok(())
