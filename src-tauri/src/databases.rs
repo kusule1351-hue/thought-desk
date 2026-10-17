@@ -484,7 +484,7 @@ impl Db {
 
     /// Every row of every database, for the UI (see `ListedRow`).
     pub fn list_rows_raw(&self) -> Result<Vec<ListedRow>> {
-        let conn = self.conn();
+        let conn = self.reader();
         let mut stmt = conn.prepare(&format!("SELECT {ROW_COLS} FROM {ROW_FROM}"))?;
         let rows = stmt.query_map([], |r| {
             let cells: String = r.get(4)?;
