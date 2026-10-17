@@ -8,7 +8,7 @@
 //! Courses, assignments and events live in `planner.rs`, the file library in
 //! `library.rs`; both extend `Db` with their own `impl` blocks.
 
-use rusqlite::{params, Connection, OptionalExtension, Transaction};
+use rusqlite::{params, Connection, OpenFlags, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -431,6 +431,10 @@ const WELCOME_HTML: &str = r#"<p>Thought Desk is a quiet place to write. Everyth
 
 pub struct Db {
     conn: Mutex<Connection>,
+    /// A second, read-only connection for the long reads (search, listing):
+    /// WAL lets it read while the main one writes, so a search never holds
+    /// up a save.
+    reader: Mutex<Connection>,
     pub data_dir: PathBuf,
     pub files_dir: PathBuf,
 }
@@ -454,8 +458,23 @@ impl Db {
              PRAGMA cache_size = -4000;
              PRAGMA journal_size_limit = 16777216;",
         )?;
+        // Opened before migrating (so the file exists); it only reads, and
+        // sees the schema the migrations leave once they've committed.
+        let reader = Connection::open_with_flags(
+            data_dir.join("thoughtdesk.db"),
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        // Every save resets this connection's page cache, so it reads through
+        // a memory map instead (file-backed, so the OS can drop it any time).
+        reader.execute_batch(
+            "PRAGMA query_only = ON;
+             PRAGMA temp_store = MEMORY;
+             PRAGMA cache_size = -4000;
+             PRAGMA mmap_size = 268435456;",
+        )?;
         let db = Db {
             conn: Mutex::new(conn),
+            reader: Mutex::new(reader),
             data_dir: data_dir.to_path_buf(),
             files_dir,
         };
@@ -467,6 +486,11 @@ impl Db {
         // A panic while holding the lock cannot leave SQLite half-written
         // (statements are atomic), so a poisoned lock is safe to reuse.
         self.conn.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    /// The read-only connection, for reads that can take a while.
+    pub(crate) fn reader(&self) -> std::sync::MutexGuard<'_, Connection> {
+        self.reader.lock().unwrap_or_else(|p| p.into_inner())
     }
 
     fn migrate(&self) -> Result<()> {
@@ -558,7 +582,7 @@ impl Db {
     }
 
     pub fn list_pages(&self) -> Result<Vec<PageMeta>> {
-        let conn = self.conn();
+        let conn = self.reader();
         let mut stmt = conn.prepare(&format!(
             "SELECT {META_COLS} FROM pages ORDER BY parent_id, position, created_at"
         ))?;
@@ -904,7 +928,7 @@ impl Db {
     }
 
     pub fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>> {
-        let conn = self.conn();
+        let conn = self.reader();
         let limit = limit.clamp(1, 100) as i64;
         let tokens: Vec<String> = query
             .split_whitespace()
