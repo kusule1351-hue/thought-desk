@@ -73,7 +73,8 @@ fn serve(path: &std::path::Path, name: &str, range: Option<(u64, Option<u64>)>) 
     };
     let mut file = std::fs::File::open(path).ok()?;
     let len = file.metadata().ok()?.len();
-    if start >= len {
+    // A range that ends before it starts can't be served (and would underflow below).
+    if start >= len || end.is_some_and(|e| e < start) {
         return Some(
             builder
                 .status(StatusCode::RANGE_NOT_SATISFIABLE)
@@ -120,6 +121,17 @@ pub fn collect_garbage(db: &Db) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn refuses_a_range_that_ends_before_it_starts() {
+        let dir = std::env::temp_dir().join(format!("td-range-bad-{}", uuid::Uuid::new_v4().simple()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("clip.mp4");
+        std::fs::write(&path, vec![7u8; 100]).unwrap();
+        let response = serve(&path, "clip.mp4", parse_range("bytes=10-5")).unwrap().unwrap();
+        assert_eq!(response.status(), StatusCode::RANGE_NOT_SATISFIABLE);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn serves_ranges_in_chunks() {
