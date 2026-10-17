@@ -47,6 +47,15 @@ class Store {
   #ver = $state(0);
   /** Bumped when pages come, go or change place (see PLACE_FIELDS), not when a title changes. */
   #place = $state(0);
+  /**
+   * Bumped per parent when one of its pages changes (a database's rows), so
+   * a database's values follow its own rows instead of every page. Edits
+   * that only move `updatedAt` (a save's timestamp) count apart.
+   */
+  #under = $state<Record<string, number>>({});
+  #stamped = $state<Record<string, number>>({});
+  /** Bumped when the whole list is replaced (loads, reloads, new pages). */
+  #reloads = $state(0);
   /** Pages by id and their index in `pages`, kept up to date as they change. */
   #map = new Map<string, PageMeta>();
   #index = new Map<string, number>();
@@ -71,6 +80,28 @@ class Store {
   }
 
   /**
+   * The same map, following only changes to the pages under `parentId` (a
+   * database's rows) and whole-list reloads. `stamps` also follows edits that
+   * only move `updatedAt`. Read only those pages through it.
+   */
+  under(parentId: string, stamps = false): Map<string, PageMeta> {
+    void this.#reloads;
+    void this.#under[parentId];
+    if (stamps) void this.#stamped[parentId];
+    return this.#map;
+  }
+
+  /** Changes so far to the pages under `parentId`, as a key (follows them like `under`). */
+  stamp(parentId: string, stamps = false): string {
+    return `${this.#reloads}:${this.#under[parentId] ?? 0}:${stamps ? (this.#stamped[parentId] ?? 0) : ''}`;
+  }
+
+  /** The map without following anything (for loops whose caller already does). */
+  get untracked(): Map<string, PageMeta> {
+    return this.#map;
+  }
+
+  /**
    * The same map, following only pages coming, going or changing place: for
    * long lists (a database's rows, the tree) that typing a title shouldn't
    * redo. Read only place fields through it.
@@ -91,6 +122,7 @@ class Store {
     this.#map = new Map(next.map((p) => [p.id, p]));
     this.#index = new Map(next.map((p, i) => [p.id, i]));
     this.#ver++;
+    this.#reloads++;
     if (moved) this.#place++;
   }
 
@@ -98,19 +130,27 @@ class Store {
   edit(changes: Map<string, Partial<PageMeta>>) {
     let next: PageMeta[] | null = null;
     let moved = false;
+    const under = new Set<string>();
+    const stamped = new Set<string>();
     for (const [id, fields] of changes) {
       const i = this.#index.get(id);
       if (i === undefined) continue;
       next ??= this.pages.slice();
-      const page = { ...next[i], ...fields };
+      const was = next[i];
+      const page = { ...was, ...fields };
       next[i] = page;
       this.#map.set(id, page);
-      if (Object.keys(fields).some((k) => PLACE_FIELDS.has(k as keyof PageMeta))) moved = true;
+      const keys = Object.keys(fields);
+      if (keys.some((k) => PLACE_FIELDS.has(k as keyof PageMeta))) moved = true;
+      (keys.every((k) => k === 'updatedAt') ? stamped : under).add(page.parentId ?? '');
+      if (was.parentId !== page.parentId) under.add(was.parentId ?? '');
     }
     if (!next) return;
     this.pages = next;
     this.#ver++;
     if (moved) this.#place++;
+    for (const p of under) this.#under[p] = (this.#under[p] ?? 0) + 1;
+    for (const p of stamped) this.#stamped[p] = (this.#stamped[p] ?? 0) + 1;
   }
 
   editOne(id: string, fields: Partial<PageMeta>) {
