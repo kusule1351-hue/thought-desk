@@ -960,8 +960,13 @@ impl Db {
         // or a fragment in the middle of a word). LIKE already ignores ASCII
         // case, which is all SQLite's lower() would fold, so the columns are
         // compared as they are (no copy of every body per query).
-        if (hits.len() as i64) < limit {
-            let needle = query.trim().to_lowercase();
+        // The substring scan reads every body, so it only runs when the index
+        // can't be trusted: it found nothing, the query is a fragment too
+        // short to tokenize well, or the text is one unicode61 doesn't split
+        // into words (e.g. CJK).
+        let needle = query.trim().to_lowercase();
+        let scan = hits.is_empty() || needle.chars().count() < 3 || !needle.is_ascii();
+        if scan && (hits.len() as i64) < limit {
             let like = format!(
                 "%{}%",
                 needle.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
