@@ -7,6 +7,7 @@
  * its values here. Edits apply right away and are saved in batches.
  */
 
+import { untrack } from 'svelte';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { api } from './api';
 import { clock } from './clock.svelte';
@@ -87,6 +88,15 @@ const stamp = (ms: number) => {
   return `${isoDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+/** Properties by the names formulas write them as (and by id); a name wins over an id. */
+function namesOf(props: Property[]): Map<string, Property> {
+  const m = new Map<string, Property>();
+  for (const p of props) if (!m.has(p.id.toLowerCase())) m.set(p.id.toLowerCase(), p);
+  for (const p of props) m.set(p.name.trim().toLowerCase(), p);
+  for (const p of props) if (!m.has(p.name)) m.set(p.name, p);
+  return m;
+}
+
 class Databases {
   schemas = $state<Record<string, DatabaseSchema>>({});
   /**
@@ -133,8 +143,19 @@ class Databases {
       list.push(row);
     }
     for (const list of [...rows.values(), ...templates.values()]) list.sort(byKey);
-    return { rows, templates };
+    // Keep last time's list where nothing in it changed (a page elsewhere was
+    // favorited or tagged), so views showing it don't work their rows out again.
+    const prev = untrack(() => this.#lastSplit);
+    if (prev) {
+      for (const [now, before] of [[rows, prev.rows], [templates, prev.templates]] as const)
+        for (const [db, list] of now) {
+          const old = before.get(db);
+          if (old && old.length === list.length && old.every((r, i) => r === list[i])) now.set(db, old);
+        }
+    }
+    return (this.#lastSplit = { rows, templates });
   });
+  #lastSplit: { rows: Map<string, DbRow[]>; templates: Map<string, DbRow[]> } | null = null;
   byDb = $derived(this.#split.rows);
 
   /** Sub-items shown under their parent (by row id; for this session). */
@@ -193,16 +214,27 @@ class Databases {
   }
 
   props(dbId: string): Property[] {
+    const plain = this.#copies?.get(dbId);
+    if (plain) return plain.list;
     return this.schemas[dbId]?.properties ?? [];
   }
 
   prop(dbId: string, propId: string | undefined | null): Property | undefined {
-    return propId ? this.#props.get(dbId)?.get(propId) : undefined;
+    if (!propId) return undefined;
+    const plain = this.#copies?.get(dbId);
+    return plain ? plain.byId.get(propId) : this.#props.get(dbId)?.get(propId);
   }
 
   propMap(dbId: string): Map<string, Property> {
-    return this.#props.get(dbId) ?? new Map();
+    return this.#copies?.get(dbId)?.byId ?? this.#props.get(dbId) ?? new Map();
   }
+
+  /**
+   * While `query` works through its rows: plain copies of the properties it
+   * can read. The schemas are deeply reactive, and reading a field through
+   * them for every row of a big database costs more than the work itself.
+   */
+  #copies: Map<string, { list: Property[]; byId: Map<string, Property>; byName: Map<string, Property> }> | null = null;
 
   views(dbId: string): DbView[] {
     return this.schemas[dbId]?.views ?? [];
@@ -215,12 +247,28 @@ class Databases {
 
   title(rowOrId: DbRow | string): string {
     const id = typeof rowOrId === 'string' ? rowOrId : rowOrId.id;
-    return store.byId.get(id)?.title || 'Untitled';
+    return this.#page(id)?.title || 'Untitled';
   }
+
+  /**
+   * True while `query` works through its rows: it has already followed
+   * everything they read, so each value needn't follow it again.
+   */
+  #quiet = false;
 
   /** Makes the caller depend on a database's values. */
   #track(dbId: string) {
-    void this.#version[dbId];
+    if (!this.#quiet) void this.#version[dbId];
+  }
+
+  /**
+   * A page's fields as a database value reads them: a row follows changes to
+   * its database's rows, not every page. `stamps` for created/edited times.
+   */
+  #page(id: string, stamps = false): PageMeta | undefined {
+    if (this.#quiet) return store.untracked.get(id);
+    const db = this.rows[id]?.dbId;
+    return (db ? store.under(db, stamps) : store.byId).get(id);
   }
 
   /** Tells everything showing a database's values that they changed. */
@@ -242,7 +290,7 @@ class Databases {
 
   #live(id: string): DbRow | undefined {
     const row = this.rows[id];
-    const page = row ? store.byId.get(id) : undefined;
+    const page = row ? this.#page(id) : undefined;
     return page && !page.deletedAt ? row : undefined;
   }
 
@@ -259,7 +307,7 @@ class Databases {
   /** What a property holds for a row, normalised for sorting and filtering. */
   get(row: DbRow, p: Property): Plain {
     this.#track(row.dbId);
-    const page = store.byId.get(row.id);
+    const page = this.#page(row.id, p.type === 'created' || p.type === 'edited');
     const c = row.cells[p.id];
     switch (p.type) {
       case 'title':
@@ -344,9 +392,9 @@ class Databases {
       case 'checkbox':
         return v ? 'Yes' : 'No';
       case 'created':
-        return formatTimestamp(store.byId.get(row.id)?.createdAt ?? 0);
+        return formatTimestamp(this.#page(row.id, true)?.createdAt ?? 0);
       case 'edited':
-        return formatTimestamp(store.byId.get(row.id)?.updatedAt ?? 0);
+        return formatTimestamp(this.#page(row.id, true)?.updatedAt ?? 0);
       case 'id':
         return p.config.prefix ? `${p.config.prefix}-${row.number}` : String(row.number);
       case 'button':
@@ -407,12 +455,11 @@ class Databases {
 
   /** What a formula sees: every property of the row, by name. */
   scope(row: DbRow, now = Date.now()): Scope {
-    const props = this.props(row.dbId);
+    const names = this.#names(row.dbId);
     return {
       now,
       prop: (name) => {
-        const n = name.trim().toLowerCase();
-        const q = props.find((x) => x.name.trim().toLowerCase() === n) ?? props.find((x) => x.id.toLowerCase() === n);
+        const q = names.get(name) ?? names.get(name.trim().toLowerCase());
         if (!q) return undefined;
         const v = this.fvalue(row, q);
         if (v instanceof FormulaError) throw new FormulaError(`{${q.name}} has a problem: ${v.message}`);
@@ -445,9 +492,9 @@ class Databases {
         return new FDate(new Date(y, m - 1, dd, h, mi).getTime(), !!time);
       }
       case 'created':
-        return new FDate(store.byId.get(row.id)?.createdAt ?? 0, true);
+        return new FDate(this.#page(row.id, true)?.createdAt ?? 0, true);
       case 'edited':
-        return new FDate(store.byId.get(row.id)?.updatedAt ?? 0, true);
+        return new FDate(this.#page(row.id, true)?.updatedAt ?? 0, true);
       case 'formula':
         return this.formula(row, q);
       case 'rollup':
@@ -522,10 +569,16 @@ class Databases {
   }
 
   ctx(dbId: string): Ctx {
+    // Asked once per row while sorting and filtering; a property's kind holds for one query.
+    const kinds = new Map<Property, ValueKind>();
     return {
       get: (row, p) => this.get(row, p),
       text: (row, p) => this.text(row, p),
-      kind: (p) => this.kind(dbId, p),
+      kind: (p) => {
+        let k = kinds.get(p);
+        if (k === undefined) kinds.set(p, (k = this.kind(dbId, p)));
+        return k;
+      },
       rank: (p, key) => {
         const i = p.type === 'course' ? planner.courses.findIndex((c) => c.id === key) : options(p).findIndex((o) => o.id === key);
         return i < 0 ? 1e9 : i;
@@ -538,6 +591,67 @@ class Databases {
 
   /** A view's rows: searched, filtered, sorted and (when set) grouped. */
   query(dbId: string, view: DbView, search = ''): { rows: DbRow[]; groups: Group[] | null } {
+    // Follow everything the rows can read once, up front: this database and
+    // the ones its relations reach (for rollups and linked titles). Then work
+    // through the rows without following each value again.
+    const reach = this.#reach(dbId);
+    const props = [...reach].flatMap((db) => this.props(db));
+    const key = [
+      search,
+      prefs.weekStart,
+      clock.today,
+      JSON.stringify(view.config),
+      JSON.stringify(props),
+      ...[...reach].map((db) => `${this.#version[db] ?? 0}:${store.stamp(db, this.props(db).some((p) => p.type === 'edited'))}`),
+      props.some((p) => p.type === 'course') ? JSON.stringify(planner.courses) : '',
+    ].join('\n');
+    const files = props.some((p) => p.type === 'files') ? library.byId : null;
+    const rows = this.rowsOf(dbId);
+    // Nothing it reads changed (a page elsewhere was renamed or favorited):
+    // hand back the same result, so the view doesn't redraw either.
+    const memo = `${dbId}:${view.id}`;
+    const last = this.#results.get(memo);
+    if (last && last.key === key && last.rows === rows && last.files === files) return last.result;
+    let result: { rows: DbRow[]; groups: Group[] | null };
+    if (this.#quiet) result = this.#query(dbId, view, search);
+    else {
+      this.#copies = new Map(
+        [...reach].map((db) => {
+          const list = $state.snapshot(this.props(db)) as Property[];
+          return [db, { list, byId: new Map(list.map((p) => [p.id, p])), byName: namesOf(list) }];
+        }),
+      );
+      this.#quiet = true;
+      try {
+        result = this.#query(dbId, $state.snapshot(view) as DbView, search);
+      } finally {
+        this.#quiet = false;
+        this.#copies = null;
+      }
+    }
+    this.#results.set(memo, { key, rows, files, result });
+    return result;
+  }
+
+  /** Each view's last result and what it was worked out from (one per view, so it stays as small as the views). */
+  #results = new Map<string, { key: string; rows: DbRow[]; files: unknown; result: { rows: DbRow[]; groups: Group[] | null } }>();
+
+  /** A database and every database its relations lead to, however far. */
+  #reach(dbId: string): Set<string> {
+    const seen = new Set([dbId]);
+    for (const db of seen)
+      for (const p of this.props(db)) if (p.type === 'relation' && p.config.database) seen.add(p.config.database);
+    return seen;
+  }
+
+  /** Each property by its name as a formula writes it (and by id), per database. */
+  #byName = $derived(new Map(Object.values(this.schemas).map((s) => [s.id, namesOf(s.properties)])));
+
+  #names(dbId: string): Map<string, Property> {
+    return this.#copies?.get(dbId)?.byName ?? this.#byName.get(dbId) ?? new Map();
+  }
+
+  #query(dbId: string, view: DbView, search: string): { rows: DbRow[]; groups: Group[] | null } {
     const ctx = this.ctx(dbId);
     const map = this.propMap(dbId);
     const c = view.config;
@@ -569,7 +683,7 @@ class Databases {
     return (row) => {
       let t = texts.get(row.id);
       if (t === undefined) texts.set(row.id, (t = others.map((p) => this.text(row, p)).join('\n').toLowerCase()));
-      return `${(store.byId.get(row.id)?.title ?? '').toLowerCase()}\n${t}`;
+      return `${(this.#page(row.id)?.title ?? '').toLowerCase()}\n${t}`;
     };
   }
 
@@ -681,8 +795,8 @@ class Databases {
 
   /** The stored value behind a property (for undo). */
   raw(row: DbRow, p: Property): CellValue {
-    if (p.type === 'title') return store.byId.get(row.id)?.title ?? '';
-    if (p.type === 'tags') return [...(store.byId.get(row.id)?.tags ?? [])];
+    if (p.type === 'title') return this.#page(row.id)?.title ?? '';
+    if (p.type === 'tags') return [...(this.#page(row.id)?.tags ?? [])];
     const v = row.cells[p.id];
     return v === undefined ? null : $state.snapshot(v) as CellValue;
   }
