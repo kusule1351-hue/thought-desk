@@ -1,232 +1,124 @@
+<div align="center">
+
+<img src="site/public/icon.svg" width="96" height="96" alt="">
+
 # Thought Desk
 
-A fast, local-first notes workspace in the spirit of Notion: nested pages, a block editor, full-text search, databases, plus assignments, a calendar and a file library that all link together. It has a custom title bar, a vertical sidebar and a black-and-white look with optional accent colors. Built with **Rust + Tauri 2 + TypeScript** (Svelte 5 components).
+**Write, plan and study in one quiet place.**
+
+A free, local-first notes app for students: pages, assignments, a calendar,<br>
+flashcards and databases, all linked together. Bring a friend onto a page when you want one.
+
+[![Latest release](https://img.shields.io/github/v/release/kusule1351-hue/thought-desk?label=release&color=111111)](https://github.com/kusule1351-hue/thought-desk/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/kusule1351-hue/thought-desk/total?color=111111)](https://github.com/kusule1351-hue/thought-desk/releases)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-111111)](LICENSE)
+[![Discord](https://img.shields.io/badge/chat-Discord-5865F2)](https://discord.gg/JEaUHwz5bP)
+
+[**Download for Windows**](https://thoughtdesk.org/download/windows) &nbsp;·&nbsp; [**Mac**](https://thoughtdesk.org/download/mac) &nbsp;·&nbsp; [**Linux**](https://thoughtdesk.org/download/linux) &nbsp;·&nbsp; [thoughtdesk.org](https://thoughtdesk.org)
+
+<br>
+
+<img src=".github/readme/hero.webp" alt="Two Thought Desk windows, one dark and one light, showing the same study plan as two friends write in it together">
+
+</div>
+
+<br>
+
+## Everything in one place
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<img src=".github/readme/write.webp" alt="A study plan page with a to-do list and a typeset formula">
+<h3>Write</h3>
+Pages inside pages, a block editor with <code>/</code> commands and Markdown shortcuts, and math you type as LaTeX: <code>$\frac{dC}{dt}$</code> becomes a real formula.
+</td>
+<td width="50%" valign="top">
+<img src=".github/readme/plan.webp" alt="The calendar, showing a month of classes and assignments">
+<h3>Plan</h3>
+Assignments sorted by when they're due, and a calendar of your classes and deadlines. Import your schedule from Canvas, Google Calendar or Outlook.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src=".github/readme/organize.webp" alt="A reading list database shown as a board grouped by status">
+<h3>Organize</h3>
+Databases you can see as a table, board, gallery, list, calendar, chart, timeline or form, with formulas, relations and automations.
+</td>
+<td width="50%" valign="top">
+<img src=".github/readme/study.webp" alt="A flashcard being studied, with Again, Hard, Good and Easy buttons">
+<h3>Remember</h3>
+Write flashcards right in your notes. Spaced repetition brings each card back just before you'd forget it.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src=".github/readme/together.webp" alt="A friend's words arriving in a shared page, marked with her name">
+<h3>Together</h3>
+Invite a friend to a page and write at the same time, with each other's cursors and names. Only that page is shared, and you both keep it afterwards.
+</td>
+<td width="50%" valign="top">
+<h3>And the rest</h3>
+
+- Tabs and split view
+- Search everything with <kbd>Ctrl</kbd> <kbd>K</kbd>
+- Quick Capture from anywhere
+- Course pages, grades and lecture notes in one click
+- Reminders before things are due
+- Light, dark and color themes
+- Export to Word and Markdown (and PDF on Windows)
+- Every shortcut can be changed
+
+**[See every feature →](docs/FEATURES.md)**
+</td>
+</tr>
+</table>
+
+## Yours, on your computer
+
+- **Your notes stay on your computer.** Everything lives in one file on your disk and works offline. Nothing leaves it unless you write a page together with a friend, and the relay that carries that writing keeps none of it.
+- **No account needed.** Signing in is optional, and only for friends and writing together. Even then, only your profile, your friends and your invites are online.
+- **Take it with you.** Export every page to Markdown (it opens as an Obsidian vault) and every database to CSV, whenever you like.
+- **Open source.** Every line is here to read, under the [AGPL-3.0](LICENSE).
+
+## Small and fast
+
+| | Thought Desk | A typical Electron notes app |
+|---|---|---|
+| Download | **about 4 MB** | 80–200 MB |
+| Memory while open | **about 115 MB** | 300–600 MB |
+
+Built with Rust, Tauri and Svelte on the web view your system already has, instead of shipping its own copy of Chrome. It's tested against workspaces of 7,500 pages and databases of 50,000 rows. [How it stays fast →](docs/PERFORMANCE.md)
 
 ## Download
 
-Get it from [thoughtdesk.org/download](https://thoughtdesk.org/download), which picks the file for your system, or from the [latest release](https://github.com/kusule1351-hue/thought-desk/releases/latest):
-
-- **Windows 10 and 11:** the `_x64-setup.exe` installer (about 4 MB). It isn't code-signed yet, so Windows may show "Windows protected your PC": click **More info**, then **Run anyway** (Smart App Control, if it's on, blocks it outright). Signing through SignPath is being set up: see the [code signing policy](https://thoughtdesk.org/code-signing).
-- **macOS** (Apple silicon and Intel): the `_universal.dmg`. It's signed and notarized by Apple, so it opens like any other app.
-- **Linux:** the `_amd64.deb` for Ubuntu and Debian (`sudo apt install ./Thought.Desk_*_amd64.deb`), or the `_amd64.AppImage` for other distributions.
-
-From 0.5.1 on, the app updates itself on every system: it checks for a new version when it starts, and installs it with one click. A Microsoft Store version is coming.
-
-## Why it's light
-
-| | Thought Desk | Typical Electron notes app |
-|---|---|---|
-| Installer / binary | ~4.4 MB exe | 80–200 MB |
-| Memory, open | ~115 MB | 300–600 MB |
-| Memory, minimized | ~95 MB | unchanged |
-
-*Private working set summed over all processes, measured on Windows 11 with the release build.*
-
-- **System WebView instead of a bundled Chromium.** Tauri renders with the WebView2 runtime that ships with Windows.
-- **Tiny frontend runtime.** Svelte compiles to plain DOM code; the JS heap sits around 3–5 MB.
-- **Only one editor is alive at a time.** Opening a page destroys the previous editor; the sidebar only loads page titles, never bodies.
-- **Trims itself when minimized.** The Rust side hides and suspends the WebView and sets WebView2's memory target to *low*. Everything is restored when the window comes back. See `src-tauri/src/memory.rs`.
-- **Size-optimized release profile** (LTO, `opt-level = "s"`, stripped, `panic = "abort"`).
-
-### Built for years of notes
-
-Tested against a workspace of 7,500 pages (a 2 MB book among them), 2,000 files, 3,000 assignments and events, 11,000 open to-dos and 17,000 flashcards:
-
-- **Bodies live apart from the page list.** Listing pages, counting and recent pages never read through page text.
-- **Links, to-dos and flashcards are indexed on save.** Backlinks, file usage, Home and the flashcard counts are lookups, not a parse of every page (file usage went from 92 s to 7 ms).
-- **Storage work never runs on the UI thread,** so a slow query can't freeze the window.
-- **Long lists render as you scroll**: Home, Assignments, Files, Flashcards, tags, Trash and big sidebar folders.
-- **Long pages draw only what's on screen.** Blocks (and items of long lists) out of sight skip layout until they scroll near, so pages with thousands of blocks or a long checklist open 2–3× faster.
-- **Big media streams in chunks.** Audio, video and PDFs are served as byte ranges instead of being read into memory whole.
-- **The database gives space back** when you delete things for good.
-
-Databases were tested the same way: a 50,000-row tracker linked to a 5,000-row one, 40 smaller databases, notes on thousands of rows and 100,000 edits:
-
-- **Rows are read when a database is first shown,** not at start-up, so databases you aren't using cost nothing: with 58,000 rows the app starts at about 185 MB instead of 260 MB. The databases you opened lately are read in the background once start-up settles, and hovering one in the sidebar starts reading it, so even the 49,000-row table opens in 0.02–0.13 s.
-- **Saving a value takes about 0.2 ms.** Rows keep their gallery picture with them, so listing them never reads their pages.
-- **A row's place in its database is its own order key,** so deleting or restoring one row never renumbers the other 50,000 (it took over a minute; now it's instant).
-- **Big tables stay quick in the window:** rows aren't wrapped one value at a time, sort values are worked out once per row, search remembers each row's text between keystrokes, and rows out of sight skip layout. Sorting 50,000 rows takes about 0.3 s, editing a cell 0.1 s.
-- **New rows appear at the top of the view** instead of drawing every row down to the end, and board columns show their first 50 cards with more on request.
-- **Nothing piles up:** until a copy first syncs, rows deleted for good leave no note behind in the sync outbox.
-- **No leaks:** 40 rounds through databases, pages, Home, the Calendar and search leave the page's memory, elements and listeners where they were.
-
-## Features
-
-- **Welcome screen:** a new install opens on four short steps: your name (Home greets you by it), how the app looks (light, dark or matching the system, an accent color and a writing font, applied as you choose), three things worth knowing (`/`, `Ctrl+K`, Home), and you're set. All of it can be changed in Settings, which can also show the welcome again. People who used the app before don't see it.
-- **A gentle first run:** Home shows a "Get set up for the semester" checklist (add courses, bring in your class schedule, add an assignment, make a flashcard deck) that ticks itself off and can be hidden. An empty page offers starters (lecture notes, study guide, flashcards, checklist, database), the Calendar explains how to import a Canvas, Google or Outlook schedule until it has one, and Flashcards offers to start a deck.
-- **Page icons:** about 120 line icons for subjects and everyday life (search them, tint them in any label colour), or an emoji if you prefer. Everything the app names itself (courses, lecture notes, the Inbox, database templates) gets a line icon in its course's colour.
-- **Tabs, like a browser's:** each tab has its own place and its own back and forward. **+** or `Ctrl+T` opens one on Home, **Open in New Tab** in a page's menu (or `Ctrl+click` or middle-click in the sidebar) opens a page in one, `Ctrl+Tab`/`Ctrl+Shift+Tab` (or `Ctrl+PgDn`/`Ctrl+PgUp`) switch, `Ctrl+W` or middle-click closes. With one tab the title bar shows breadcrumbs as before; with more, it shows the tabs, which shrink to icons in a narrow window. Tabs come back after a restart. Only the open tab has anything loaded, so tabs cost no memory.
-- **Split view:** a second page or database beside the one you're on, each with its own editor. Open one with Alt+click (sidebar or a link in your notes), "Open to the Side" in a page's menu, Alt+Enter in search, or the split button / `Ctrl+Shift+\` (an empty side offers recent pages and a search). Or drag: a page from the sidebar onto the right half opens it beside, onto the left opens it there; drag the side pane's header to the left (or the page's name in the title bar to the right) to swap sides or move the open page over. Drag the divider to resize (double-click evens it out), swap sides, or move the side page to the main view. The split and its width are remembered; on a narrow window the side hides until there's room. Page margins follow each pane's width.
-- **Block editor:** headings, to-dos, bullets, numbers, toggles, quotes, callouts, code, tables (resizable columns), images, dividers.
-- **Math (LaTeX, typeset with KaTeX):** type `$x^2$` for a formula in a sentence, `$$` then Space for one on its own line, or press `Ctrl+Shift+E` (it turns selected text into math). Click a formula to edit it in place; it updates as you type and keeps its last good form while a command is half-typed. Typing `\` suggests commands with a preview, Tab moves between the empty `{}` slots a suggestion leaves (and then out of the group), braces close themselves, and a Symbols palette has structures, Greek letters, operators, relations and arrows (it wraps selected LaTeX, e.g. into `\sqrt{…}`). Arrow keys stop on a formula so Enter edits it; Backspace in an empty one removes it. Chemistry works too (`\ce{2H2 + O2 -> 2H2O}`).
-- **Math comes along:** pasting text with `\( \)`, `\[ \]`, `$ $` or `$$ $$` (ChatGPT's copy button, a `.md` or `.tex` file) brings it in typeset along with its headings, lists, bold and code, while prices like "$5 and $10" stay text; pasted KaTeX or MathML pages (ChatGPT, Wikipedia) keep their LaTeX. Flashcards can hold formulas on either side, search finds a formula's LaTeX, Markdown export writes `$…$` / `$$…$$`, and Word export turns every formula into a real, editable Word equation. KaTeX loads the first time a page shows math, with only its woff2 fonts bundled.
-- **`/` command menu** with fuzzy matching, and **Markdown shortcuts** (`#`, `-`, `1.`, `[]`, `>`, ```` ``` ````, `---`).
-- **Block handle:** hover a block, drag `⋮⋮` to move it, click it for *Turn into / Duplicate / Move / Delete*, or press `+` to insert below.
-- **Formatting bubble** on selection: bold, italic, underline, strike, code, highlight, links, and turn into. **Color** colors text or highlights it in any of ten colors; they're stored by name, so text is drawn darker on light pages and lighter on dark ones and stays readable in every theme, and Word export keeps them.
-- **Pages:** nested pages, sub-page blocks (`/page`), and inline page links (`@`) that stay in sync when pages are renamed.
-- **Sidebar:** drag pages to reorder or nest, favorites, a Databases section, collapsible sections, resizable width (double-click the edge to reset). Hide what you don't use (Home, Assignments, Calendar, Files, Flashcards, Favorites, Courses, Databases, Tags) in Settings → Sidebar or by right-clicking it; hidden views are still a shortcut or a search away.
-- **Databases:** rows you can see as a **table, board, gallery, list, calendar, chart, timeline or form**, each view with its own filters, sorts, groups and shown properties. Start empty or from nine templates (Tasks, Projects, Reading list, Habit tracker, Study log, Budget, Applications, People, Recipes), import a `.csv` (column types are guessed: numbers, dates, checkboxes, choices, links), or paste rows straight from a spreadsheet. Every row is also a page, with room for notes under its properties; the first picture in it becomes its gallery cover.
-- **Properties:** text, number (plain, commas, percent, five currencies; shown as a figure, a bar or a ring), select, multi-select, status (to do / in progress / done stages), date (ranges and times, typed as "Friday" or "tomorrow 3pm"), checkbox, URL, email, phone, **course**, **tags**, **files** from the library, auto ID, created and edited times, **relations** (two-way, to the same or another database) **rollups** (sum, average, count, percent done…) and **buttons**. Changing a property's type converts its values.
-- **Timeline:** rows as bars from their start date to their end (one date with a range, or two date properties), on a scale of days, weeks, months or quarters. Drag a bar to move it, drag its ends to change how long it runs, and click an empty lane to give a row without a date one.
-- **Forms:** a form view is the quickest way to add a row: one question per property (choices as buttons, dates and links with their pickers), required questions, and a heading and note of your own. *Edit form* picks and orders the questions.
-- **Templates:** a template is a row to start from: its values, icon and page (a checklist, headings, a quote to fill in) are copied into each new row. Make one from the *New* button's menu or save any row as one (*Save as Template*); edit it like any row, and make it the default for a view or for every view.
-- **Sub-items:** turn them on in a table or list's settings and rows can sit under other rows, folded until opened. Each row's parent and sub-items are a two-way relation, so they also show on the row's page, in rollups and in formulas.
-- **Buttons and automations:** a button property does something in one click (set properties, add a row to any database and link it back, open the page or a link). Automations do the same on their own when a row is added or a property changes: *when Status becomes Done, set Finished to today*. They read as sentences, can be switched off, and their changes undo together with the edit that set them off.
-- **Formulas:** `{Price} * {Qty}` or `if({Done}, "✓", "")`, with 53 functions for logic, math, text, dates and lists. The editor autocompletes properties and functions, explains each one, and shows the result for a real row as you type; renaming a property updates the formulas that use it.
-- **Fast to work in:** a spreadsheet-like table (arrow keys, `Enter` or just start typing to edit, `Tab`, `Shift`+arrows to select, `Ctrl+C` / `Ctrl+V`, `Ctrl+D` fills down, `Delete` clears, `Ctrl+Enter` opens the row), column summaries (sum, average, count, percent checked…), drag cards between board columns, drag rows to reorder, filters for every type, with dates like "this week" or "within the next 7 days", and its own undo and redo.
-- **Databases fit in:** `/database` puts a new one inside a page and `/linked database` shows an existing one there, with its own view. Rows with a date show on the Calendar and can be dragged to another day, `Ctrl+K` finds rows by any value, course, tag and file properties use the app's own courses, tags and library, and databases share Trash, Favorites, Duplicate and CSV export with pages.
-- **Home:** the start screen: today's events, what's due soon, open to-dos from every page, recent pages and files, and your tags.
-- **Quick Capture:** `Ctrl+Shift+Space` (even while the app is in the background) or the box on Home. Save a to-do or a note to your Inbox page, or an assignment or event straight to the planner.
-- **Tags** on pages, assignments, events and files, with colors, a sidebar section, a page per tag, and `#tag` search.
-- **Backlinks:** pages, assignments and events show which pages link to them ("Linked from").
-- **To-dos roll up:** checkboxes written in any page collect on Home, where you can check them off.
-- **Assignments:** due dates (with optional times), courses with colors, status (to do / in progress / done), priority, notes, attachments and a linked notes page. Grouped as Overdue, Today, Tomorrow, This Week, Later; quick add, course filters and search.
-- **Calendar:** month view with a day agenda (due assignments, events, pages written that day) and a week view with a time grid. Events can be all-day or timed, span days, repeat daily/weekly/monthly, carry a course, color and location, and link a notes page. Drag events and assignments to reschedule.
-- **One session of a repeat:** open a class from the calendar and choose *This Event* or *All Events*. Changing, dragging or deleting just one session splits it off the series, which skips that date; *Skip This Date* and *Delete Series* sit side by side.
-- **Calendar import:** bring in a `.ics` file from Canvas, Google Calendar or Outlook (Calendar → Import, Settings, or `Ctrl+K`). A preview lets you pick what to import and whether each entry is an event or an assignment. Time zones are converted, weekly "Mon/Wed/Fri" classes become one repeat per weekday, skipped and moved sessions carry over, and Canvas "Title [Course]" entries are matched to courses (created if needed). Importing the same file again updates instead of duplicating.
-- **Course hubs:** each course has a page of its own (sidebar → Courses): the next two weeks of classes, open assignments, notes, files from its assignments, and details (teacher, email, office hours, room).
-- **Lecture notes in one click:** *Take Notes* on a class (in the calendar, Home, a course hub or the event sheet) opens a dated page, "Biology lecture — Oct 14", filed inside the course's notes folder and linked to that exact session. The course's *Take Notes* button picks the class under way.
-- **Flashcards:** type `/flashcard` in any page for a card with a front and a back (Enter moves to the back, then on to the next card, so a whole deck can be typed in one go). Every page with cards is a deck; the Flashcards view (`Ctrl+5`) groups decks by course and shows what's due, new and mastered. Study sessions use spaced repetition (Again / Hard / Good / Easy, keys `1`–`4`, `Space` to flip), so each card comes back just before you'd forget it. *Study* buttons sit on the deck's page, its course and Home's summary.
-- **Grades:** give an assignment a score (points earned / possible) and a category. Each course shows its current grade and letter, weighted by category ("Exams 60%, Labs 40%") or by total points when there are no weights; weights are edited right on the course page.
-- **Export as PDF or Word:** *Export as PDF* saves just the page to Downloads as a PDF, in light colors (on Windows for now). *Export as Word* writes a real `.docx` to Downloads, with Word heading styles, lists, to-dos, tables, images, code and flashcards, ready to hand in. Markdown export is still there too.
-- **Accounts (optional):** sign in with **Google**, **GitHub**, or a **6-digit code** emailed to you (Settings → Account, or the Friends page), then pick a unique **@username**. Your profile is a name and a picture (from Google or GitHub). Notes stay on your computer either way: Clerk handles signing in, and the cloud (Supabase) holds only your profile, friends list, when you were last here (friends only) and invites. The sign-in is kept encrypted by Windows (DPAPI) in the app's own folder, not in the WebView's storage, and until you sign in the app doesn't contact Clerk at all. Profile pictures come only from Clerk's picture host, and someone who isn't your friend yet shows initials. On the desktop, Google and GitHub open in your browser and come back to a listener on `127.0.0.1:47823`, so no custom link scheme is needed. A sign-in lasts 90 days; signing out ends it at once.
-- **Friends** (in the sidebar with Home and Assignments, `Ctrl+6`): a page with **Add a Friend** (by @username). What's waiting for you comes first (friend requests to **Accept** or **Decline**, invites to **Join**), then your friends, with a green dot and "Here now" when they're in the app, then what's waiting for them (requests you sent, invites you can **Withdraw**). The sidebar counts what's waiting for you. New requests and invites show up at once, and so does a friend accepting your request or joining your page (each also as a system notification when the app is in the background); a declined request or invite is said in the app only. News that comes while you're in another window waits there until you're back.
-- **Write together, live:** invite a friend to a page (**Invite a Friend…** in its menu, or **Write Together…** on the Friends page, which offers the page you were just on, a new page or a recent one), or ask them to pick one of theirs (**One of Their Pages**). When they join, a **new tab** opens for both of you with that page: you see each other's typing and named cursors, and the title syncs. The title bar shows "Live with Ben"; click it for who's here and **End Session**. Only that page is shared, never your other pages, files or databases. When either of you ends the session or closes its tab, **you both keep the page**: the guest's copy is an ordinary page in their own workspace. Switching tabs keeps you in the session; going offline keeps your edits and merges them when you're back (Yjs). A quiet session lets go of the relay: after 10 minutes with no writing from either of you and nobody at the page, the app disconnects (the other person sees you as away) and the title bar says "paused". Typing, clicking or pointing in the page reconnects it, and writing or coming back also wakes the other person's app with a signal that carries nothing (Supabase Realtime), so the two catch up. The relay (`server/`, at relay.thoughtdesk.org) passes the writing between you, checks that you're one of the two people in an active session (and again each time your app shows it a fresh sign-in, about every 45 seconds), and keeps nothing. In a page written together, a picture from a web address waits for a click (**Show**), since loading it tells that site your IP address.
-- **Export all notes:** Settings → Storage → *Export…* (or *Export All Notes as Markdown* in `Ctrl+K`) writes every page as a Markdown file into a new folder in Downloads, in folders like the sidebar (a page with sub-pages becomes a folder holding its own file). Tags, icon and dates go in front matter, links between pages become `[[wiki links]]` that resolve inside the folder (so it opens as an Obsidian vault), the pictures and files pages use are copied into `attachments/` and linked, and each database is a CSV of every row and property, with rows that have notes as pages of their own. Trash is left out. It's a copy to read anywhere, not a backup the app can restore.
-- **Reminders:** system notifications the evening before (or the morning of) a due date, an hour before anything with a due time, and 5–30 minutes before timed events. They're scheduled on the Rust side, so they fire even while the window is minimized.
-- **Files:** one library for everything you add: imports, drops, attachments and images in pages. Grid or list, filters by type and an *Unused* filter, previews for images, PDFs, audio, video and text, *Open in default app*, *Show in folder*, *Save a copy*, and where each file is used.
-- **One workspace:** `@` links a page to pages, assignments, events or files (assignment chips show a live check and due date); `/assignment`, `/event` and `/file` create or insert them from a page; a notes page links back to its assignment; due assignments show in the calendar; files dropped anywhere land in the library.
-- **Search:** `Ctrl+K` over pages (SQLite FTS5 with prefix matching and a substring fallback), assignments, events and files, with quick *Go to* and *Create* actions.
-- **Trash:** one trash for pages, assignments, events and files: soft delete with *Undo*, restore (pages with their sub-pages), permanent delete, empty trash.
-- **Custom title bar:** back/forward, breadcrumbs, save status, favorite, page menu, and Windows-style window controls. Drag anywhere on the bar; double-click maximizes.
-- **Settings:** light / dark / system theme, six color themes (Default, Paper, Slate, Sage, Rose, Dusk) plus **Custom**, made on a color wheel (pick a hue and how strongly it tints; light and dark versions are generated with readable text), accent color (Graphite, nine colors, or any color from a wheel, brightness slider or hex code), Default / Serif / Mono page fonts, small text, spell check, Quick Capture from anywhere, first day of the week, calendar import, reminders, courses.
-- **Your own keyboard shortcuts:** Settings → Keyboard Shortcuts lists every command; click one and press new keys. Clashes are caught (a shortcut moves from the command that had it; editor keys like Ctrl+B are kept), Backspace removes a shortcut, and each can be reset. Tooltips follow your choices, and the system-wide Quick Capture key re-registers with Windows.
-- Window size and position are remembered, a second launch focuses the running window, and changes autosave and are flushed on close/minimize.
-
-## Keyboard
-
-| Keys | Action |
+| System | Get it |
 |---|---|
-| `Ctrl+K` / `Ctrl+P` | Search (with text selected in the editor, `Ctrl+K` adds a link) |
-| `Ctrl+N` | New page |
-| `Ctrl+Shift+Space` | Quick Capture (system-wide when enabled in Settings) |
-| `Ctrl+1` … `Ctrl+5` | Home / Assignments / Calendar / Files / Flashcards |
-| `←` / `→`, `T` | Calendar: previous or next month or week, today |
-| `Ctrl+\` | Toggle sidebar |
-| `Ctrl+Shift+\` | Split view |
-| `Ctrl+T` / `Ctrl+W` | New tab / close tab |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
-| `Alt+←` / `Alt+→`, mouse back/forward | Navigate history |
-| `Ctrl+Shift+L` | Toggle dark mode |
-| `Ctrl+=` / `Ctrl+-` / `Ctrl+0`, `Ctrl`+scroll | Zoom in / out / back to 100% (also in Settings → Appearance) |
-| `Ctrl+,` | Settings |
-| `Ctrl+/` | Every shortcut on one sheet |
-| `Ctrl+Shift+E` | Inline math (or turn the selection into math) |
-| `Ctrl+D` | Duplicate block |
-| `Ctrl+Click` on a link | Open in browser |
-| `Ctrl+Z` / `Ctrl+Y` in a database | Undo / redo database edits |
+| **Windows 10 and 11** | [Installer](https://thoughtdesk.org/download/windows), about 4 MB. It isn't code-signed yet, so Windows may show "Windows protected your PC": click **More info**, then **Run anyway**. Signing through [SignPath](https://thoughtdesk.org/code-signing) is on its way, and so is a Microsoft Store version. |
+| **macOS** | [Disk image](https://thoughtdesk.org/download/mac) for Apple silicon and Intel, signed and notarized by Apple. |
+| **Linux** | [AppImage](https://thoughtdesk.org/download/linux), or the [.deb](https://thoughtdesk.org/download/linux-deb) for Ubuntu and Debian. |
 
-These are the defaults; every app shortcut can be changed in Settings → Keyboard Shortcuts.
+Thought Desk updates itself: it checks for a new version when it starts, and installs it in one click. Every version is on the [releases page](https://github.com/kusule1351-hue/thought-desk/releases).
 
-## Develop
+## Build from source
 
-Requirements: Node 20+, Rust (stable, MSVC toolchain on Windows), WebView2 runtime (preinstalled on Windows 10/11).
+You need Node 20+ and stable Rust (on Windows, the MSVC toolchain).
 
 ```bash
 git clone https://github.com/kusule1351-hue/thought-desk.git
 cd thought-desk
 npm install
-npm run app        # desktop app with hot reload (tauri dev)
-npm run dev        # UI only, in a browser, with an in-memory fake backend
-npm run check      # type-check the frontend
-npm run e2e        # interface tests: drive the UI in Chromium (tests/e2e); starts the relay in test mode too
-npm run bundle     # release build + Windows installer
+npm run app     # the desktop app, with hot reload
 ```
 
-```bash
-cd src-tauri && cargo test   # storage tests
-cd src-tauri && cargo test --release stress -- --ignored --nocapture --exact stress::stress   # heavy-workspace benchmark
-cd src-tauri && cargo test --release stress_databases -- --ignored --nocapture                # 55,000-row database benchmark
-```
-
-### Trying accounts and writing together by hand
-
-Sign-in needs the steps in [supabase/SETUP.md](supabase/SETUP.md) (redirect URLs, the email code template, Google and GitHub). With those done:
-
-```bash
-npm --prefix server install
-npm --prefix server run dev   # the relay, on localhost:8787, checking real sign-ins
-npm run dev                   # the interface, on localhost:1420
-```
-
-Open http://localhost:1420 in a normal window and in a private window (each has its own workspace and its own sign-in). Sign in as two different people, add each other as friends, and invite one to a page. The interface tests do all of this without accounts: they use a fake cloud shared by two browser profiles (`tests/e2e/fake-cloud.ts`) and the relay in test mode.
-
-## Data
-
-Everything lives in one SQLite database (`thoughtdesk.db`, WAL mode) plus a `files/` folder for the file library (stored under random names; the database keeps their real names). On Windows that's `%APPDATA%\app.thoughtdesk.desktop\`, and **Settings → Storage** shows the exact path. Back up that folder to back up your notes.
-
-**Settings → Storage → Change…** keeps your notes in another folder, such as OneDrive or a USB drive: they're copied there (a consistent copy of the database, taken while the app runs, and the files folder) and the app restarts using it; the old folder keeps its copy. A folder that already has Thought Desk notes is opened instead, never overwritten. *Use Default* copies them back (older notes in the app's folder are put aside in a "Replaced" folder). The choice is remembered in `location.json` in the app's own folder; if the chosen folder isn't there at start-up (a drive not plugged in), the app opens its own folder and says so. Don't open one folder from two computers at once.
-
-Set `THOUGHTDESK_DATA_DIR` to use a different folder, e.g. a portable copy on a USB drive; it wins over the folder chosen in Settings.
-
-**Ready for sync.** Databases are stored so that two copies can later be merged without a server deciding who wins. Each install has a device id; every edit to a cell, property, view, automation or row's title, icon, place or deletion carries a hybrid logical clock stamp, and changed records are queued in an outbox. Merging keeps the newest stamp per cell, so two people editing different cells of the same row both keep their edits; deleted properties and views stay as tombstones so a deletion can't be undone by an older copy. Row order uses fractional keys, so moving a row never renumbers the others. The `sync_pending` / `sync_apply` / `sync_sent` commands are the hooks an online service will use (`src-tauri/src/sync.rs`, `databases.rs`). Page bodies and the rest of the workspace aren't stamped yet.
-
-## Layout
-
-```
-src/                     TypeScript + Svelte UI
-  App.svelte             shell, global shortcuts, window show/close handling
-  lib/store.svelte.ts    page tree state, navigation history (pages and views), debounced saving
-  lib/planner.svelte.ts  courses, assignments and events
-  lib/library.svelte.ts  the file library
-  lib/tags.svelte.ts     tags; lib/todos.svelte.ts to-dos rolled up from pages; lib/capture.ts Quick Capture
-  lib/databases.svelte.ts databases: rows, values, saving, undo, import and export
-  lib/export-workspace.ts every note as Markdown in folders, databases as CSV, attachments copied
-  lib/cowork.svelte.ts   live sessions: invites and requests, starting and ending them, the relay connection, who's here
-  lib/account.svelte.ts  signing in and your profile; lib/friends.svelte.ts friends, requests and who's online
-  lib/cloud/             the cloud: Supabase (supabase.ts), signing in with Clerk (clerk.ts), and the fake the interface tests share (fake.ts)
-  lib/tabs.svelte.ts     tabs: each one a place with its own history (the active one's lives in the store)
-  lib/db/                database views (table, board, gallery, list, calendar, chart, timeline, form), pickers, formula
-                         language, query engine (filters, sorts, groups), templates, CSV, order keys
-  lib/editor/            TipTap editor: slash menu, @-links, block handle, callouts, file blocks…
-  lib/views/             Home, Assignments, Calendar (month and week), Files and tag pages
-  lib/sheets/            assignment and event editors, file preview
-  lib/components/        sidebar, title bar, search, settings, trash, menus
-  lib/ui/                shared controls: segmented control, switch, swatches, rows…
-  dev-mock.ts            fake backend for `npm run dev` (dev only, not bundled)
-tests/e2e/               interface tests (Playwright), run against `npm run dev`
-src-tauri/src/
-  db.rs                  SQLite schema and migrations, page tree, trash, FTS search (+ tests)
-  planner.rs             courses, assignments, events (+ tests)
-  library.rs             file library: import, rename, usage (+ tests)
-  organize.rs            tags, backlinks, to-dos rolled up from pages (+ tests)
-  commands.rs            Tauri commands
-  cards.rs               flashcards: decks, reviews (+ tests)
-  databases.rs           database schemas, properties, views, automations, rows and templates, merging copies (+ tests)
-  sync.rs                device id, hybrid logical clocks, outbox
-  export.rs              writing the whole-workspace export into its folder (+ tests)
-  location.rs            the folder notes are kept in: remembering a chosen one, copying the workspace there (+ tests)
-  cowork.rs              pages in a live session: their room and the Yjs state kept for reconnecting (+ tests)
-  auth.rs                the 127.0.0.1 listener Google and GitHub sign-in comes back to (+ tests)
-  secrets.rs             the sign-in, kept encrypted by Windows (DPAPI) in the app's own folder (+ tests)
-  files.rs               `tdfile://` protocol (byte ranges), stray-file cleanup
-  stress.rs              heavy-workspace benchmark (`cargo test --release stress -- --ignored`)
-  memory.rs              WebView2 suspend/trim while minimized, idle, or after Settings
-server/                  the relay for live sessions: a Cloudflare Worker that checks who may join and keeps nothing (see server/README.md)
-supabase/                the cloud schema: migrations, row-level security tests, and how to turn sign-in on (SETUP.md)
-site/                    thoughtdesk.org: the website, and the Worker that serves it (see site/README.md)
-```
+Tests, where your notes are stored and how the code is laid out: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Contributing
 
-Fixes, measurements and ideas are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up, test and send a pull request. Contributors sign a short [Contributor License Agreement](CLA.md) once, on their first pull request. Questions, ideas or just want to chat? Join the [Discord](https://discord.gg/JEaUHwz5bP).
+Fixes, measurements and ideas are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); contributors sign a short [Contributor License Agreement](CLA.md) once, on their first pull request. Questions, or just want to talk? Join the [Discord](https://discord.gg/JEaUHwz5bP).
 
 ## License
 
-Copyright (C) 2026 Kusule
+Copyright (C) 2026 Kusule. Thought Desk is free software under the [GNU Affero General Public License](LICENSE), version 3 or later: if you distribute a modified version, or let people use one over a network, you must share its source under the same license.
 
-Thought Desk is free software: you can redistribute it and/or modify it under the terms of the [GNU Affero General Public License](LICENSE) as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. If you distribute a modified version, or let people use one over a network, you must make its source code available under the same license.
-
-The license covers the code, not the Thought Desk name or logo: forks and redistributed versions need their own name and logo.
-
-The interface uses [Inter](https://rsms.me/inter/) by Rasmus Andersson, bundled under the SIL Open Font License 1.1.
+The license covers the code, not the Thought Desk name or logo: forks and redistributed versions need their own name and logo. The interface uses [Inter](https://rsms.me/inter/) by Rasmus Andersson, under the SIL Open Font License 1.1.
