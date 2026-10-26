@@ -113,6 +113,18 @@ npm run app     # the desktop app, with hot reload
 
 Tests, where your notes are stored and how the code is laid out: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
+## Contributors
+
+<table>
+<tr>
+<td align="center" width="140"><a href="https://github.com/kusule1351-hue"><img src="https://github.com/kusule1351-hue.png?size=120" width="64" height="64" alt=""><br><b>Khuselbayar Enkhmunkh</b></a><br><sub>Creator</sub></td>
+<td align="center" width="140"><a href="https://github.com/brandonrbridges"><img src="https://github.com/brandonrbridges.png?size=120" width="64" height="64" alt=""><br><b>Brandon Bridges</b></a><br><sub>Search, indexes and speed</sub></td>
+<td align="center" width="140"><a href="https://github.com/huy-victor"><img src="https://github.com/huy-victor.png?size=120" width="64" height="64" alt=""><br><b>Victor Huy</b></a><br><sub>Frozen table columns</sub></td>
+</tr>
+</table>
+
+Thank you to everyone who has [contributed](https://github.com/kusule1351-hue/thought-desk/graphs/contributors).
+
 ## Contributing
 
 Fixes, measurements and ideas are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); contributors sign a short [Contributor License Agreement](CLA.md) once, on their first pull request. Questions, or just want to talk? Join the [Discord](https://discord.gg/JEaUHwz5bP).
