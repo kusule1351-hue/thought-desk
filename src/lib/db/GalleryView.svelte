@@ -4,6 +4,7 @@
   import Icon from '../components/Icon.svelte';
   import Card from './Card.svelte';
   import { databases } from '../databases.svelte';
+  import { t } from '../i18n';
   import { Progressive } from '../progressive.svelte';
   import { pinFirst } from './query';
   import type { DbRow, DbView } from '../types';
@@ -32,7 +33,7 @@
   {#each shown as row (row.id)}
     <div role="listitem"><Card {dbId} {row} {view} cover={c.cover ?? 'page'} editTitle={editing === row.id} ondone={() => (editing = null)} /></div>
   {/each}
-  <button class="new" onclick={add}><Icon name="plus" size={16} /> New</button>
+  <button class="new" onclick={add}><Icon name="plus" size={16} /> {t('common.actions.new')}</button>
 </div>
 {#if shown.length < rows.length}<div class="more" {@attach lazy.more}></div>{/if}
 

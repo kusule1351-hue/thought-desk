@@ -16,8 +16,10 @@
   import { databases } from '../databases.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
-  import { HAS_OPTIONS, NUMBER_FORMATS, ROLLUP_FNS, STATUS_GROUPS, TYPES, newOption, options, typeInfo } from './schema';
+  import { HAS_OPTIONS, NUMBER_FORMATS, ROLLUP_FNS, STATUS_GROUPS, TYPES, TYPE_GROUPS, TYPE_GROUP_LABELS, newOption, options, typeInfo } from './schema';
   import { NO_ROOM } from './freeze';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
   import type { DbView, NumberFormat, Property, PropertyType, RollupFn, SelectOption } from '../types';
 
   let {
@@ -65,10 +67,10 @@
     update({ config: { ...prop.config, ...patch } });
   }
 
-  async function setType(t: PropertyType) {
+  async function setType(type: PropertyType) {
     picking = false;
-    if (t === prop.type) return;
-    await databases.changeType(dbId, prop.id, t);
+    if (type === prop.type) return;
+    await databases.changeType(dbId, prop.id, type);
   }
 
   // ------------------------------------------------------------- choices
@@ -158,23 +160,21 @@
     config({ database: id, back: null });
   }
 
-  const groupedTypes = $derived(
-    (['Basic', 'Thought Desk', 'Advanced', 'Automatic'] as const).map((g) => ({ g, items: TYPES.filter((t) => t.group === g && t.type !== 'title') })),
-  );
+  const groupedTypes = $derived(TYPE_GROUPS.map((g) => ({ g, items: TYPES.filter((info) => info.group === g && info.type !== 'title') })));
 </script>
 
-<Popover {anchor} width={292} {onclose} label="Property {prop.name}">
+<Popover {anchor} width={292} {onclose} label={t('dbEdit.property.menuLabel', { name: prop.name })}>
   {#if picking}
     <div class="pop-head">
-      <button class="back" onclick={() => (picking = false)}><Icon name="chevron-left" size={13} /> Type</button>
+      <button class="back" onclick={() => (picking = false)}><Icon name="chevron-left" size={13} /> {t('dbEdit.property.type')}</button>
     </div>
     {#each groupedTypes as group (group.g)}
-      <div class="pop-head">{group.g}</div>
-      {#each group.items as t (t.type)}
-        <button class="pop-item" class:active={t.type === prop.type} onclick={() => setType(t.type)}>
-          <Icon name={t.icon} size={15} />
-          <span class="grow">{t.label}</span>
-          <span class="hint">{t.hint}</span>
+      <div class="pop-head">{TYPE_GROUP_LABELS[group.g]}</div>
+      {#each group.items as info (info.type)}
+        <button class="pop-item" class:active={info.type === prop.type} onclick={() => setType(info.type)}>
+          <Icon name={info.icon} size={15} />
+          <span class="grow">{info.label}</span>
+          <span class="hint">{info.hint}</span>
         </button>
       {/each}
     {/each}
@@ -185,15 +185,15 @@
         class="pop-input"
         bind:this={nameInput}
         value={prop.name}
-        placeholder="Property name"
+        placeholder={t('dbEdit.property.name')}
         oninput={(e) => update({ name: (e.currentTarget as HTMLInputElement).value })}
         onkeydown={(e) => e.key === 'Enter' && onclose()}
-        aria-label="Property name"
+        aria-label={t('dbEdit.property.name')}
       />
     </div>
     {#if !isTitle}
       <button class="pop-item" onclick={() => (picking = true)}>
-        <span class="grow">Type</span>
+        <span class="grow">{t('dbEdit.property.type')}</span>
         <span class="hint">{typeInfo(prop.type).label}</span>
         <Icon name="chevron-right" size={13} />
       </button>
@@ -201,22 +201,22 @@
 
     {#if HAS_OPTIONS.has(prop.type)}
       <div class="pop-sep"></div>
-      <div class="pop-head">Choices</div>
+      <div class="pop-head">{t('dbEdit.choices.heading')}</div>
       {#each STATUS_GROUPS.filter((g) => prop.type === 'status' || g.key === 'todo') as g (g.key)}
         {#if prop.type === 'status'}<div class="sub-head">{g.label}</div>{/if}
         {#each choices.filter((o) => prop.type !== 'status' || (o.group ?? 'todo') === g.key) as o (o.id)}
           {@const i = choices.indexOf(o)}
           <div class="choice">
-            <button class="swatch round" style:--dot={colorVar(o.color)} onclick={(e) => (colorFor = { id: o.id, anchor: e.currentTarget as Element })} aria-label="Colour of {o.name}"></button>
+            <button class="swatch round" style:--dot={colorVar(o.color)} onclick={(e) => (colorFor = { id: o.id, anchor: e.currentTarget as Element })} aria-label={t('dbEdit.choices.colorOf', { name: o.name })}></button>
             <input
               class="choice-name"
               value={o.name}
               oninput={(e) => setChoices(choices.map((x) => (x.id === o.id ? { ...x, name: (e.currentTarget as HTMLInputElement).value } : x)))}
-              aria-label="Choice name"
+              aria-label={t('dbEdit.choices.name')}
             />
-            <button class="mini" onclick={() => moveChoice(i, -1)} disabled={i === 0} aria-label="Move up"><Icon name="arrow-up" size={12} /></button>
-            <button class="mini" onclick={() => moveChoice(i, 1)} disabled={i === choices.length - 1} aria-label="Move down"><Icon name="arrow-down" size={12} /></button>
-            <button class="mini" onclick={() => setChoices(choices.filter((x) => x.id !== o.id))} aria-label="Delete {o.name}"><Icon name="x" size={12} /></button>
+            <button class="mini" onclick={() => moveChoice(i, -1)} disabled={i === 0} aria-label={t('dbEdit.choices.moveUp')}><Icon name="arrow-up" size={12} /></button>
+            <button class="mini" onclick={() => moveChoice(i, 1)} disabled={i === choices.length - 1} aria-label={t('dbEdit.choices.moveDown')}><Icon name="arrow-down" size={12} /></button>
+            <button class="mini" onclick={() => setChoices(choices.filter((x) => x.id !== o.id))} aria-label={t('dbEdit.choices.deleteNamed', { name: o.name })}><Icon name="x" size={12} /></button>
           </div>
         {/each}
       {/each}
@@ -225,7 +225,7 @@
         <input
           class="choice-name"
           bind:value={newChoice}
-          placeholder="Add a choice"
+          placeholder={t('dbEdit.choices.add')}
           onkeydown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -233,13 +233,13 @@
             }
           }}
           onblur={addChoice}
-          aria-label="New choice"
+          aria-label={t('dbEdit.choices.new')}
         />
       </div>
     {:else if prop.type === 'number' || (prop.type === 'formula') || (prop.type === 'rollup' && !['show', 'earliest', 'latest'].includes(prop.config.fn ?? 'count'))}
       <div class="pop-sep"></div>
       {#if prop.type === 'formula'}
-        <div class="pop-head">Formula</div>
+        <div class="pop-head">{t('dbEdit.property.formula')}</div>
         <button
           class="formula"
           onclick={() => {
@@ -247,7 +247,7 @@
             onclose();
           }}
         >
-          {#if prop.config.expression}<code>{prop.config.expression}</code>{:else}<span class="hint">Write a formula…</span>{/if}
+          {#if prop.config.expression}<code>{prop.config.expression}</code>{:else}<span class="hint">{t('dbEdit.property.writeFormula')}</span>{/if}
           <Icon name="pencil" size={13} />
         </button>
       {/if}
@@ -255,38 +255,38 @@
         {@render rollup()}
       {/if}
       <div class="pop-row">
-        <span class="label">Number format</span>
+        <span class="label">{t('dbEdit.property.numberFormat')}</span>
         <select class="pop-input small" value={prop.config.format ?? 'number'} onchange={(e) => config({ format: (e.currentTarget as HTMLSelectElement).value as NumberFormat })}>
-          {#each NUMBER_FORMATS as f (f.key)}<option value={f.key}>{f.label} · {f.example}</option>{/each}
+          {#each NUMBER_FORMATS as f (f.key)}<option value={f.key}>{t('dbEdit.property.numberFormatOption', { format: f.label, example: f.example })}</option>{/each}
         </select>
       </div>
       <div class="pop-row">
-        <span class="label">Decimals</span>
+        <span class="label">{t('dbEdit.property.decimals')}</span>
         <select class="pop-input small" value={prop.config.decimals ?? 'auto'} onchange={(e) => {
           const v = (e.currentTarget as HTMLSelectElement).value;
           config({ decimals: v === 'auto' ? null : Number(v) });
         }}>
-          <option value="auto">Automatic</option>
-          {#each [0, 1, 2, 3, 4] as d (d)}<option value={d}>{d}</option>{/each}
+          <option value="auto">{t('dbEdit.property.decimalsAuto')}</option>
+          {#each [0, 1, 2, 3, 4] as d (d)}<option value={d}>{fmt.number(d)}</option>{/each}
         </select>
       </div>
       <div class="pop-row">
-        <span class="label">Show as</span>
+        <span class="label">{t('dbEdit.property.showAs')}</span>
         <Segmented
-          label="Show numbers as"
+          label={t('dbEdit.property.showNumbersAs')}
           value={prop.config.display ?? 'number'}
           options={[
-            { value: 'number', label: '123' },
-            { value: 'bar', label: 'Bar' },
-            { value: 'ring', label: 'Ring' },
+            { value: 'number', label: fmt.number(123) },
+            { value: 'bar', label: t('dbEdit.property.showAsBar') },
+            { value: 'ring', label: t('dbEdit.property.showAsRing') },
           ]}
           onchange={(v) => config({ display: v as 'number' | 'bar' | 'ring' })}
         />
       </div>
       {#if prop.config.display === 'bar' || prop.config.display === 'ring'}
         <div class="pop-row">
-          <span class="label">Full at</span>
-          <input class="pop-input small" type="number" value={prop.config.max ?? 100} oninput={(e) => config({ max: Number((e.currentTarget as HTMLInputElement).value) || 100 })} aria-label="Value that fills the bar" />
+          <span class="label">{t('dbEdit.property.fullAt')}</span>
+          <input class="pop-input small" type="number" value={prop.config.max ?? 100} oninput={(e) => config({ max: Number((e.currentTarget as HTMLInputElement).value) || 100 })} aria-label={t('dbEdit.property.fullAtValue')} />
         </div>
       {/if}
     {:else if prop.type === 'rollup'}
@@ -295,38 +295,42 @@
     {:else if prop.type === 'date'}
       <div class="pop-sep"></div>
       <div class="pop-row">
-        <span class="label">Show on Calendar</span>
-        <Switch on={!!prop.config.onCalendar} label="Show these dates on the Calendar" onchange={() => config({ onCalendar: !prop.config.onCalendar })} />
+        <span class="label">{t('dbEdit.property.showOnCalendar')}</span>
+        <Switch on={!!prop.config.onCalendar} label={t('dbEdit.property.showOnCalendarSwitch')} onchange={() => config({ onCalendar: !prop.config.onCalendar })} />
       </div>
     {:else if prop.type === 'relation'}
       <div class="pop-sep"></div>
       <div class="pop-row">
-        <span class="label">Links to</span>
+        <span class="label">{t('dbEdit.relation.linksTo')}</span>
         <select class="pop-input small" value={prop.config.database ?? ''} onchange={(e) => chooseDatabase((e.currentTarget as HTMLSelectElement).value)}>
-          <option value="" disabled>Choose a database</option>
-          {#each otherDbs as d (d.id)}<option value={d.id}>{iconText(d.icon) ? `${iconText(d.icon)} ` : ''}{d.title || 'Untitled'}{d.id === dbId ? ' (this one)' : ''}</option>{/each}
+          <option value="" disabled>{t('dbEdit.relation.chooseDatabase')}</option>
+          {#each otherDbs as d (d.id)}<option value={d.id}>{iconText(d.icon) ? `${iconText(d.icon)} ` : ''}{d.id === dbId ? t('dbEdit.relation.thisDatabase', { name: d.title || t('common.untitled') }) : d.title || t('common.untitled')}</option>{/each}
         </select>
       </div>
       {#if prop.config.database}
         <div class="pop-row">
-          <span class="label">Two-way{#if prop.config.database !== dbId}: show on {store.byId.get(prop.config.database)?.title || 'Untitled'}{/if}</span>
-          <Switch on={!!twin} label="Two-way relation" onchange={() => void databases.linkBack(dbId, prop.id, !twin)} />
+          <span class="label"
+            >{prop.config.database !== dbId
+              ? t('dbEdit.relation.twoWayShowOn', { name: store.byId.get(prop.config.database)?.title || t('common.untitled') })
+              : t('dbEdit.relation.twoWay')}</span
+          >
+          <Switch on={!!twin} label={t('dbEdit.relation.twoWaySwitch')} onchange={() => void databases.linkBack(dbId, prop.id, !twin)} />
         </div>
-        {#if twin}<p class="note">Linked rows also show this one in “{twin.name}”.</p>{/if}
+        {#if twin}<p class="note">{t('dbEdit.relation.linkedAlsoShow', { name: twin.name })}</p>{/if}
       {/if}
     {:else if prop.type === 'button'}
       <div class="pop-sep"></div>
       <div class="pop-row">
-        <span class="label">Says</span>
-        <input class="pop-input small" value={prop.config.label ?? ''} placeholder={prop.name} oninput={(e) => config({ label: (e.currentTarget as HTMLInputElement).value })} aria-label="Button text" />
+        <span class="label">{t('dbEdit.property.buttonSays')}</span>
+        <input class="pop-input small" value={prop.config.label ?? ''} placeholder={prop.name} oninput={(e) => config({ label: (e.currentTarget as HTMLInputElement).value })} aria-label={t('dbEdit.property.buttonText')} />
       </div>
-      <div class="pop-head">When clicked</div>
+      <div class="pop-head">{t('dbEdit.property.whenClicked')}</div>
       <ActionsEditor {dbId} button actions={prop.config.actions ?? []} onchange={(actions) => config({ actions })} />
     {:else if prop.type === 'id'}
       <div class="pop-sep"></div>
       <div class="pop-row">
-        <span class="label">Prefix</span>
-        <input class="pop-input small" value={prop.config.prefix ?? ''} placeholder="TASK" oninput={(e) => config({ prefix: (e.currentTarget as HTMLInputElement).value.trim() })} aria-label="Prefix" />
+        <span class="label">{t('dbEdit.property.prefix')}</span>
+        <input class="pop-input small" value={prop.config.prefix ?? ''} placeholder={t('dbEdit.property.prefixExample')} oninput={(e) => config({ prefix: (e.currentTarget as HTMLInputElement).value.trim() })} aria-label={t('dbEdit.property.prefix')} />
       </div>
     {/if}
 
@@ -334,16 +338,16 @@
     <input
       class="pop-input desc"
       value={prop.config.description ?? ''}
-      placeholder="Description (shown on hover)"
+      placeholder={t('dbEdit.property.description')}
       oninput={(e) => config({ description: (e.currentTarget as HTMLInputElement).value })}
-      aria-label="Description"
+      aria-label={t('dbEdit.property.descriptionLabel')}
     />
 
     {#if view}
       {#if prop.type !== 'button'}
         <div class="pop-sep"></div>
-        <button class="pop-item" onclick={() => sort('asc')}><Icon name="arrow-up" size={15} /><span class="grow">Sort ascending</span></button>
-        <button class="pop-item" onclick={() => sort('desc')}><Icon name="arrow-down" size={15} /><span class="grow">Sort descending</span></button>
+        <button class="pop-item" onclick={() => sort('asc')}><Icon name="arrow-up" size={15} /><span class="grow">{t('dbEdit.property.sortAscending')}</span></button>
+        <button class="pop-item" onclick={() => sort('desc')}><Icon name="arrow-down" size={15} /><span class="grow">{t('dbEdit.property.sortDescending')}</span></button>
         {#if onfilter}
           <button
             class="pop-item"
@@ -352,10 +356,10 @@
               onclose();
             }}
           >
-            <Icon name="filter" size={15} /><span class="grow">Filter</span>
+            <Icon name="filter" size={15} /><span class="grow">{t('dbEdit.property.filter')}</span>
           </button>
         {/if}
-        {#if !isTitle}<button class="pop-item" onclick={hide}><Icon name="eye-off" size={15} /><span class="grow">Hide in this view</span></button>{/if}
+        {#if !isTitle}<button class="pop-item" onclick={hide}><Icon name="eye-off" size={15} /><span class="grow">{t('dbEdit.property.hide')}</span></button>{/if}
       {/if}
       {#if view.type === 'table'}
         <div class="pop-sep"></div>
@@ -366,7 +370,7 @@
           aria-describedby={freezeBlocked ? 'freeze-no-room' : undefined}
           onclick={freezeHere}
         >
-          <Icon name="pin" size={15} /><span class="grow">Freeze through this column</span>
+          <Icon name="pin" size={15} /><span class="grow">{t('dbEdit.property.freeze')}</span>
           {#if view.config.freezeThrough === prop.id}<Icon name="check" size={13} />{/if}
         </button>
         {#if freezeBlocked}
@@ -374,14 +378,14 @@
         {/if}
         {#if view.config.freezeThrough}
           <button class="pop-item" onclick={unfreeze}>
-            <Icon name="pin-off" size={15} /><span class="grow">Unfreeze columns</span>
+            <Icon name="pin-off" size={15} /><span class="grow">{t('dbEdit.property.unfreeze')}</span>
           </button>
         {/if}
       {/if}
     {/if}
     <div class="pop-sep"></div>
-    <button class="pop-item" onclick={() => insert(-1)}><Icon name="arrow-left" size={15} /><span class="grow">Insert left</span></button>
-    <button class="pop-item" onclick={() => insert(1)}><Icon name="arrow-right" size={15} /><span class="grow">Insert right</span></button>
+    <button class="pop-item" onclick={() => insert(-1)}><Icon name="arrow-left" size={15} /><span class="grow">{t('dbEdit.property.insertLeft')}</span></button>
+    <button class="pop-item" onclick={() => insert(1)}><Icon name="arrow-right" size={15} /><span class="grow">{t('dbEdit.property.insertRight')}</span></button>
     {#if !isTitle}
       <button
         class="pop-item"
@@ -390,7 +394,7 @@
           onclose();
         }}
       >
-        <Icon name="copy" size={15} /><span class="grow">Duplicate property</span>
+        <Icon name="copy" size={15} /><span class="grow">{t('dbEdit.property.duplicate')}</span>
       </button>
       <button
         class="pop-item danger"
@@ -399,7 +403,7 @@
           onclose();
         }}
       >
-        <Icon name="trash" size={15} /><span class="grow">Delete property</span>
+        <Icon name="trash" size={15} /><span class="grow">{t('dbEdit.property.delete')}</span>
       </button>
     {/if}
   {/if}
@@ -407,23 +411,23 @@
 
 {#snippet rollup()}
   <div class="pop-row">
-    <span class="label">Relation</span>
+    <span class="label">{t('dbEdit.rollup.relation')}</span>
     <select class="pop-input small" value={prop.config.relation ?? ''} onchange={(e) => config({ relation: (e.currentTarget as HTMLSelectElement).value, target: undefined })}>
-      <option value="" disabled>{relations.length ? 'Choose' : 'Add a relation first'}</option>
+      <option value="" disabled>{relations.length ? t('dbEdit.rollup.choose') : t('dbEdit.rollup.addRelationFirst')}</option>
       {#each relations as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
     </select>
   </div>
   {#if rollupRel}
     <div class="pop-row">
-      <span class="label">Property</span>
+      <span class="label">{t('dbEdit.rollup.property')}</span>
       <select class="pop-input small" value={prop.config.target ?? ''} onchange={(e) => config({ target: (e.currentTarget as HTMLSelectElement).value })}>
-        <option value="">(just count rows)</option>
-        {#each rollupTargets as t (t.id)}<option value={t.id}>{t.name}</option>{/each}
+        <option value="">{t('dbEdit.rollup.countRows')}</option>
+        {#each rollupTargets as target (target.id)}<option value={target.id}>{target.name}</option>{/each}
       </select>
     </div>
   {/if}
   <div class="pop-row">
-    <span class="label">Calculate</span>
+    <span class="label">{t('dbEdit.rollup.calculate')}</span>
     <select
       class="pop-input small"
       value={prop.config.fn ?? 'count'}
@@ -439,7 +443,7 @@
 {/snippet}
 
 {#if colorFor}
-  <Popover anchor={colorFor.anchor} side="right" width={200} onclose={() => (colorFor = null)} label="Colour">
+  <Popover anchor={colorFor.anchor} side="right" width={200} onclose={() => (colorFor = null)} label={t('dbEdit.choices.color')}>
     <div class="swatch-pop">
       <Swatches
         value={choices.find((o) => o.id === colorFor?.id)?.color ?? 'gray'}

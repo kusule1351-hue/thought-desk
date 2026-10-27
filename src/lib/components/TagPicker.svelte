@@ -5,6 +5,9 @@
   import { fadeOut, pop } from '../motion';
   import { cleanTag, tags } from '../tags.svelte';
   import { ui, type TagPickerState } from '../ui.svelte';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
+  import Rich from '../i18n/Rich.svelte';
 
   let { picker: request }: { picker: TagPickerState } = $props();
   // svelte-ignore state_referenced_locally (fixed for this popover's life)
@@ -18,9 +21,9 @@
   let pos = $state({ left: -9999, top: -9999 });
 
   const current = $derived(tags.of(picker.table, picker.id));
-  const all = $derived([...new Set([...tags.list.map((t) => t.name), ...tags.used])].sort((a, b) => a.localeCompare(b)));
+  const all = $derived([...new Set([...tags.list.map((tag) => tag.name), ...tags.used])].sort(fmt.collator({}).compare));
   const q = $derived(cleanTag(query));
-  const shown = $derived(q ? all.filter((t) => t.includes(q)) : all);
+  const shown = $derived(q ? all.filter((tag) => tag.includes(q)) : all);
   const canCreate = $derived(q !== '' && !all.includes(q));
   const total = $derived(shown.length + (canCreate ? 1 : 0));
 
@@ -66,7 +69,7 @@
   }
 
   function toggle(name: string) {
-    const next = current.includes(name) ? current.filter((t) => t !== name) : [...current, name];
+    const next = current.includes(name) ? current.filter((tag) => tag !== name) : [...current, name];
     void tags.set(picker.table, picker.id, next);
   }
 
@@ -98,7 +101,7 @@
   <div class="bar">
     <label class="field">
       <Icon name="tag" size={14} stroke={2} />
-      <input bind:this={input} bind:value={query} placeholder="Find or create a tag" spellcheck="false" onkeydown={onKey} />
+      <input bind:this={input} bind:value={query} placeholder={t('onboarding.tagPlaceholder')} spellcheck="false" onkeydown={onKey} />
     </label>
   </div>
   <div class="list" bind:this={list}>
@@ -112,11 +115,15 @@
     {#if canCreate}
       <button class="row" class:selected={selected === shown.length} data-index={shown.length} onmousemove={() => (selected = shown.length)} onclick={() => choose(shown.length)}>
         <span class="plus"><Icon name="plus" size={14} stroke={2.2} /></span>
-        <span class="name">Create <strong>#{q}</strong></span>
+        <span class="name">
+          <Rich key="onboarding.createTag" params={{ name: q }}>
+            {#snippet tag(text: string)}<strong>#{text}</strong>{/snippet}
+          </Rich>
+        </span>
       </button>
     {/if}
     {#if !total}
-      <p class="none">Type to create your first tag</p>
+      <p class="none">{t('onboarding.noTags')}</p>
     {/if}
   </div>
 </div>

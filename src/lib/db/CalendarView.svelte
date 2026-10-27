@@ -10,6 +10,8 @@
   import { colorVar } from '../colors';
   import { prefs } from '../prefs.svelte';
   import { store } from '../store.svelte';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
   import { addDaysIso } from './query';
   import { isoDate, option, toDate } from './schema';
   import type { DateValue, DbRow, DbView, Property } from '../types';
@@ -31,8 +33,8 @@
     return Array.from({ length: weeks * 7 }, (_, i) => addDaysIso(start, i));
   });
   const weekdays = $derived.by(() => {
-    const fmt = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
-    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 7 + prefs.weekStart + i)));
+    const names = fmt.weekdayNames('short');
+    return Array.from({ length: 7 }, (_, i) => names[(prefs.weekStart + i) % 7]);
   });
 
   /** A colour for a row: its first choice's colour, if it has one. */
@@ -73,7 +75,7 @@
     month = isoDate(d).slice(0, 7);
   }
 
-  const timeFmt = (t: string) => new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(toDate(`2000-01-01T${t}`));
+  const timeFmt = (time: string) => fmt.time(toDate(`2000-01-01T${time}`));
 
   async function add(day: string) {
     if (!prop || !editable) return;
@@ -97,22 +99,22 @@
     databases.setOne(row, prop as Property, v.end ? { start: moved(v.start), end: moved(v.end) } : { start: moved(v.start) });
   }
 
-  const label = $derived(new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(toDate(`${month}-01`)));
+  const label = $derived(fmt.date(toDate(`${month}-01`), { month: 'long', year: 'numeric' }));
 </script>
 
 {#if !prop}
   <div class="setup">
-    <p>Choose which date places rows on the calendar.</p>
-    <button class="btn small raised" onclick={onsettings}><Icon name="sliders" size={14} /> Choose a date</button>
+    <p>{t('dbViews.calendar.setupHint')}</p>
+    <button class="btn small raised" onclick={onsettings}><Icon name="sliders" size={14} /> {t('dbViews.chooseDate')}</button>
   </div>
 {:else}
   <div class="cal">
     <div class="bar">
       <h3 class="month">{label}</h3>
-      {#if undated}<span class="undated">{undated} without a date</span>{/if}
-      <button class="btn small raised" onclick={() => (month = clock.today.slice(0, 7))}>Today</button>
-      <button class="icon-btn" onclick={() => shift(-1)} aria-label="Previous month"><Icon name="chevron-left" /></button>
-      <button class="icon-btn" onclick={() => shift(1)} aria-label="Next month"><Icon name="chevron-right" /></button>
+      {#if undated}<span class="undated">{t('dbViews.calendar.undated', { count: undated })}</span>{/if}
+      <button class="btn small raised" onclick={() => (month = clock.today.slice(0, 7))}>{t('dbViews.today')}</button>
+      <button class="icon-btn" onclick={() => shift(-1)} aria-label={t('dbViews.calendar.previousMonth')}><Icon name="chevron-left" /></button>
+      <button class="icon-btn" onclick={() => shift(1)} aria-label={t('dbViews.calendar.nextMonth')}><Icon name="chevron-right" /></button>
     </div>
     <div class="grid">
       {#each weekdays as w, i (i)}<div class="wd">{w}</div>{/each}
@@ -134,8 +136,8 @@
           }}
         >
           <div class="day-head">
-            <span class="num" class:today={day === clock.today}>{Number(day.slice(8))}</span>
-            {#if editable}<button class="plus" onclick={() => add(day)} aria-label="New row on {day}"><Icon name="plus" size={13} /></button>{/if}
+            <span class="num" class:today={day === clock.today}>{fmt.number(Number(day.slice(8)))}</span>
+            {#if editable}<button class="plus" onclick={() => add(day)} aria-label={t('dbViews.calendar.newRowOn', { date: day })}><Icon name="plus" size={13} /></button>{/if}
           </div>
           <div class="items">
             {#each byDay.get(day) ?? [] as item (item.row.id)}
@@ -156,7 +158,7 @@
               >
                 {#if item.time}<span class="time">{timeFmt(item.time)}</span>{/if}
                 {#if page?.icon}<span><PageIcon icon={page.icon} /></span>{/if}
-                <span class="t">{page?.title || 'Untitled'}</span>
+                <span class="t">{page?.title || t('common.untitled')}</span>
               </button>
             {/each}
           </div>

@@ -12,6 +12,7 @@
   import { cowork, type Session } from '../cowork.svelte';
   import BubbleMenu from './BubbleMenu.svelte';
   import TableMenu from './TableMenu.svelte';
+  import { t } from '../i18n';
 
   let {
     page,
@@ -129,14 +130,14 @@
         extensions: buildExtensions(
           handle,
           session
-            ? { doc: session.doc, provider: { awareness: session.awareness }, user: session.user, friendColor: () => session?.people.find((p) => !p.me)?.color }
+            ? { doc: session.doc, provider: { awareness: session.awareness }, user: session.user, friendColor: () => session?.people.find((p) => !p.me)?.color, awake: (id) => !!session?.isAwake(id) }
             : undefined,
         ),
         editorProps: {
           attributes: {
             class: 'prose',
             spellcheck: String(prefs.spellcheck),
-            'aria-label': 'Page content',
+            'aria-label': t('editor.pageContent'),
           },
         },
         // A shared page renders its document while the editor is still being made.
@@ -205,7 +206,8 @@
   });
 </script>
 
-<div class="editor-host" bind:this={host}></div>
+<!-- --list-hint: the hint app.css shows in an empty list item (a CSS string, hence the quotes). -->
+<div class="editor-host" bind:this={host} style:--list-hint={JSON.stringify(t('editor.placeholder.listItem'))}></div>
 {#if editor}
   <BubbleMenu {editor} />
   <TableMenu {editor} />

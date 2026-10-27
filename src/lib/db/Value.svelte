@@ -14,6 +14,7 @@
   import { store } from '../store.svelte';
   import { tags } from '../tags.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
   import { FDate, FormulaError, formatDateValue as fDate } from './formula';
   import { formatDateValue, formatNumber, option } from './schema';
   import type { DateValue, DbRow, Property } from '../types';
@@ -106,10 +107,10 @@
   </span>
 {:else if prop.type === 'course'}
   {@const c = planner.courseById.get(v as string)}
-  {#if c}<span class="pill" style:--pill={colorVar(c.color)}><span>{c.name || 'Untitled'}</span></span>{/if}
+  {#if c}<span class="pill" style:--pill={colorVar(c.color)}><span>{c.name || t('common.untitled')}</span></span>{/if}
 {:else if prop.type === 'tags'}
   <span class="pills" class:wrap>
-    {#each v as string[] as t (t)}<span class="pill" style:--pill={tags.color(t)}><span>#{t}</span></span>{/each}
+    {#each v as string[] as tag (tag)}<span class="pill" style:--pill={tags.color(tag)}><span>#{tag}</span></span>{/each}
   </span>
 {:else if prop.type === 'date'}
   {#if v}<span class="v-text">{formatDateValue(v as DateValue)}</span>{/if}
@@ -143,11 +144,11 @@
     }}
   ></button>
 {:else if prop.type === 'url' && v}
-  <a class="v-link" href={href(v as string)} onclick={(e) => open(href(v as string), e)} data-tip="Open in browser">{shortUrl(v as string)}</a>
+  <a class="v-link" href={href(v as string)} onclick={(e) => open(href(v as string), e)} data-tip={t('dbEdit.value.openInBrowser')}>{shortUrl(v as string)}</a>
 {:else if prop.type === 'email' && v}
-  <a class="v-link" href="mailto:{v}" onclick={(e) => open(`mailto:${v}`, e)} data-tip="Write an email">{v}</a>
+  <a class="v-link" href="mailto:{v}" onclick={(e) => open(`mailto:${v}`, e)} data-tip={t('dbEdit.value.writeEmail')}>{v}</a>
 {:else if prop.type === 'phone' && v}
-  <a class="v-link" href="tel:{v}" onclick={(e) => open(`tel:${String(v).replace(/[^\d+]/g, '')}`, e)} data-tip="Call">{v}</a>
+  <a class="v-link" href="tel:{v}" onclick={(e) => open(`tel:${String(v).replace(/[^\d+]/g, '')}`, e)} data-tip={t('dbEdit.value.call')}>{v}</a>
 {:else if prop.type === 'files'}
   <span class="pills" class:wrap>
     {#each v as string[] as id (id)}
@@ -178,7 +179,7 @@
           store.open(id);
         }}
       >
-        {#if p?.icon}<span class="emoji small"><PageIcon icon={p.icon} /></span>{:else}<Icon name="page" size={12} />{/if}<span>{p?.title || 'Untitled'}</span>
+        {#if p?.icon}<span class="emoji small"><PageIcon icon={p.icon} /></span>{:else}<Icon name="page" size={12} />{/if}<span>{p?.title || t('common.untitled')}</span>
       </button>
     {/each}
   </span>
@@ -187,11 +188,11 @@
 {:else if prop.type === 'id'}
   <span class="v-text muted num">{databases.text(row, prop)}</span>
 {:else if computed instanceof FormulaError}
-  <span class="v-error" data-tip={computed.message}><Icon name="info" size={13} /> {compact ? '' : 'Error'}</span>
+  <span class="v-error" data-tip={computed.message}><Icon name="info" size={13} /> {compact ? '' : t('dbEdit.value.error')}</span>
 {:else if typeof computed === 'number'}
   {@render number(computed)}
 {:else if typeof computed === 'boolean'}
-  <span class="v-check round readonly" class:on={computed} role="img" aria-label={computed ? 'Yes' : 'No'}></span>
+  <span class="v-check round readonly" class:on={computed} role="img" aria-label={computed ? t('common.yes') : t('common.no')}></span>
 {:else if computed instanceof FDate}
   <span class="v-text">{fDate(computed)}</span>
 {:else if Array.isArray(computed)}

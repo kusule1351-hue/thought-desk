@@ -5,6 +5,8 @@
   import { account } from '../account.svelte';
   import { cowork } from '../cowork.svelte';
   import { friends, nameOf } from '../friends.svelte';
+  import { t } from '../i18n';
+  import Rich from '../i18n/Rich.svelte';
   import { choosePage, writeWithMenu } from '../live-actions';
   import { ui, type MenuItem } from '../ui.svelte';
   import type { Friend, LiveSession } from '../cloud';
@@ -14,26 +16,27 @@
   const waiting = $derived(friends.incoming.length + cowork.incoming.length);
 
   const summary = $derived.by(() => {
-    if (!account.signedIn) return 'Add friends and write pages together';
-    if (!ready) return 'Pick a username so friends can add you';
-    const n = friends.accepted.length;
-    if (!n) return `You're @${account.profile?.username}`;
-    return `${n} friend${n === 1 ? '' : 's'}${here ? ` · ${here} here now` : ''} · you're @${account.profile?.username}`;
+    if (!account.signedIn) return t('social.friends.summary.signedOut');
+    if (!ready) return t('social.friends.summary.needsUsername');
+    const count = friends.accepted.length;
+    const username = account.profile?.username ?? '';
+    if (!count) return t('social.friends.summary.noFriends', { username });
+    return here ? t('social.friends.summary.withFriendsHere', { count, here, username }) : t('social.friends.summary.withFriends', { count, username });
   });
 
   async function addFriend() {
     const answer = await ui.prompt({
-      title: 'Add a friend',
-      message: "Type their username. You're friends once they accept.",
-      placeholder: '@username',
-      confirmLabel: 'Send Request',
+      title: t('social.friends.add.title'),
+      message: t('social.friends.add.message'),
+      placeholder: t('social.friends.add.placeholder'),
+      confirmLabel: t('social.friends.add.send'),
       icon: 'user',
     });
     if (!answer) return;
     const name = answer.value.trim().replace(/^@/, '').toLowerCase();
     try {
       const done = await friends.add(name);
-      ui.toast(done === 'accepted' ? `You're now friends with @${name}` : `Friend request sent to @${name}`);
+      ui.toast(done === 'accepted' ? t('social.friends.nowFriends', { name: `@${name}` }) : t('social.friends.add.sent', { name: `@${name}` }));
     } catch (e) {
       // Usually a typo or someone who isn't there: say so, it's not a fault.
       ui.toast(e instanceof Error ? e.message : String(e));
@@ -42,7 +45,7 @@
 
   function accept(f: Friend) {
     friends.accept(f.profile.id).then(
-      () => ui.toast(`You're now friends with ${nameOf(f)}`),
+      () => ui.toast(t('social.friends.nowFriends', { name: nameOf(f) })),
       (e) => ui.error(e),
     );
   }
@@ -61,14 +64,14 @@
     e.stopPropagation();
     const items: MenuItem[] = [
       {
-        label: 'Remove Friend',
+        label: t('social.friends.remove'),
         icon: 'trash',
         danger: true,
         action: async () => {
           const ok = await ui.confirm({
-            title: `Remove ${nameOf(f)}?`,
-            message: "You won't be friends any more. They aren't told, and you can add each other again later.",
-            confirmLabel: 'Remove',
+            title: t('social.friends.removeTitle', { name: nameOf(f) }),
+            message: t('social.friends.removeMessage'),
+            confirmLabel: t('common.actions.remove'),
             danger: true,
           });
           if (!ok) return;
@@ -86,12 +89,12 @@
 <div class="view friends-view">
   <header class="view-head">
     <div>
-      <h1 class="view-title">Friends</h1>
+      <h1 class="view-title">{t('common.views.friends')}</h1>
       <p class="view-sub">{summary}</p>
     </div>
     {#if ready}
       <div class="view-actions">
-        <button class="btn primary" onclick={addFriend}><Icon name="plus" size={15} stroke={2.2} /> Add a Friend</button>
+        <button class="btn primary" onclick={addFriend}><Icon name="plus" size={15} stroke={2.2} /> {t('social.friends.add.button')}</button>
       </div>
     {/if}
   </header>
@@ -99,17 +102,17 @@
   {#if !account.ready}
     <!-- Reading the sign-in state. -->
   {:else if !account.signedIn}
-    <EmptyState icon="users" title="Write with your friends" text="Sign in to add friends by their @username, see who's here, and write a page together, live. Your notes stay on this computer.">
-      <button class="btn primary" onclick={() => (ui.accountSheet = true)}>Sign In…</button>
+    <EmptyState icon="users" title={t('social.friends.signedOutTitle')} text={t('social.friends.signedOutText')}>
+      <button class="btn primary" onclick={() => (ui.accountSheet = true)}>{t('social.friends.signIn')}</button>
     </EmptyState>
   {:else if account.needsUsername}
-    <EmptyState icon="users" title="Pick a username" text="Friends add you by your @username.">
-      <button class="btn primary" onclick={() => (ui.accountSheet = true)}>Pick a Username…</button>
+    <EmptyState icon="users" title={t('social.pickUsername')} text={t('social.friends.needsUsernameText')}>
+      <button class="btn primary" onclick={() => (ui.accountSheet = true)}>{t('social.friends.pickUsername')}</button>
     </EmptyState>
   {:else}
     {#if waiting}
-      <h2 class="group-title">Waiting for you</h2>
-      <div class="group" role="list" aria-label="Waiting for you">
+      <h2 class="group-title">{t('social.friends.waitingForYou')}</h2>
+      <div class="group" role="list" aria-label={t('social.friends.waitingForYou')}>
         {#each cowork.incoming as row (row.id)}
           {@const who = cowork.other(row)}
           {@const name = cowork.otherName(row)}
@@ -117,14 +120,14 @@
             <Avatar {name} url={who?.profile.avatarUrl} seed={who?.profile.id ?? row.id} size={32} />
             <span class="who">
               <span class="name">{name}</span>
-              <span class="meta">{row.kind === 'invite' ? `Invites you to write “${row.title || 'Untitled'}” together` : 'Wants to write together'}</span>
+              <span class="meta">{row.kind === 'invite' ? t('social.friends.invitesYou', { title: row.title || t('common.untitled') }) : t('social.friends.wantsToWrite')}</span>
             </span>
             {#if row.kind === 'invite'}
-              <button class="btn small primary" onclick={() => join(row)} aria-label="Join {name}">Join</button>
+              <button class="btn small primary" onclick={() => join(row)} aria-label={cowork.aboutOther(row, 'social.friends.joinNamed', 'social.friends.joinFriend')}>{t('social.session.join')}</button>
             {:else}
-              <button class="btn small primary" onclick={(e) => choosePage(row, e.currentTarget as Element)} aria-label="Choose a page for {name}">Choose a Page…</button>
+              <button class="btn small primary" onclick={(e) => choosePage(row, e.currentTarget as Element)} aria-label={cowork.aboutOther(row, 'social.friends.choosePageFor', 'social.friends.choosePageForFriend')}>{t('social.friends.choosePage')}</button>
             {/if}
-            <button class="btn small raised" onclick={() => decline(row)} aria-label="Decline {name}">Decline</button>
+            <button class="btn small raised" onclick={() => decline(row)} aria-label={cowork.aboutOther(row, 'social.friends.declineSessionNamed', 'social.friends.declineSessionFriend')}>{t('social.friends.declineSession')}</button>
           </div>
         {/each}
         <!-- Someone not yet a friend shows initials, never a picture: loading
@@ -134,41 +137,45 @@
             <Avatar name={nameOf(f)} seed={f.profile.id} size={32} />
             <span class="who">
               <span class="name">{nameOf(f)}</span>
-              <span class="meta">@{f.profile.username} wants to be friends</span>
+              <span class="meta">{t('social.friends.wantsToBeFriends', { name: `@${f.profile.username ?? ''}` })}</span>
             </span>
-            <button class="btn small primary" onclick={() => accept(f)} aria-label="Accept {nameOf(f)}">Accept</button>
-            <button class="btn small raised" onclick={() => drop(f)} aria-label="Decline {nameOf(f)}">Decline</button>
+            <button class="btn small primary" onclick={() => accept(f)} aria-label={t('social.friends.acceptNamed', { name: nameOf(f) })}>{t('social.friends.accept')}</button>
+            <button class="btn small raised" onclick={() => drop(f)} aria-label={t('social.friends.declineRequestNamed', { name: nameOf(f) })}>{t('social.friends.declineRequest')}</button>
           </div>
         {/each}
       </div>
     {/if}
 
     {#if friends.accepted.length}
-      <h2 class="group-title">Friends</h2>
-      <div class="group" role="list" aria-label="Friends">
+      <h2 class="group-title">{t('social.friends.friends')}</h2>
+      <div class="group" role="list" aria-label={t('social.friends.friends')}>
         {#each friends.accepted as f (f.profile.id)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class="group-row person" role="listitem" oncontextmenu={(e) => menu(e, f)}>
             <span class="avatar">
               <Avatar name={nameOf(f)} url={f.profile.avatarUrl} seed={f.profile.id} size={32} />
-              {#if f.online}<span class="online" aria-label="Online"></span>{/if}
+              {#if f.online}<span class="online" aria-label={t('social.online')}></span>{/if}
             </span>
             <span class="who">
               <span class="name">{nameOf(f)}</span>
-              <span class="meta">@{f.profile.username}{#if f.online}{' · '}<span class="here">Here now</span>{/if}</span>
+              <span class="meta"
+                >{#if f.online}<Rich key="social.friends.handleHere" params={{ username: f.profile.username ?? '' }}>
+                    {#snippet here(text: string)}<span class="here">{text}</span>{/snippet}
+                  </Rich>{:else}@{f.profile.username}{/if}</span
+              >
             </span>
-            <button class="btn small raised" onclick={(e) => writeWithMenu(f, e.currentTarget as Element)} aria-label="Write with {nameOf(f)}">
-              <Icon name="page" size={14} /> Write Together…
+            <button class="btn small raised" onclick={(e) => writeWithMenu(f, e.currentTarget as Element)} aria-label={t('social.friends.writeWith', { name: nameOf(f) })}>
+              <Icon name="page" size={14} /> {t('social.friends.writeTogether')}
             </button>
-            <button class="icon-btn" onclick={(e) => menu(e, f)} aria-label="More for {nameOf(f)}" data-tip="More"><Icon name="more" size={15} /></button>
+            <button class="icon-btn" onclick={(e) => menu(e, f)} aria-label={t('social.friends.moreFor', { name: nameOf(f) })} data-tip={t('common.actions.more')}><Icon name="more" size={15} /></button>
           </div>
         {/each}
       </div>
     {/if}
 
     {#if friends.outgoing.length || cowork.outgoing.length}
-      <h2 class="group-title">Waiting for them</h2>
-      <div class="group" role="list" aria-label="Waiting for them">
+      <h2 class="group-title">{t('social.friends.waitingForThem')}</h2>
+      <div class="group" role="list" aria-label={t('social.friends.waitingForThem')}>
         {#each cowork.outgoing as row (row.id)}
           {@const who = cowork.other(row)}
           {@const name = cowork.otherName(row)}
@@ -176,9 +183,9 @@
             <Avatar {name} url={who?.profile.avatarUrl} seed={who?.profile.id ?? row.id} size={32} />
             <span class="who">
               <span class="name">{name}</span>
-              <span class="meta">{row.kind === 'invite' ? `Invited to write “${row.title || 'Untitled'}”` : 'Asked to write together'}</span>
+              <span class="meta">{row.kind === 'invite' ? t('social.friends.invitedTo', { title: row.title || t('common.untitled') }) : t('social.friends.askedToWrite')}</span>
             </span>
-            <button class="btn small raised" onclick={() => withdraw(row)} aria-label="Withdraw invite to {name}">Withdraw</button>
+            <button class="btn small raised" onclick={() => withdraw(row)} aria-label={cowork.aboutOther(row, 'social.friends.withdrawNamed', 'social.friends.withdrawFriend')}>{t('social.friends.withdraw')}</button>
           </div>
         {/each}
         {#each friends.outgoing as f (f.profile.id)}
@@ -186,17 +193,17 @@
             <Avatar name={nameOf(f)} seed={f.profile.id} size={32} />
             <span class="who">
               <span class="name">{nameOf(f)}</span>
-              <span class="meta">Asked · waiting for @{f.profile.username} to accept</span>
+              <span class="meta">{t('social.friends.askedWaiting', { username: f.profile.username ?? '' })}</span>
             </span>
-            <button class="btn small raised" onclick={() => drop(f)} aria-label="Cancel request to {nameOf(f)}">Cancel Request</button>
+            <button class="btn small raised" onclick={() => drop(f)} aria-label={t('social.friends.cancelRequestNamed', { name: nameOf(f) })}>{t('social.friends.cancelRequest')}</button>
           </div>
         {/each}
       </div>
     {/if}
 
     {#if friends.loaded && !friends.list.length && !cowork.incoming.length}
-      <EmptyState icon="users" title="No friends yet" text="Add someone by their @username. You're friends once they accept, and then you can write pages together.">
-        <button class="btn primary" onclick={addFriend}><Icon name="plus" size={15} stroke={2.2} /> Add a Friend</button>
+      <EmptyState icon="users" title={t('social.friends.emptyTitle')} text={t('social.friends.emptyText')}>
+        <button class="btn primary" onclick={addFriend}><Icon name="plus" size={15} stroke={2.2} /> {t('social.friends.add.button')}</button>
       </EmptyState>
     {/if}
   {/if}

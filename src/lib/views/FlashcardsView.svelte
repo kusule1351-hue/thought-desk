@@ -5,6 +5,7 @@
   import EmptyState from '../ui/EmptyState.svelte';
   import { cards, type Deck } from '../cards.svelte';
   import { colorVar } from '../colors';
+  import { t } from '../i18n';
   import { planner } from '../planner.svelte';
   import { Progressive, takeGrouped } from '../progressive.svelte';
   import { store } from '../store.svelte';
@@ -28,10 +29,10 @@
       const decks = cards.decksUnder(c.pageId);
       if (!decks.length) continue;
       decks.forEach((d) => used.add(d.pageId));
-      out.push({ key: c.id, label: c.name || 'Untitled', color: colorVar(c.color), courseId: c.id, decks });
+      out.push({ key: c.id, label: c.name || t('common.untitled'), color: colorVar(c.color), courseId: c.id, decks });
     }
     const rest = cards.decks.filter((d) => !used.has(d.pageId));
-    if (rest.length) out.push({ key: 'other', label: out.length ? 'Other Decks' : 'Decks', color: null, courseId: null, decks: rest });
+    if (rest.length) out.push({ key: 'other', label: out.length ? t('library.flashcards.otherDecks') : t('library.flashcards.decks'), color: null, courseId: null, decks: rest });
     return out;
   });
 
@@ -43,14 +44,16 @@
   const total = $derived(cards.total);
 
   const summary = $derived.by(() => {
-    if (!total) return 'Make cards in any page, then study them here';
+    if (!total) return t('library.flashcards.emptySubtitle');
     const decks = cards.decks.length;
-    const due = cards.dueCount;
-    return `${due ? `${due} to study today` : 'All caught up'} · ${total} card${total === 1 ? '' : 's'} in ${decks} deck${decks === 1 ? '' : 's'}`;
+    // Two phrases side by side, each whole: what's waiting, and what there is.
+    const due = t('library.flashcards.dueToday', { count: cards.dueCount });
+    const all = decks === 1 ? t('library.flashcards.cardsInDeck', { count: total, decks }) : t('library.flashcards.cardsInDecks', { count: total, decks });
+    return `${due} · ${all}`;
   });
 
   function deckTitle(pageId: string) {
-    return store.byId.get(pageId)?.title || 'Untitled';
+    return store.byId.get(pageId)?.title || t('common.untitled');
   }
 
   function menu(e: MouseEvent, d: Deck) {
@@ -58,11 +61,11 @@
     e.stopPropagation();
     const name = deckTitle(d.pageId);
     const items = [
-      { label: 'Study Due Cards', icon: 'cards', disabled: !(d.due + d.fresh), action: () => void cards.study([d.pageId], name) },
-      { label: 'Study All Cards', icon: 'repeat', action: () => void cards.study([d.pageId], name, { all: true }) },
-      { label: 'Open Page', icon: 'page', action: () => store.open(d.pageId) },
+      { label: t('library.flashcards.studyDue'), icon: 'cards', disabled: !(d.due + d.fresh), action: () => void cards.study([d.pageId], name) },
+      { label: t('library.flashcards.studyAll'), icon: 'repeat', action: () => void cards.study([d.pageId], name, { all: true }) },
+      { label: t('library.flashcards.openPage'), icon: 'page', action: () => store.open(d.pageId) },
       { separator: true as const },
-      { label: 'Reset Progress', icon: 'restore', danger: true, action: () => void cards.reset(d.pageId) },
+      { label: t('library.flashcards.resetProgress'), icon: 'restore', danger: true, action: () => void cards.reset(d.pageId) },
     ];
     if (e.type === 'contextmenu') ui.openMenu({ x: e.clientX, y: e.clientY, items });
     else ui.openMenuAt(e.currentTarget as Element, items, { alignRight: true });
@@ -79,23 +82,19 @@
 <div class="view">
   <header class="view-head">
     <div>
-      <h1 class="view-title">Flashcards</h1>
+      <h1 class="view-title">{t('common.views.flashcards')}</h1>
       <p class="view-sub">{summary}</p>
     </div>
     <div class="view-actions">
-      <button class="btn primary" disabled={!cards.dueCount} onclick={() => cards.study(null, 'All Decks')}>
-        <Icon name="cards" size={15} stroke={2} /> Study{cards.dueCount ? ` ${cards.dueCount}` : ''}
+      <button class="btn primary" disabled={!cards.dueCount} onclick={() => cards.study(null, t('library.flashcards.allDecks'))}>
+        <Icon name="cards" size={15} stroke={2} /> {t('library.flashcards.study', { count: cards.dueCount })}
       </button>
     </div>
   </header>
 
   {#if cards.loaded && !total}
-    <EmptyState
-      icon="cards"
-      title="No flashcards yet"
-      text="Type /flashcard in any page. Write the front, press Enter for the back, and Enter again for the next card."
-    >
-      <button class="btn primary" onclick={startDeck}><Icon name="plus" size={15} stroke={2.2} /> Start a deck</button>
+    <EmptyState icon="cards" title={t('library.flashcards.empty')} text={t('library.flashcards.emptyText')}>
+      <button class="btn primary" onclick={startDeck}><Icon name="plus" size={15} stroke={2.2} /> {t('library.flashcards.startDeck')}</button>
     </EmptyState>
   {/if}
 
@@ -107,7 +106,7 @@
         {#if g.courseId}<button class="course-link" onclick={() => store.openCourse(g.courseId!)}>{g.label}</button>{:else}{g.label}{/if}
       </span>
       {#if due && g.decks.length > 1}
-        <button class="see-all" onclick={() => studyGroup(g.decks, g.label)}>Study {due} <Icon name="chevron-right" size={12} stroke={2.2} /></button>
+        <button class="see-all" onclick={() => studyGroup(g.decks, g.label)}>{t('library.flashcards.study', { count: due })} <Icon name="chevron-right" size={12} stroke={2.2} /></button>
       {/if}
     </h2>
     <div class="group">
@@ -119,20 +118,20 @@
           <button class="deck-main" onclick={() => store.open(d.pageId)}>
             <span class="page-icon">{#if page?.icon}<PageIcon icon={page.icon} />{:else}<Icon name="cards" size={16} />{/if}</span>
             <span class="deck-text">
-              <span class="deck-title">{page?.title || 'Untitled'}</span>
+              <span class="deck-title">{page?.title || t('common.untitled')}</span>
               <span class="meta">
-                <span>{d.count} card{d.count === 1 ? '' : 's'}</span>
-                {#if d.due}<span class="due">{d.due} due</span>{/if}
-                {#if d.fresh}<span class="new">{d.fresh} new</span>{/if}
-                {#if m}<span>{Math.round((m / d.count) * 100)}% mastered</span>{/if}
+                <span>{t('library.flashcards.cardCount', { count: d.count })}</span>
+                {#if d.due}<span class="due">{t('library.flashcards.due', { count: d.due })}</span>{/if}
+                {#if d.fresh}<span class="new">{t('library.flashcards.new', { count: d.fresh })}</span>{/if}
+                {#if m}<span>{t('library.flashcards.mastered', { percent: Math.round((m / d.count) * 100) })}</span>{/if}
               </span>
             </span>
           </button>
           <div class="mastery" aria-hidden="true"><span style:width="{(m / d.count) * 100}%"></span></div>
-          <button class="btn small raised" disabled={!(d.due + d.fresh)} onclick={() => cards.study([d.pageId], page?.title || 'Untitled')}>
-            Study{d.due + d.fresh ? ` ${d.due + d.fresh}` : ''}
+          <button class="btn small raised" disabled={!(d.due + d.fresh)} onclick={() => cards.study([d.pageId], page?.title || t('common.untitled'))}>
+            {t('library.flashcards.study', { count: d.due + d.fresh })}
           </button>
-          <button class="icon-btn" onclick={(e) => menu(e, d)} data-tip="More" aria-label="More"><Icon name="more" size={15} /></button>
+          <button class="icon-btn" onclick={(e) => menu(e, d)} data-tip={t('common.actions.more')} aria-label={t('common.actions.more')}><Icon name="more" size={15} /></button>
         </div>
       {/each}
     </div>

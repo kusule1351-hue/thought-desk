@@ -1,6 +1,7 @@
 import { Node, mergeAttributes, type Editor } from '@tiptap/core';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import type { Node as PMNode } from '@tiptap/pm/model';
+import { t } from '../i18n';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -17,12 +18,13 @@ const sideText = (side: PMNode | null) =>
 /** Short random ids; review progress is kept per page and card id. */
 export const newCardId = () => Math.random().toString(36).slice(2, 10);
 
+// data-label: the small heading over each side (app.css shows it).
 export const FlashcardFront = Node.create({
   name: 'flashcardFront',
   content: 'inline*',
   defining: true,
   parseHTML: () => [{ tag: 'div[data-fc-front]' }],
-  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-fc-front': '', class: 'fc-side fc-front' }), 0],
+  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-fc-front': '', 'data-label': t('blocks.flashcard.front'), class: 'fc-side fc-front' }), 0],
 });
 
 export const FlashcardBack = Node.create({
@@ -30,7 +32,7 @@ export const FlashcardBack = Node.create({
   content: 'inline*',
   defining: true,
   parseHTML: () => [{ tag: 'div[data-fc-back]' }],
-  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-fc-back': '', class: 'fc-side fc-back' }), 0],
+  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-fc-back': '', 'data-label': t('blocks.flashcard.back'), class: 'fc-side fc-back' }), 0],
 });
 
 /** Where the caret is, if it's in a flashcard. */
@@ -174,7 +176,7 @@ export const Flashcard = Node.create({
       new Plugin({
         key: new PluginKey('flashcardIds'),
         appendTransaction: (transactions, _old, state) => {
-          if (!transactions.some((t) => t.docChanged)) return null;
+          if (!transactions.some((tx) => tx.docChanged)) return null;
           const seen = new Set<string>();
           const fix: number[] = [];
           state.doc.descendants((node, pos) => {

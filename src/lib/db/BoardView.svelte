@@ -9,6 +9,8 @@
   import Card from './Card.svelte';
   import { databases, type CellSet } from '../databases.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
   import { newOption, options } from './schema';
   import { pinFirst, type Group } from './query';
   import type { CellValue, DbRow, DbView } from '../types';
@@ -31,6 +33,8 @@
   const PAGE = 50;
   let limits = $state<Record<string, number>>({});
   const limitOf = (key: string) => limits[key] ?? PAGE;
+  /** A column's card count: the locale's digits, no thousands separator (as it always was). */
+  const badge = (n: number) => fmt.number(n, { useGrouping: false });
 
   /** Cards added here come first in their column until the view is left. */
   let fresh = $state<string[]>([]);
@@ -95,7 +99,13 @@
     if (!row) return;
     if (o.group !== d.from && movable) {
       const change: CellSet = { row, prop, value: valueFor(row, d.from, o.group) };
-      databases.set([change], { label: `moving to ${columns.find((g) => g.key === o.group)?.label ?? 'a column'}` });
+      const to = columns.find((g) => g.key === o.group)?.label;
+      databases.set([change], {
+        label:
+          to !== undefined
+            ? { undone: t('dbViews.board.undoMove', { column: to }), redone: t('dbViews.board.redoMove', { column: to }) }
+            : { undone: t('dbViews.board.undoMoveColumn'), redone: t('dbViews.board.redoMoveColumn') },
+      });
     }
     if (manual) {
       const list = (groups ?? []).find((g) => g.key === o.group)?.rows.filter((r) => r.id !== d.id) ?? [];
@@ -116,23 +126,23 @@
 
   async function addGroup() {
     if (!prop || !['select', 'status', 'multiSelect'].includes(prop.type)) return;
-    const res = await ui.prompt({ title: 'New column', placeholder: 'Name', confirmLabel: 'Add' });
+    const res = await ui.prompt({ title: t('dbViews.board.newColumn'), placeholder: t('common.name'), confirmLabel: t('common.actions.add') });
     if (!res) return;
     databases.updateProperty(dbId, prop.id, { config: { ...prop.config, options: [...options(prop), newOption(prop, res.value)] } }, { immediate: true });
   }
 
   function columnMenu(e: MouseEvent, g: Group) {
     ui.openMenuAt(e.currentTarget as Element, [
-      { label: 'New card here', icon: 'plus', action: () => void add(g) },
-      { label: 'Hide column', icon: 'eye-off', action: () => hide(g.key) },
+      { label: t('dbViews.board.newCardHere'), icon: 'plus', action: () => void add(g) },
+      { label: t('dbViews.board.hideColumn'), icon: 'eye-off', action: () => hide(g.key) },
     ]);
   }
 </script>
 
 {#if !prop}
   <div class="setup">
-    <p>Choose which property makes the columns (a status, a select, a course…).</p>
-    <button class="btn small raised" onclick={onsettings}><Icon name="sliders" size={14} /> Choose columns</button>
+    <p>{t('dbViews.board.setupHint')}</p>
+    <button class="btn small raised" onclick={onsettings}><Icon name="sliders" size={14} /> {t('dbViews.board.chooseColumns')}</button>
   </div>
 {:else}
   <div class="board" role="list">
@@ -145,10 +155,10 @@
           {:else}
             <span class="label">{g.label}</span>
           {/if}
-          <span class="count">{g.rows.length}</span>
+          <span class="count">{badge(g.rows.length)}</span>
           <span class="spacer"></span>
-          <button class="icon-btn small" onclick={(e) => columnMenu(e, g)} aria-label="Column options"><Icon name="more" size={14} /></button>
-          <button class="icon-btn small" onclick={() => add(g)} aria-label="New card in {g.label}" data-tip="New card"><Icon name="plus" size={14} /></button>
+          <button class="icon-btn small" onclick={(e) => columnMenu(e, g)} aria-label={t('dbViews.board.columnOptions')}><Icon name="more" size={14} /></button>
+          <button class="icon-btn small" onclick={() => add(g)} aria-label={t('dbViews.board.newCardIn', { column: g.label })} data-tip={t('dbViews.board.newCard')}><Icon name="plus" size={14} /></button>
         </div>
         <div class="cards">
           {#each cardsOf(g) as row (row.id)}
@@ -173,26 +183,26 @@
           {/each}
           {#if g.rows.length > limitOf(g.key)}
             <button class="add" onclick={() => (limits[g.key] = limitOf(g.key) + 200)}>
-              <Icon name="chevron-down" size={14} /> Show more ({(g.rows.length - limitOf(g.key)).toLocaleString()} left)
+              <Icon name="chevron-down" size={14} /> {t('dbViews.board.showMore', { count: g.rows.length - limitOf(g.key) })}
             </button>
           {/if}
           {#if over?.group === g.key && over.before === null && drag}<div class="drop-end"></div>{/if}
-          <button class="add" onclick={() => add(g)}><Icon name="plus" size={14} /> New</button>
+          <button class="add" onclick={() => add(g)}><Icon name="plus" size={14} /> {t('common.actions.new')}</button>
         </div>
       </div>
     {/each}
 
     <div class="side">
       {#if ['select', 'status', 'multiSelect'].includes(prop.type)}
-        <button class="add-col" onclick={addGroup}><Icon name="plus" size={14} /> Add a column</button>
+        <button class="add-col" onclick={addGroup}><Icon name="plus" size={14} /> {t('dbViews.board.addColumn')}</button>
       {/if}
       {#if hiddenGroups.length}
         <div class="hidden-list">
-          <div class="eyebrow">Hidden columns</div>
+          <div class="eyebrow">{t('dbViews.board.hiddenColumns')}</div>
           {#each hiddenGroups as g (g.key)}
-            <button class="hidden-col" onclick={() => show(g.key)} data-tip="Show again">
+            <button class="hidden-col" onclick={() => show(g.key)} data-tip={t('dbViews.board.showAgain')}>
               {#if g.color}<span class="pill" style:--pill={g.color}><span>{g.label}</span></span>{:else}<span>{g.label}</span>{/if}
-              <span class="count">{g.rows.length}</span>
+              <span class="count">{badge(g.rows.length)}</span>
             </button>
           {/each}
         </div>

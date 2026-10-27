@@ -5,6 +5,7 @@ import { addDays, startOfWeek, todayISO } from './dates';
 import { planner } from './planner.svelte';
 import { store } from './store.svelte';
 import { ui, type MenuItem } from './ui.svelte';
+import { t } from './i18n';
 
 /** Opens an item's notes page, creating it first if needed. */
 export async function openNotesPage(kind: 'assignment' | 'event', id: string) {
@@ -26,34 +27,34 @@ export function assignmentMenuItems(id: string): MenuItem[] {
   const due = (date: string | null) => () => planner.updateAssignment(id, { dueDate: date }, { immediate: true });
   const hasPage = !!(a.pageId && store.byId.get(a.pageId) && !store.byId.get(a.pageId)!.deletedAt);
   return [
-    { label: 'Open', icon: 'assignment', action: () => planner.openAssignment(id) },
+    { label: t('common.actions.open'), icon: 'assignment', action: () => planner.openAssignment(id) },
     {
-      label: a.status === 'done' ? 'Mark as Not Done' : 'Mark as Done',
+      label: a.status === 'done' ? t('pages.assignment.markNotDone') : t('pages.assignment.markDone'),
       icon: 'check',
       action: () => planner.toggleDone(id),
     },
     {
-      label: 'In Progress',
+      label: t('pages.assignment.inProgress'),
       icon: 'clock',
       checked: a.status === 'doing',
       action: () => planner.updateAssignment(id, { status: a.status === 'doing' ? 'todo' : 'doing' }, { immediate: true }),
     },
     { separator: true },
-    { header: 'Due' },
-    { label: 'Today', icon: 'today', checked: a.dueDate === today, action: due(today) },
-    { label: 'Tomorrow', icon: 'calendar', checked: a.dueDate === addDays(today, 1), action: due(addDays(today, 1)) },
-    { label: 'Next Week', icon: 'calendar', checked: a.dueDate === nextWeek, action: due(nextWeek) },
-    { label: 'No Due Date', icon: 'x', disabled: !a.dueDate, action: due(null) },
+    { header: t('pages.assignment.due') },
+    { label: t('common.today'), icon: 'today', checked: a.dueDate === today, action: due(today) },
+    { label: t('common.tomorrow'), icon: 'calendar', checked: a.dueDate === addDays(today, 1), action: due(addDays(today, 1)) },
+    { label: t('pages.assignment.nextWeek'), icon: 'calendar', checked: a.dueDate === nextWeek, action: due(nextWeek) },
+    { label: t('pages.assignment.noDueDate'), icon: 'x', disabled: !a.dueDate, action: due(null) },
     { separator: true },
-    { label: hasPage ? 'Open Notes Page' : 'Create Notes Page', icon: 'note', action: () => void openNotesPage('assignment', id) },
+    { label: hasPage ? t('pages.item.openNotesPage') : t('pages.item.createNotesPage'), icon: 'note', action: () => void openNotesPage('assignment', id) },
     {
-      label: 'Show in Calendar',
+      label: t('pages.item.showInCalendar'),
       icon: 'calendar',
       disabled: !a.dueDate || store.view === 'calendar',
       action: () => a.dueDate && calendar.show(a.dueDate),
     },
     { separator: true },
-    { label: 'Move to Trash', icon: 'trash', danger: true, action: () => void planner.trash('assignments', id) },
+    { label: t('common.actions.moveToTrash'), icon: 'trash', danger: true, action: () => void planner.trash('assignments', id) },
   ];
 }
 
@@ -61,28 +62,28 @@ export function eventMenuItems(id: string, date?: string): MenuItem[] {
   const e = planner.eventById.get(id);
   if (!e) return [];
   const repeats = e.repeat !== 'none';
-  const items: MenuItem[] = [{ label: 'Open', icon: 'calendar', action: () => planner.openEvent(id, date) }];
+  const items: MenuItem[] = [{ label: t('common.actions.open'), icon: 'calendar', action: () => planner.openEvent(id, date) }];
   if (date || !repeats) {
     // Notes for this session (a one-off event has just the one).
     const session = date ?? e.startDate;
     const has = !!planner.sessionPage(id, session);
-    items.push({ label: has ? 'Open Notes' : 'Take Notes', icon: 'note', action: () => void planner.takeNotes(id, session) });
+    items.push({ label: has ? t('pages.event.openNotes') : t('pages.event.takeNotes'), icon: 'note', action: () => void planner.takeNotes(id, session) });
   } else {
     const hasPage = !!(e.pageId && store.byId.get(e.pageId) && !store.byId.get(e.pageId)!.deletedAt);
-    items.push({ label: hasPage ? 'Open Notes Page' : 'Create Notes Page', icon: 'note', action: () => void openNotesPage('event', id) });
+    items.push({ label: hasPage ? t('pages.item.openNotesPage') : t('pages.item.createNotesPage'), icon: 'note', action: () => void openNotesPage('event', id) });
   }
   items.push({
-    label: 'Show in Calendar',
+    label: t('pages.item.showInCalendar'),
     icon: 'calendar',
     disabled: store.view === 'calendar',
     action: () => calendar.show(date ?? e.startDate),
   });
   items.push({ separator: true });
   if (repeats && date) {
-    items.push({ label: 'Skip This Date', icon: 'x', action: () => planner.skipDate(id, date) });
+    items.push({ label: t('pages.event.skipDate'), icon: 'x', action: () => planner.skipDate(id, date) });
   }
   items.push({
-    label: repeats ? 'Delete Series' : 'Move to Trash',
+    label: repeats ? t('pages.event.deleteSeries') : t('common.actions.moveToTrash'),
     icon: 'trash',
     danger: true,
     action: () => void planner.trash('events', id),

@@ -5,6 +5,8 @@
  * total points earned over points possible.
  */
 
+import { t, tAll } from './i18n';
+import { fmt } from './i18n/format';
 import type { Assignment, Course } from './types';
 
 export interface CategoryGrade {
@@ -54,20 +56,39 @@ export function letterGrade(percent: number | null): string {
   return LETTERS.find(([min]) => percent >= min - 1e-9)?.[1] ?? 'F';
 }
 
-/** "92.5%", "100%". */
+/** "92.5%", "100%": to one decimal, the locale's way ("92,5 %" in French). */
 export function formatPercent(p: number | null): string {
   if (p === null) return '—';
   const r = Math.round(p * 10) / 10;
-  return `${Number.isInteger(r) ? r : r.toFixed(1)}%`;
+  return fmt.number(r / 100, { style: 'percent', maximumFractionDigits: 1, useGrouping: false });
+}
+
+/**
+ * A category's weight with every digit it has: "40%", "33.33%". A percent
+ * unit, not the percent style, so the number isn't divided by 100 first and
+ * comes out exactly as stored (an unrounded "0.30000000000000004%" included).
+ */
+export function formatWeight(w: number): string {
+  return fmt.number(w, { style: 'unit', unit: 'percent', maximumFractionDigits: 20, useGrouping: false });
 }
 
 /** "18.5", "20". */
-export const formatPoints = (n: number) => String(Math.round(n * 100) / 100);
+export const formatPoints = (n: number) => fmt.number(Math.round(n * 100) / 100, { maximumFractionDigits: 2, useGrouping: false });
+
+/**
+ * What a weighted course calls the assignments without a category; a weight
+ * given to them is kept under this name, in the language of the day.
+ */
+const OTHER_CATEGORY = t('sheets.grade.otherCategory');
+let otherNames: string[] | null = null;
+/** Whether a weight's name is the one for assignments without a category, in any language (for finding it again). */
+const isOtherCategory = (name: string) => (otherNames ??= tAll('sheets.grade.otherCategory')).includes(name);
 
 export function courseGrade(course: Course, assignments: Assignment[]): CourseGrade {
   const mine = assignments.filter((a) => a.courseId === course.id && !a.deletedAt);
   const weights = course.weights ?? {};
   const weighted = Object.keys(weights).length > 0;
+  const other = Object.keys(weights).find(isOtherCategory) ?? OTHER_CATEGORY;
 
   const byName = new Map<string, CategoryGrade>();
   const category = (name: string) => {
@@ -83,7 +104,7 @@ export function courseGrade(course: Course, assignments: Assignment[]): CourseGr
   for (const name of Object.keys(weights)) category(name);
   for (const a of mine) {
     if (!isGraded(a)) continue;
-    const c = category(a.category || (weighted ? 'Other' : ''));
+    const c = category(a.category || (weighted ? other : ''));
     c.earned += a.score!;
     c.possible += a.maxScore!;
     c.graded++;
@@ -95,7 +116,7 @@ export function courseGrade(course: Course, assignments: Assignment[]): CourseGr
 
   const categories = [...byName.values()]
     .filter((c) => c.name || c.graded)
-    .sort((a, b) => (b.weight ?? -1) - (a.weight ?? -1) || a.name.localeCompare(b.name));
+    .sort((a, b) => (b.weight ?? -1) - (a.weight ?? -1) || fmt.collator({}).compare(a.name, b.name));
   const graded = mine.filter(isGraded).length;
 
   let percent: number | null = null;

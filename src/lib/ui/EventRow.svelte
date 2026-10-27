@@ -7,6 +7,7 @@
   import { planner } from '../planner.svelte';
   import { ui } from '../ui.svelte';
   import type { Occurrence } from '../dates';
+  import { t } from '../i18n';
 
   let {
     occ,
@@ -24,14 +25,15 @@
   const e = $derived(occ.event);
   const when = $derived.by(() => {
     if (!e.startTime) {
-      return occ.start === occ.end ? 'All day' : `${formatDate(occ.start)} – ${formatDate(occ.end)}`;
+      return occ.start === occ.end ? t('planner.dates.allDay') : t('planner.dates.range', { from: formatDate(occ.start), to: formatDate(occ.end) });
     }
     // On a day in the middle of a multi-day event, show how it continues.
-    if (day && day !== occ.start && day !== occ.end) return 'All day';
-    const start = day && day !== occ.start ? 'Until' : formatTime(e.startTime);
-    if (day && day !== occ.start) return `${start} ${formatTime(e.endTime ?? e.startTime)}`;
-    if (occ.end !== occ.start) return `${start} – ${formatDate(occ.end)}`;
-    return e.endTime && e.endTime !== e.startTime ? `${start} – ${formatTime(e.endTime)}` : start;
+    if (day && day !== occ.start && day !== occ.end) return t('planner.dates.allDay');
+    // On its last day, when it ends.
+    if (day && day !== occ.start) return t('planner.dates.untilTime', { time: formatTime(e.endTime ?? e.startTime) });
+    const start = formatTime(e.startTime);
+    if (occ.end !== occ.start) return t('planner.dates.range', { from: start, to: formatDate(occ.end) });
+    return e.endTime && e.endTime !== e.startTime ? t('planner.dates.range', { from: start, to: formatTime(e.endTime) }) : start;
   });
 
   let menuOpen = $state(false);
@@ -57,12 +59,12 @@
 >
   <span class="bar round" style:--c={planner.eventColor(e)}></span>
   <div class="main">
-    <span class="title">{e.title || 'New Event'}</span>
+    <span class="title">{e.title || t('planner.untitledEvent')}</span>
     <span class="meta">
       {#if showDate}<span>{relativeDay(occ.start, clock.today)}</span>{/if}
       <span>{when}</span>
       {#if e.location}<span class="bit"><Icon name="map-pin" size={12} stroke={2.2} />{e.location}</span>{/if}
-      {#if e.repeat !== 'none'}<span class="bit" data-tip="Repeats"><Icon name="repeat" size={12} stroke={2.2} /></span>{/if}
+      {#if e.repeat !== 'none'}<span class="bit" data-tip={t('planner.event.repeatsTip')}><Icon name="repeat" size={12} stroke={2.2} /></span>{/if}
     </span>
   </div>
   {#if date}
@@ -73,8 +75,8 @@
         ev.stopPropagation();
         void planner.takeNotes(e.id, date);
       }}
-      data-tip={notes ? 'Open notes' : 'Take notes'}
-      aria-label={notes ? 'Open notes' : 'Take notes'}
+      data-tip={notes ? t('planner.event.openNotes') : t('planner.event.takeNotes')}
+      aria-label={notes ? t('planner.event.openNotes') : t('planner.event.takeNotes')}
     >
       <Icon name="note" size={15} />
     </button>

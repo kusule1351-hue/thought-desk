@@ -2,6 +2,7 @@
   /** An item's tags as chips, plus a button to add more. */
   import Icon from '../components/Icon.svelte';
   import { store } from '../store.svelte';
+  import { t } from '../i18n';
   import { tags } from '../tags.svelte';
   import { ui } from '../ui.svelte';
   import type { TrashTable } from '../types';
@@ -21,15 +22,15 @@
 <div class="tag-row" class:compact>
   {#each list as name (name)}
     <span class="tag round" style:--c={tags.color(name)}>
-      <button class="tag-name" onclick={() => open(name)} data-tip="Show everything tagged #{name}">#{name}</button>
-      <button class="tag-x round" onclick={() => tags.set(table, id, list.filter((t) => t !== name))} aria-label="Remove #{name}">
+      <button class="tag-name" onclick={() => open(name)} data-tip={t('sheets.tag.showTagged', { name })}>#{name}</button>
+      <button class="tag-x round" onclick={() => tags.set(table, id, list.filter((other) => other !== name))} aria-label={t('sheets.tag.remove', { name })}>
         <Icon name="x" size={10} stroke={2.6} />
       </button>
     </span>
   {/each}
   <button class="add round" onclick={(e) => ui.pickTags(e.currentTarget as Element, table, id)}>
     <Icon name="tag" size={12} stroke={2} />
-    {list.length ? 'Tag' : 'Add tag'}
+    {list.length ? t('sheets.tag.addMore') : t('sheets.tag.add')}
   </button>
 </div>
 

@@ -10,8 +10,10 @@
   import Icon from '../components/Icon.svelte';
   import { databases } from '../databases.svelte';
   import { store } from '../store.svelte';
-  import { FDate, FUNCTIONS, FormulaError, formatDateValue, run, toText } from './formula';
+  import { FDate, FN_GROUPS, FN_GROUP_LABELS, FUNCTIONS, FormulaError, formatDateValue, run, toText, type FnGroup } from './formula';
   import { formatNumber, typeInfo } from './schema';
+  import { t } from '../i18n';
+  import Rich from '../i18n/Rich.svelte';
   import type { Property } from '../types';
 
   let { dbId, prop: propIn, onclose }: { dbId: string; prop: Property; onclose: () => void } = $props();
@@ -42,13 +44,14 @@
     return run(src, scope);
   });
 
+  /** The result, as the property's cells show it: dates as formatDate() writes them, which is formula output and stays English. */
   function show(v: unknown): string {
     if (v instanceof FDate) return formatDateValue(v);
     if (typeof v === 'number') return formatNumber(v, prop.config);
-    if (typeof v === 'boolean') return v ? '✓ true' : '✗ false';
-    if (Array.isArray(v)) return v.map((x) => toText(x)).join(', ') || '(empty list)';
-    const t = toText(v as never);
-    return t === '' ? '(empty)' : `“${t}”`;
+    if (typeof v === 'boolean') return v ? t('dbAuto.formulaEditor.resultTrue') : t('dbAuto.formulaEditor.resultFalse');
+    if (Array.isArray(v)) return v.map((x) => toText(x)).join(', ') || t('dbAuto.formulaEditor.emptyList');
+    const text = toText(v as never);
+    return text === '' ? t('dbAuto.formulaEditor.empty') : t('dbAuto.formulaEditor.quoted', { text });
   }
 
   // ------------------------------------------------------------ suggestions
@@ -115,23 +118,23 @@
     onclose();
   }
 
-  const groups = ['Logic', 'Math', 'Text', 'Dates', 'Lists'] as const;
-  const fnsBy = (g: string) => Object.values(FUNCTIONS).filter((f) => f.group === g);
+  const fnsBy = (g: FnGroup) => Object.values(FUNCTIONS).filter((f) => f.group === g);
 
+  /** Example formulas: their code is put in the box as it is (formulas are written in English). */
   const EXAMPLES = [
-    { label: 'Multiply two numbers', src: '{Price} * {Quantity}' },
-    { label: 'Days until a date', src: 'daysUntil({Due})' },
-    { label: 'A label from a checkbox', src: 'if({Done}, "✓ Done", "Open")' },
-    { label: 'Join text', src: '{First name} + " " + {Last name}' },
-    { label: 'Stars from a number', src: 'repeat("★", {Rating})' },
+    { label: t('dbAuto.formulaEditor.example.multiply'), src: '{Price} * {Quantity}' },
+    { label: t('dbAuto.formulaEditor.example.daysUntil'), src: 'daysUntil({Due})' },
+    { label: t('dbAuto.formulaEditor.example.checkboxLabel'), src: 'if({Done}, "✓ Done", "Open")' },
+    { label: t('dbAuto.formulaEditor.example.joinText'), src: '{First name} + " " + {Last name}' },
+    { label: t('dbAuto.formulaEditor.example.stars'), src: 'repeat("★", {Rating})' },
   ];
 </script>
 
-<Modal onclose={onclose} width={760} label="Formula" top="8vh">
+<Modal onclose={onclose} width={760} label={t('dbAuto.formulaEditor.title')} top="8vh">
   <div class="modal-head">
     <h2><Icon name="function" size={18} /></h2>
-    <input class="name" bind:value={name} placeholder="Name" aria-label="Property name" />
-    <button class="icon-btn" onclick={onclose} aria-label="Close"><Icon name="x" /></button>
+    <input class="name" bind:value={name} placeholder={t('common.name')} aria-label={t('dbAuto.formulaEditor.propertyName')} />
+    <button class="icon-btn" onclick={onclose} aria-label={t('common.actions.close')}><Icon name="x" /></button>
   </div>
   <div class="modal-body">
     <div class="editor">
@@ -141,12 +144,12 @@
         class="src"
         rows="3"
         spellcheck="false"
-        placeholder={'Type a formula, e.g. {Price} * {Quantity}'}
+        placeholder={t('dbAuto.formulaEditor.placeholder', { example: '{Price} * {Quantity}' })}
         oninput={sync}
         onkeyup={sync}
         onclick={sync}
         onkeydown={onKey}
-        aria-label="Formula"
+        aria-label={t('dbAuto.formulaEditor.title')}
       ></textarea>
       {#if suggestions.length}
         <div class="suggest" role="listbox">
@@ -157,7 +160,7 @@
               <span class="grow detail">{s.detail}</span>
             </button>
           {/each}
-          <div class="tip"><kbd>Tab</kbd> to insert</div>
+          <div class="tip"><Rich key="dbAuto.formulaEditor.tabToInsert" /></div>
         </div>
       {/if}
     </div>
@@ -166,41 +169,47 @@
       {#if result instanceof FormulaError}
         <Icon name="info" size={15} />
         <span>
-          {result.message}{#if result.at >= 0 && src}<span class="where"> — at “{src.slice(Math.max(0, result.at - 8), result.at + 8)}”</span>{/if}
+          {#if result.at >= 0 && src}<Rich key="dbAuto.formulaEditor.errorAt" params={{ error: result.message, snippet: src.slice(Math.max(0, result.at - 8), result.at + 8) }}
+              >{#snippet where(text: string)}<span class="where">{text}</span>{/snippet}</Rich
+            >{:else}{result.message}{/if}
         </span>
       {:else if src.trim()}
         <span class="label">
-          {#if sample}For “{store.byId.get(sample.id)?.title || 'Untitled'}”{:else}Result{/if}
+          {#if sample}{t('dbAuto.formulaEditor.forRow', { title: store.byId.get(sample.id)?.title || t('common.untitled') })}{:else}{t('dbAuto.formulaEditor.result')}{/if}
         </span>
         <span class="value">{show(result)}</span>
         {#if rows.length > 1}
-          <button class="icon-btn small" onclick={() => (sampleIndex = (sampleIndex + 1) % rows.length)} data-tip="Try the next row"><Icon name="arrow-down" size={13} /></button>
+          <button class="icon-btn small" onclick={() => (sampleIndex = (sampleIndex + 1) % rows.length)} data-tip={t('dbAuto.formulaEditor.nextRow')}><Icon name="arrow-down" size={13} /></button>
         {/if}
       {:else}
-        <span class="label">The result shows here as you type.</span>
+        <span class="label">{t('dbAuto.formulaEditor.emptyResult')}</span>
       {/if}
     </div>
 
     <div class="ref">
       <section>
-        <h3 class="eyebrow">Properties</h3>
+        <h3 class="eyebrow">{t('dbAuto.formulaEditor.properties')}</h3>
         <div class="items">
           {#each others as p (p.id)}
-            <button class="ref-item" onclick={() => insert(`{${p.name}}`)} onmouseenter={() => (hovered = { name: p.name, sig: typeInfo(p.type).label, doc: `Insert {${p.name}}` })}>
+            <button
+              class="ref-item"
+              onclick={() => insert(`{${p.name}}`)}
+              onmouseenter={() => (hovered = { name: p.name, sig: typeInfo(p.type).label, doc: t('dbAuto.formulaEditor.insertProperty', { code: `{${p.name}}` }) })}
+            >
               <Icon name={typeInfo(p.type).icon} size={13} /> {p.name}
             </button>
           {/each}
         </div>
-        <h3 class="eyebrow">Examples</h3>
+        <h3 class="eyebrow">{t('dbAuto.formulaEditor.examples')}</h3>
         <div class="items">
-          {#each EXAMPLES as ex (ex.label)}
+          {#each EXAMPLES as ex (ex.src)}
             <button class="ref-item" onclick={() => (src = ex.src)} onmouseenter={() => (hovered = { name: ex.label, sig: '', doc: ex.src })}>{ex.label}</button>
           {/each}
         </div>
       </section>
       <section class="fns">
-        {#each groups as g (g)}
-          <h3 class="eyebrow">{g}</h3>
+        {#each FN_GROUPS as g (g)}
+          <h3 class="eyebrow">{FN_GROUP_LABELS[g]}</h3>
           <div class="items">
             {#each fnsBy(g) as f (f.name)}
               <button class="ref-item mono" onclick={() => insert(`${f.name}(`)} onmouseenter={() => (hovered = { name: `${f.name}()`, sig: f.sig, doc: f.doc })}>{f.name}</button>
@@ -214,15 +223,15 @@
         <strong>{hovered.name}</strong>{#if hovered.sig}<span class="sig"> · {hovered.sig}</span>{/if}
         <p>{hovered.doc}</p>
       {:else}
-        <p>Write property names in braces, like <code>{'{Due}'}</code>. Text goes in quotes. Point at a function to see what it does.</p>
+        <p><Rich key="dbAuto.formulaEditor.help" params={{ example: '{Due}' }}>{#snippet code(text: string)}<code>{text}</code>{/snippet}</Rich></p>
       {/if}
     </div>
   </div>
   <div class="modal-foot">
-    <span><kbd>{MOD}</kbd> <kbd>Enter</kbd> to save</span>
+    <span><Rich key="dbAuto.formulaEditor.saveHint" params={{ mod: MOD }} /></span>
     <div class="actions">
-      <button class="btn" onclick={onclose}>Cancel</button>
-      <button class="btn primary" onclick={save}>Done</button>
+      <button class="btn" onclick={onclose}>{t('common.actions.cancel')}</button>
+      <button class="btn primary" onclick={save}>{t('common.actions.done')}</button>
     </div>
   </div>
 </Modal>

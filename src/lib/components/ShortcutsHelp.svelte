@@ -6,16 +6,18 @@
    */
   import Icon from './Icon.svelte';
   import Modal from './Modal.svelte';
-  import { EDITOR_KEYS, MARKDOWN_KEYS, SHORTCUTS, comboKeys, shortcuts } from '../shortcuts.svelte';
+  import { EDITOR_KEYS, MARKDOWN_KEYS, SHORTCUTS, SHORTCUT_GROUPS, SHORTCUT_GROUP_LABELS, comboKeys, keyName, shortcuts } from '../shortcuts.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
+  import Rich from '../i18n/Rich.svelte';
 
-  const groups = (['General', 'Tabs', 'Go To', 'Calendar'] as const).map((g) => ({ name: g, items: SHORTCUTS.filter((s) => s.group === g) }));
+  const groups = SHORTCUT_GROUPS.map((g) => ({ id: g, items: SHORTCUTS.filter((s) => s.group === g) }));
   const TABLE_KEYS: { label: string; keys: string[][] }[] = [
-    { label: 'Save the cell', keys: [['Enter']] },
-    { label: 'Next cell', keys: [['Tab']] },
-    { label: 'New line in text', keys: [['Shift', 'Enter']] },
-    { label: 'Cancel the edit', keys: [['Esc']] },
-    { label: 'Undo a change', keys: [[MOD, 'Z']] },
+    { label: t('settings.help.tableKeys.save'), keys: [[keyName('Enter')]] },
+    { label: t('settings.help.tableKeys.next'), keys: [[keyName('Tab')]] },
+    { label: t('settings.help.tableKeys.newLine'), keys: [[keyName('Shift'), keyName('Enter')]] },
+    { label: t('settings.help.tableKeys.cancel'), keys: [[keyName('Escape')]] },
+    { label: t('settings.help.tableKeys.undo'), keys: [[MOD, 'Z']] },
   ];
 
   const close = () => (ui.shortcutsHelp = false);
@@ -27,17 +29,17 @@
   }
 </script>
 
-<Modal onclose={close} label="Keyboard shortcuts" width={720} top="8vh">
+<Modal onclose={close} label={t('settings.help.dialog')} width={720} top="8vh">
   <header class="modal-head">
-    <h2>Keyboard Shortcuts</h2>
-    <button class="icon-btn" onclick={close} aria-label="Close"><Icon name="x" /></button>
+    <h2>{t('settings.keyboard.title')}</h2>
+    <button class="icon-btn" onclick={close} aria-label={t('common.actions.close')}><Icon name="x" /></button>
   </header>
 
   <div class="modal-body fade">
     <div class="cols">
       <div class="col">
-        {#each groups as g (g.name)}
-          <h3 class="group-title">{g.name}</h3>
+        {#each groups as g (g.id)}
+          <h3 class="group-title">{SHORTCUT_GROUP_LABELS[g.id]}</h3>
           <div class="list">
             {#each g.items as s (s.id)}
               {@const combos = shortcuts.combos(s.id)}
@@ -50,7 +52,7 @@
                     {/each}
                   </span>
                 {:else}
-                  <span class="none">None</span>
+                  <span class="none">{t('settings.keyboard.none')}</span>
                 {/if}
               </div>
             {/each}
@@ -59,9 +61,9 @@
       </div>
 
       <div class="col">
-        <h3 class="group-title">In a Page</h3>
+        <h3 class="group-title">{t('settings.help.inPage')}</h3>
         <div class="list">
-          {#each EDITOR_KEYS as s (s.label)}
+          {#each EDITOR_KEYS as s (s)}
             <div class="row">
               <span class="what">{s.label}</span>
               <span class="keys">
@@ -74,19 +76,23 @@
           {/each}
         </div>
 
-        <h3 class="group-title">Type at the Start of a Line</h3>
+        <h3 class="group-title">{t('settings.help.markdown')}</h3>
         <div class="list">
-          {#each MARKDOWN_KEYS as m (m.label)}
+          {#each MARKDOWN_KEYS as m (m.type)}
             <div class="row">
               <span class="what">{m.label}</span>
-              <span class="keys"><kbd class="mono">{m.type}</kbd>{#if !m.now}<span class="or">then</span><kbd>Space</kbd>{/if}</span>
+              <span class="keys"
+                >{#if m.now}<kbd class="mono">{m.type}</kbd>{:else}<Rich key="settings.help.typeThenSpace" params={{ type: m.type, space: keyName('Space') }}
+                    >{#snippet typed(text: string)}<kbd class="mono">{text}</kbd>{/snippet}{#snippet sep(text: string)}<span class="or">{text}</span>{/snippet}{#snippet keycap(text: string)}<kbd>{text}</kbd>{/snippet}</Rich
+                  >{/if}</span
+              >
             </div>
           {/each}
         </div>
 
-        <h3 class="group-title">In a Database Table</h3>
+        <h3 class="group-title">{t('settings.help.inTable')}</h3>
         <div class="list">
-          {#each TABLE_KEYS as s (s.label)}
+          {#each TABLE_KEYS as s (s)}
             <div class="row">
               <span class="what">{s.label}</span>
               <span class="keys">{#each s.keys as combo}{#each combo as k}<kbd>{k}</kbd>{/each}{/each}</span>
@@ -97,8 +103,8 @@
     </div>
 
     <div class="foot">
-      <span>Open this sheet any time with <kbd>{MOD}</kbd><kbd>/</kbd></span>
-      <button class="btn small raised" onclick={customize}><Icon name="settings" size={13} /> Change Shortcuts</button>
+      <span><Rich key="settings.help.openAnyTime" params={{ mod: MOD }}>{#snippet kbd(text: string)}<kbd>{text}</kbd>{/snippet}</Rich></span>
+      <button class="btn small raised" onclick={customize}><Icon name="settings" size={13} /> {t('settings.help.change')}</button>
     </div>
   </div>
 </Modal>

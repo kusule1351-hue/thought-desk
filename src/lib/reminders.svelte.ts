@@ -11,6 +11,7 @@ import { addDays, formatTime, minutes, occurrences, parseDate } from './dates';
 import { planner } from './planner.svelte';
 import { prefs, type RemindAssignments, type RemindEvents } from './prefs.svelte';
 import type { Assignment, CalEvent, Course, Reminder } from './types';
+import { t } from './i18n';
 
 /** How far ahead reminders are scheduled (the list is rebuilt daily). */
 const DAYS_AHEAD = 3;
@@ -40,21 +41,22 @@ export function computeReminders(
     if (a.deletedAt || a.status === 'done' || !a.dueDate) continue;
     if (a.dueDate < today || a.dueDate > last) continue;
     const course = a.courseId ? courses.get(a.courseId)?.name : undefined;
-    const title = a.title || 'Untitled assignment';
+    const title = a.title || t('planner.reminders.untitledAssignment');
+    const time = a.dueTime ? formatTime(a.dueTime) : null;
     if (opts.assignments === 'evening') {
       const day = addDays(a.dueDate, -1);
       add({
         key: `a:${a.id}:evening:${a.dueDate}`,
         at: at(day, '18:00'),
         title,
-        body: [`Due tomorrow${a.dueTime ? ` at ${formatTime(a.dueTime)}` : ''}`, course].filter(Boolean).join(' · '),
+        body: [time ? t('planner.reminders.dueTomorrowAt', { time }) : t('planner.reminders.dueTomorrow'), course].filter(Boolean).join(' · '),
       });
     } else if (opts.assignments === 'morning') {
       add({
         key: `a:${a.id}:morning:${a.dueDate}`,
         at: at(a.dueDate, '09:00'),
         title,
-        body: [`Due today${a.dueTime ? ` at ${formatTime(a.dueTime)}` : ''}`, course].filter(Boolean).join(' · '),
+        body: [time ? t('planner.reminders.dueTodayAt', { time }) : t('planner.reminders.dueToday'), course].filter(Boolean).join(' · '),
       });
     }
     // A due time gets a last call an hour before, whatever the setting.
@@ -63,7 +65,7 @@ export function computeReminders(
         key: `a:${a.id}:hour:${a.dueDate}T${a.dueTime}`,
         at: at(a.dueDate, a.dueTime) - 60 * 60_000,
         title,
-        body: [`Due in 1 hour, at ${formatTime(a.dueTime)}`, course].filter(Boolean).join(' · '),
+        body: [t('planner.reminders.dueInAnHour', { time: formatTime(a.dueTime) }), course].filter(Boolean).join(' · '),
       });
     }
   }
@@ -78,8 +80,8 @@ export function computeReminders(
         add({
           key: `e:${occ.key}:${e.startTime}:${lead}`,
           at: at(occ.start, e.startTime) - lead * 60_000,
-          title: e.title || 'Event',
-          body: [`${formatTime(e.startTime)}, in ${lead} minutes`, e.location, course].filter(Boolean).join(' · '),
+          title: e.title || t('planner.reminders.untitledEvent'),
+          body: [t('planner.reminders.startsIn', { count: lead, time: formatTime(e.startTime) }), e.location, course].filter(Boolean).join(' · '),
         });
       }
     }

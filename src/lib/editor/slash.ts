@@ -2,7 +2,7 @@ import { Extension, type Editor, type Range } from '@tiptap/core';
 import { PluginKey } from '@tiptap/pm/state';
 import Suggestion from '@tiptap/suggestion';
 import { clock } from '../clock.svelte';
-import { MOD } from '../platform';
+import { comboLabel } from '../shortcuts.svelte';
 import { planner } from '../planner.svelte';
 import { store } from '../store.svelte';
 import { ui } from '../ui.svelte';
@@ -10,6 +10,8 @@ import { databases } from '../databases.svelte';
 import { insertFiles, insertImage, pickImageFile } from './images';
 import { rank, suggestionRenderer, type MenuEntry } from './suggestion.svelte';
 import { iconText } from '../page-icon';
+import { searchText, t } from '../i18n';
+import { fmt } from '../i18n/format';
 
 const clear = (editor: Editor, range: Range) => editor.chain().focus().deleteRange(range);
 
@@ -31,161 +33,172 @@ function linkCreated(editor: Editor, kind: 'assignment' | 'event') {
   };
 }
 
-export const SLASH_ITEMS: MenuEntry[] = [
+type SlashGroup = 'basic' | 'media' | 'planner' | 'pages' | 'study' | 'inline';
+/** The "/" menu's sections and what each is called. */
+export const SLASH_GROUP_LABELS: Record<SlashGroup, string> = {
+  basic: t('editor.slash.group.basic'),
+  media: t('editor.slash.group.media'),
+  planner: t('editor.slash.group.planner'),
+  pages: t('editor.slash.group.pages'),
+  study: t('editor.slash.group.study'),
+  inline: t('editor.slash.group.inline'),
+};
+
+const ITEMS: (MenuEntry & { group: SlashGroup })[] = [
   {
     id: 'text',
-    group: 'Basic Blocks',
-    title: 'Text',
-    description: 'Plain paragraph',
+    group: 'basic',
+    title: t('editor.blockType.paragraph'),
+    description: t('editor.slash.text.description'),
     icon: 'text',
-    keywords: 'paragraph plain',
+    keywords: searchText('editor.blockType.paragraph', 'editor.slash.text.keywords'),
     run: (e, r) => clear(e, r).setParagraph().run(),
   },
   {
     id: 'h1',
-    group: 'Basic Blocks',
-    title: 'Heading 1',
-    description: 'Big section heading',
-    label: 'H1',
+    group: 'basic',
+    title: t('editor.blockType.h1'),
+    description: t('editor.slash.h1.description'),
+    label: t('editor.slash.h1.glyph'),
     hint: '#',
-    keywords: 'title h1 big',
+    keywords: searchText('editor.blockType.h1', 'editor.slash.h1.keywords'),
     run: (e, r) => clear(e, r).setHeading({ level: 1 }).run(),
   },
   {
     id: 'h2',
-    group: 'Basic Blocks',
-    title: 'Heading 2',
-    description: 'Medium section heading',
-    label: 'H2',
+    group: 'basic',
+    title: t('editor.blockType.h2'),
+    description: t('editor.slash.h2.description'),
+    label: t('editor.slash.h2.glyph'),
     hint: '##',
-    keywords: 'subtitle h2',
+    keywords: searchText('editor.blockType.h2', 'editor.slash.h2.keywords'),
     run: (e, r) => clear(e, r).setHeading({ level: 2 }).run(),
   },
   {
     id: 'h3',
-    group: 'Basic Blocks',
-    title: 'Heading 3',
-    description: 'Small section heading',
-    label: 'H3',
+    group: 'basic',
+    title: t('editor.blockType.h3'),
+    description: t('editor.slash.h3.description'),
+    label: t('editor.slash.h3.glyph'),
     hint: '###',
-    keywords: 'h3',
+    keywords: searchText('editor.blockType.h3', 'editor.slash.h3.keywords'),
     run: (e, r) => clear(e, r).setHeading({ level: 3 }).run(),
   },
   {
     id: 'todo',
-    group: 'Basic Blocks',
-    title: 'To-do List',
-    description: 'Track tasks with checkboxes',
+    group: 'basic',
+    title: t('editor.blockType.taskList'),
+    description: t('editor.slash.todo.description'),
     icon: 'todo',
     hint: '[]',
-    keywords: 'todo task checkbox check checklist',
+    keywords: searchText('editor.blockType.taskList', 'editor.slash.todo.keywords'),
     run: (e, r) => clear(e, r).toggleTaskList().run(),
   },
   {
     id: 'bullet',
-    group: 'Basic Blocks',
-    title: 'Bulleted List',
-    description: 'A simple bulleted list',
+    group: 'basic',
+    title: t('editor.blockType.bulletList'),
+    description: t('editor.slash.bullet.description'),
     icon: 'list',
     hint: '-',
-    keywords: 'unordered ul bullets',
+    keywords: searchText('editor.blockType.bulletList', 'editor.slash.bullet.keywords'),
     run: (e, r) => clear(e, r).toggleBulletList().run(),
   },
   {
     id: 'numbered',
-    group: 'Basic Blocks',
-    title: 'Numbered List',
-    description: 'A list with numbering',
+    group: 'basic',
+    title: t('editor.blockType.orderedList'),
+    description: t('editor.slash.numbered.description'),
     icon: 'list-ordered',
     hint: '1.',
-    keywords: 'ordered ol numbers',
+    keywords: searchText('editor.blockType.orderedList', 'editor.slash.numbered.keywords'),
     run: (e, r) => clear(e, r).toggleOrderedList().run(),
   },
   {
     id: 'toggle',
-    group: 'Basic Blocks',
-    title: 'Toggle',
-    description: 'Hide content inside a toggle',
+    group: 'basic',
+    title: t('editor.slash.toggle.title'),
+    description: t('editor.slash.toggle.description'),
     icon: 'toggle',
-    keywords: 'collapse details expand fold',
+    keywords: searchText('editor.slash.toggle.title', 'editor.slash.toggle.keywords'),
     // New toggles start open so Enter in the summary moves into the body.
     run: (e, r) => clear(e, r).setParagraph().setDetails().updateAttributes('details', { open: true }).run(),
   },
   {
     id: 'quote',
-    group: 'Basic Blocks',
-    title: 'Quote',
-    description: 'Capture a quotation',
+    group: 'basic',
+    title: t('editor.blockType.blockquote'),
+    description: t('editor.slash.quote.description'),
     icon: 'quote',
     hint: '>',
-    keywords: 'blockquote citation',
+    keywords: searchText('editor.blockType.blockquote', 'editor.slash.quote.keywords'),
     run: (e, r) => clear(e, r).setParagraph().toggleBlockquote().run(),
   },
   {
     id: 'callout',
-    group: 'Basic Blocks',
-    title: 'Callout',
-    description: 'Make a note stand out',
+    group: 'basic',
+    title: t('editor.blockType.callout'),
+    description: t('editor.slash.callout.description'),
     icon: 'callout',
-    keywords: 'note info tip warning box',
+    keywords: searchText('editor.blockType.callout', 'editor.slash.callout.keywords'),
     run: (e, r) => clear(e, r).setParagraph().setCallout().run(),
   },
   {
     id: 'divider',
-    group: 'Basic Blocks',
-    title: 'Divider',
-    description: 'Separate sections',
+    group: 'basic',
+    title: t('editor.slash.divider.title'),
+    description: t('editor.slash.divider.description'),
     icon: 'divider',
     hint: '---',
-    keywords: 'hr rule line separator',
+    keywords: searchText('editor.slash.divider.title', 'editor.slash.divider.keywords'),
     run: (e, r) => clear(e, r).setHorizontalRule().run(),
   },
   {
     id: 'code',
-    group: 'Basic Blocks',
-    title: 'Code',
-    description: 'A block of code',
+    group: 'basic',
+    title: t('editor.blockType.codeBlock'),
+    description: t('editor.slash.code.description'),
     icon: 'code',
     hint: '```',
-    keywords: 'snippet pre programming',
+    keywords: searchText('editor.blockType.codeBlock', 'editor.slash.code.keywords'),
     run: (e, r) => clear(e, r).setCodeBlock().run(),
   },
   {
     id: 'math',
-    group: 'Basic Blocks',
-    title: 'Math Equation',
-    description: 'A formula on its own line, in LaTeX',
+    group: 'basic',
+    title: t('editor.slash.math.title'),
+    description: t('editor.slash.math.description'),
     icon: 'sigma',
     hint: '$$',
-    keywords: 'equation latex tex formula katex block display physics chemistry',
+    keywords: searchText('editor.slash.math.title', 'editor.slash.math.keywords'),
     run: (e, r) => clear(e, r).insertMathBlock().run(),
   },
   {
     id: 'inline-math',
-    group: 'Basic Blocks',
-    title: 'Inline Math',
-    description: 'A formula within the sentence',
+    group: 'basic',
+    title: t('editor.slash.inlineMath.title'),
+    description: t('editor.slash.inlineMath.description'),
     icon: 'function',
-    hint: `${MOD}+Shift+E`,
-    keywords: 'equation latex tex formula katex inline',
+    hint: comboLabel('Mod+Shift+KeyE'),
+    keywords: searchText('editor.slash.inlineMath.title', 'editor.slash.inlineMath.keywords'),
     run: (e, r) => clear(e, r).insertInlineMath().run(),
   },
   {
     id: 'table',
-    group: 'Basic Blocks',
-    title: 'Table',
-    description: 'Rows and columns',
+    group: 'basic',
+    title: t('editor.slash.table.title'),
+    description: t('editor.slash.table.description'),
     icon: 'table',
-    keywords: 'grid spreadsheet',
+    keywords: searchText('editor.slash.table.title', 'editor.slash.table.keywords'),
     run: (e, r) => clear(e, r).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
   },
   {
     id: 'image',
-    group: 'Media',
-    title: 'Image',
-    description: 'Upload from your computer',
+    group: 'media',
+    title: t('editor.slash.image.title'),
+    description: t('editor.slash.image.description'),
     icon: 'image',
-    keywords: 'picture photo upload png jpg',
+    keywords: searchText('editor.slash.image.title', 'editor.slash.image.keywords'),
     run: (e, r) => {
       clear(e, r).run();
       void pickImageFile().then((file) => file && insertImage(e, file));
@@ -193,11 +206,11 @@ export const SLASH_ITEMS: MenuEntry[] = [
   },
   {
     id: 'file',
-    group: 'Media',
-    title: 'File',
-    description: 'Attach a file from your library',
+    group: 'media',
+    title: t('editor.slash.file.title'),
+    description: t('editor.slash.file.description'),
     icon: 'paperclip',
-    keywords: 'attachment upload pdf document library',
+    keywords: searchText('editor.slash.file.title', 'editor.slash.file.keywords'),
     run: (e, r) => {
       clear(e, r).run();
       ui.pickFile(caretRect(e), (files) => insertFiles(e, files));
@@ -205,11 +218,11 @@ export const SLASH_ITEMS: MenuEntry[] = [
   },
   {
     id: 'assignment',
-    group: 'Planner',
-    title: 'Assignment',
-    description: 'Add one and link it here',
+    group: 'planner',
+    title: t('editor.slash.assignment.title'),
+    description: t('editor.slash.assignment.description'),
     icon: 'assignment',
-    keywords: 'homework task due deadline todo course',
+    keywords: searchText('editor.slash.assignment.title', 'editor.slash.assignment.keywords'),
     run: (e, r) => {
       clear(e, r).run();
       ui.assignmentSheet = { id: null, draft: {}, onCreated: linkCreated(e, 'assignment') };
@@ -217,11 +230,11 @@ export const SLASH_ITEMS: MenuEntry[] = [
   },
   {
     id: 'event',
-    group: 'Planner',
-    title: 'Event',
-    description: 'Add to your calendar and link it here',
+    group: 'planner',
+    title: t('editor.slash.event.title'),
+    description: t('editor.slash.event.description'),
     icon: 'calendar',
-    keywords: 'meeting lecture class exam schedule calendar',
+    keywords: searchText('editor.slash.event.title', 'editor.slash.event.keywords'),
     run: (e, r) => {
       clear(e, r).run();
       ui.eventSheet = {
@@ -233,11 +246,11 @@ export const SLASH_ITEMS: MenuEntry[] = [
   },
   {
     id: 'page',
-    group: 'Pages',
-    title: 'Page',
-    description: 'Embed a sub-page inside this page',
+    group: 'pages',
+    title: t('editor.slash.page.title'),
+    description: t('editor.slash.page.description'),
     icon: 'page-plus',
-    keywords: 'subpage new child nested',
+    keywords: searchText('editor.slash.page.title', 'editor.slash.page.keywords'),
     run: (e, r) => {
       clear(e, r).run();
       const parent = store.currentId;
@@ -251,11 +264,11 @@ export const SLASH_ITEMS: MenuEntry[] = [
   },
   {
     id: 'database',
-    group: 'Pages',
-    title: 'Database',
-    description: 'A table, board or tracker right here',
+    group: 'pages',
+    title: t('editor.slash.database.title'),
+    description: t('editor.slash.database.description'),
     icon: 'database',
-    keywords: 'table board kanban tracker list gallery spreadsheet template notion inline',
+    keywords: searchText('editor.slash.database.title', 'editor.slash.database.keywords'),
     run: (e, r) => {
       clear(e, r).run();
       ui.newDatabase = {
@@ -268,11 +281,11 @@ export const SLASH_ITEMS: MenuEntry[] = [
   },
   {
     id: 'linked-database',
-    group: 'Pages',
-    title: 'Linked Database',
-    description: 'Show a database you already have',
+    group: 'pages',
+    title: t('editor.slash.linkedDatabase.title'),
+    description: t('editor.slash.linkedDatabase.description'),
     icon: 'database',
-    keywords: 'existing embed view linked table board',
+    keywords: searchText('editor.slash.linkedDatabase.title', 'editor.slash.linkedDatabase.keywords'),
     run: (e, r) => {
       clear(e, r).run();
       const rect = caretRect(e);
@@ -282,9 +295,9 @@ export const SLASH_ITEMS: MenuEntry[] = [
         y: rect.bottom + 6,
         items: list.length
           ? [
-              { header: 'Show a database' },
+              { header: t('editor.slash.linkedDatabase.menuHeader') },
               ...list.map((d) => ({
-                label: d.title || 'Untitled database',
+                label: d.title || t('common.untitledDatabase'),
                 icon: 'database',
                 hint: iconText(d.icon) || undefined,
                 action: () => {
@@ -292,42 +305,44 @@ export const SLASH_ITEMS: MenuEntry[] = [
                 },
               })),
             ]
-          : [{ label: 'No databases yet: make one', icon: 'plus', action: () => (ui.newDatabase = { parentId: null }) }],
+          : [{ label: t('editor.slash.linkedDatabase.none'), icon: 'plus', action: () => (ui.newDatabase = { parentId: null }) }],
       });
     },
   },
   {
     id: 'link',
-    group: 'Pages',
-    title: 'Link',
-    description: 'Mention a page, assignment or file',
+    group: 'pages',
+    title: t('editor.slash.link.title'),
+    description: t('editor.slash.link.description'),
     icon: 'at',
     hint: '@',
-    keywords: 'mention reference wiki',
+    keywords: searchText('editor.slash.link.title', 'editor.slash.link.keywords'),
     run: (e, r) => clear(e, r).insertContent('@').run(),
   },
   {
     id: 'flashcard',
-    group: 'Study',
-    title: 'Flashcard',
-    description: 'A term and its answer, to study later',
+    group: 'study',
+    title: t('editor.slash.flashcard.title'),
+    description: t('editor.slash.flashcard.description'),
     icon: 'cards',
-    keywords: 'card study term definition question answer quiz memorize anki vocabulary',
+    keywords: searchText('editor.slash.flashcard.title', 'editor.slash.flashcard.keywords'),
     run: (e, r) => clear(e, r).insertFlashcard().run(),
   },
   {
     id: 'date',
-    group: 'Inline',
-    title: 'Today’s Date',
-    description: new Date().toLocaleDateString(undefined, { dateStyle: 'long' }),
+    group: 'inline',
+    title: t('editor.slash.date.title'),
+    description: fmt.date(new Date(), { dateStyle: 'long' }),
     icon: 'calendar',
-    keywords: 'today now time day',
+    keywords: searchText('editor.slash.date.title', 'editor.slash.date.keywords'),
     run: (e, r) =>
       clear(e, r)
-        .insertContent(new Date().toLocaleDateString(undefined, { dateStyle: 'long' }) + ' ')
+        .insertContent(fmt.date(new Date(), { dateStyle: 'long' }) + ' ')
         .run(),
   },
 ];
+
+export const SLASH_ITEMS: MenuEntry[] = ITEMS.map((i) => ({ ...i, groupLabel: SLASH_GROUP_LABELS[i.group] }));
 
 export const SlashCommand = Extension.create({
   name: 'slashCommand',
@@ -344,7 +359,7 @@ export const SlashCommand = Extension.create({
         items: ({ query }) =>
           query ? rank(SLASH_ITEMS, query, 12).map((i) => ({ ...i, group: undefined })) : SLASH_ITEMS,
         command: ({ editor, range, props }) => props.run(editor, range),
-        render: suggestionRenderer('No matching blocks'),
+        render: suggestionRenderer(t('editor.slash.empty')),
       }),
     ];
   },

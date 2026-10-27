@@ -14,7 +14,9 @@ export interface MenuEntry {
   label?: string;
   emoji?: string;
   hint?: string;
+  /** The section it's listed under (an id), and the section's heading. */
   group?: string;
+  groupLabel?: string;
   keywords?: string;
   run: (editor: Editor, range: Range) => void;
 }
@@ -99,8 +101,21 @@ export function suggestionRenderer(empty: string) {
   };
 }
 
-/** Lowercases and drops punctuation/spaces, so "todo" matches "To-do". */
-const squash = (s: string) => s.toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '');
+/**
+ * Lowercases and drops accents, punctuation and spaces, so "todo" matches
+ * "To-do" and "pagina" matches "Página". Only the accents of the Latin,
+ * Greek and Cyrillic alphabets (U+0300–U+036F) go: other scripts' marks
+ * are letters' vowels (Hindi, Thai) or change the sound (Japanese ゛),
+ * and dropping them would make unrelated words match. NFC afterwards puts
+ * Korean syllables back together.
+ */
+const squash = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/[\s\p{P}\p{S}]+/gu, '');
 
 function isSubsequence(needle: string, hay: string) {
   let i = 0;

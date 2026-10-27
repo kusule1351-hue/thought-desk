@@ -1,0 +1,160 @@
+{
+  "head": {
+    "changeIcon": "Change icon",
+    "@changeIcon": "tooltip on a page's icon above its title: clicking it picks another icon",
+    "addIcon": "Add icon",
+    "@addIcon": "button above a page's title that gives the page an icon (a verb phrase)",
+    "addTag": "Add tag",
+    "@addTag": "button above a page's title that adds a tag like #exam to the page (a verb phrase)"
+  },
+  "starters": {
+    "region": "Start this page",
+    "@region": "screen-reader name of the row of ways to start an empty page (Lecture notes, Study guide, Database…)",
+    "startWith": "Start with",
+    "@startWith": "label in front of the buttons that fill an empty page from a starting point (Lecture notes, Study guide, Database…)",
+    "database": "Database",
+    "@database": "button under an empty page that puts a new database (a table, board or tracker) in it; a noun",
+    "databaseHint": "A table, board or tracker in this page",
+    "@databaseHint": "tooltip of the Database button under an empty page"
+  },
+  "menu": {
+    "addToFavorites": "Add to Favorites",
+    "@addToFavorites": "page menu command; shown when the page isn't a favorite (its opposite is Remove from Favorites)",
+    "removeFromFavorites": "Remove from Favorites",
+    "@removeFromFavorites": "page menu command; shown when the page is a favorite (its opposite is Add to Favorites)",
+    "openInNewTab": "Open in New Tab",
+    "@openInNewTab": "page menu command that opens the page in a new tab of the window",
+    "modClick": "{mod}+click",
+    "@modClick": "hint beside Open in New Tab: the same happens when the page is clicked with this key held; {mod} is the key's name as keyboards in your language print it (Ctrl, Strg in German, or ⌘ on a Mac)",
+    "altClick": "Alt+click",
+    "@altClick": "hint beside Open to the Side: the same happens when the page is clicked with the Alt key held; write Alt as keyboards in your language print it, and click as in Open in New Tab's hint",
+    "duplicateWithRows": "with its rows",
+    "@duplicateWithRows": "hint beside Duplicate in a database's menu: the copy has the database's rows too",
+    "exportCsv": "Export as CSV",
+    "@exportCsv": "database menu command that saves the database's rows as a CSV file (spreadsheet) in Downloads",
+    "liveSession": "Live Session…",
+    "@liveSession": "page menu command, shown while friends are writing in the page together: opens the panel about that session",
+    "liveSessionHint": "writing together",
+    "@liveSessionHint": "hint beside Live Session…: people are editing this page together right now",
+    "inviteFriend": "Invite a Friend…",
+    "@inviteFriend": "page menu command that asks a friend to write in this page together",
+    "addSubpage": "Add Subpage",
+    "@addSubpage": "page menu command (in the sidebar) that makes a new page inside this one",
+    "saveAsTemplate": "Save as Template",
+    "@saveAsTemplate": "menu command on a database row's page: keeps the row as a template that new rows can be made from",
+    "newRowFromTemplate": "New Row from Template",
+    "@newRowFromTemplate": "menu command on a database template's page: adds a row made from this template",
+    "studyFlashcards": {
+      "one": "Study {count} Flashcard",
+      "other": "Study {count} Flashcards"
+    },
+    "@studyFlashcards": "page menu command that starts studying the flashcards written in this page; {count} is how many there are",
+    "fullWidth": "Full Width",
+    "@fullWidth": "page menu option with a check mark: the page uses the window's whole width instead of a narrow column",
+    "copyAsMarkdown": "Copy as Markdown",
+    "@copyAsMarkdown": "page menu command that copies the whole page as Markdown text",
+    "exportPdf": "Export as PDF",
+    "@exportPdf": "page menu command that saves the page as a PDF file in Downloads",
+    "exportWord": "Export as Word",
+    "@exportWord": "page menu command that saves the page as a Word document (.docx) in Downloads",
+    "exportMarkdown": "Export as Markdown",
+    "@exportMarkdown": "page menu command that saves the page as a Markdown file (.md) in Downloads",
+    "databaseInfo": {
+      "one": "{count} rows · created {date}",
+      "other": "{count} rows · created {date}"
+    },
+    "@databaseInfo": "grey line at the foot of a database's menu; {count} is how many rows the database has, {date} the day it was made (already formatted, like 10/27/2026). English keeps \"rows\" for one as well",
+    "pageInfo": {
+      "one": "{count} words · created {date}",
+      "other": "{count} words · created {date}"
+    },
+    "@pageInfo": "grey line at the foot of a page's menu; {count} is how many words the page has, {date} the day it was made (already formatted, like 10/27/2026). English keeps \"words\" for one as well"
+  },
+  "copiedAsMarkdown": "Copied as Markdown",
+  "@copiedAsMarkdown": "message after Copy as Markdown: the page is on the clipboard as Markdown text",
+  "savedToDownloads": "Saved {file} to Downloads",
+  "@savedToDownloads": "message after a page is exported; {file} is the saved file's name (Biology.pdf). Downloads is the computer's Downloads folder: use the name your language's systems show for it",
+  "showInFolder": "Show in Folder",
+  "@showInFolder": "command that opens the computer's file manager at a file or folder (in a file's menu, and on the message after exporting all notes)",
+  "item": {
+    "openNotesPage": "Open Notes Page",
+    "@openNotesPage": "menu command on an assignment or event that has a notes page: opens it (its opposite is Create Notes Page)",
+    "createNotesPage": "Create Notes Page",
+    "@createNotesPage": "menu command on an assignment or event with no notes page yet: makes one and opens it",
+    "showInCalendar": "Show in Calendar",
+    "@showInCalendar": "menu command on an assignment or event: opens the calendar on its day"
+  },
+  "assignment": {
+    "markDone": "Mark as Done",
+    "@markDone": "assignment menu command; shown when it isn't done yet (its opposite is Mark as Not Done)",
+    "markNotDone": "Mark as Not Done",
+    "@markNotDone": "assignment menu command; shown when it is done, to open it again",
+    "inProgress": "In Progress",
+    "@inProgress": "assignment menu option with a check mark: the assignment has been started but isn't done (a status)",
+    "due": "Due",
+    "@due": "heading in an assignment's menu above the choices of due date (Today, Tomorrow, Next Week, No Due Date)",
+    "nextWeek": "Next Week",
+    "@nextWeek": "due-date choice in an assignment's menu, under the heading Due: Monday of next week",
+    "noDueDate": "No Due Date",
+    "@noDueDate": "due-date choice in an assignment's menu, under the heading Due: takes the due date away"
+  },
+  "event": {
+    "openNotes": "Open Notes",
+    "@openNotes": "menu command on one class or event: opens the notes already taken for this session (its opposite is Take Notes)",
+    "takeNotes": "Take Notes",
+    "@takeNotes": "menu command on one class or event: starts a notes page for this session",
+    "skipDate": "Skip This Date",
+    "@skipDate": "menu command on one date of a repeating event: that date no longer happens, the others stay",
+    "deleteSeries": "Delete Series",
+    "@deleteSeries": "menu command on a repeating event: moves the event with all its dates to the Trash"
+  },
+  "file": {
+    "renameTitle": "Rename File",
+    "@renameTitle": "title of the dialog that changes a file's name",
+    "preview": "Preview",
+    "@preview": "file menu command that shows the file inside the app (a verb); files that can't be shown get Get Info instead",
+    "getInfo": "Get Info",
+    "@getInfo": "file menu command that shows a file's details (name, size, where it's used), for files the app can't show",
+    "openInDefaultApp": "Open in Default App",
+    "@openInDefaultApp": "file menu command that opens the file in the program the computer uses for its type",
+    "saveCopy": "Save a Copy to Downloads",
+    "@saveCopy": "file menu command that copies the file into the computer's Downloads folder (use the name your language's systems show for that folder)",
+    "renameMenu": "Rename…",
+    "@renameMenu": "file menu command that opens a dialog to change the file's name"
+  },
+  "tag": {
+    "renameTitle": "Rename Tag",
+    "@renameTitle": "title of the dialog that changes a tag's name (tags look like #exam)",
+    "deleteTitle": "Delete Tag?",
+    "@deleteTitle": "title of the dialog that asks before deleting a tag",
+    "deleteMessage": {
+      "=0": "“#{name}” will be deleted.",
+      "one": "“#{name}” will be removed from {count} item. The items stay.",
+      "other": "“#{name}” will be removed from {count} items. The items stay."
+    },
+    "@deleteMessage": "text of the dialog that asks before deleting a tag; {name} is the tag's name (#{name} reads #exam), {count} how many pages, assignments, events and files carry it. The items themselves are not deleted"
+  },
+  "export": {
+    "progress": "Exporting your notes…",
+    "@progress": "message shown while every note is exported as Markdown files into a new folder",
+    "progressDatabase": "Exporting your notes… {name}",
+    "@progressDatabase": "message shown while every note is exported; {name} is the title of the database being read",
+    "progressCount": "Exporting your notes… {done} of {total}",
+    "@progressCount": "message shown while every note is exported; {done} is how many pages are written so far, {total} how many there are",
+    "done": {
+      "one": "Exported {count} page to {folder}",
+      "other": "Exported {count} pages to {folder}"
+    },
+    "@done": "message after every note was exported; {count} counts the pages and databases written, {folder} is the new folder's name in Downloads",
+    "folderName": "Thought Desk export {date}",
+    "@folderName": "name of the folder an export of all notes makes in Downloads; {date} is the day, written 2026-10-27. Keep Thought Desk (the app's name). Avoid / \\ : * ? \" < > |",
+    "attachmentsFolder": "attachments",
+    "@attachmentsFolder": "name of the folder in an export of all notes that holds the pictures and files the pages use; lowercase, as note apps like Obsidian name it. Avoid / \\ : * ? \" < > |",
+    "databasesFolder": "Databases",
+    "@databasesFolder": "name of the folder in an export of all notes that holds the databases (as spreadsheets) and their rows' pages. Avoid / \\ : * ? \" < > |",
+    "reservedName": "{name} (page)",
+    "@reservedName": "file name in an export for a page whose title Windows keeps for itself (CON, PRN, AUX…); {name} is that title. Avoid / \\ : * ? \" < > |",
+    "missingImage": "[{alt}]",
+    "@missingImage": "written in an exported Word document in place of a picture that couldn't be loaded; {alt} is the picture's description"
+  }
+}

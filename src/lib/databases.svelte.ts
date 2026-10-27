@@ -19,11 +19,13 @@ import { store } from './store.svelte';
 import { tags } from './tags.svelte';
 import { ui } from './ui.svelte';
 import { lineIcon } from './page-icon';
+import { t, tAll, type TextKey } from './i18n';
 import { byKey, keyBetween, keysBetween } from './db/order';
 import { FDate, FormulaError, isEmpty as emptyF, renameProperty, run, toText, type FValue, type Scope } from './db/formula';
 import { calculate, filterRows, groupRows, searchRows, sortRows, type Ctx, type Group, type Plain } from './db/query';
 import {
   HAS_OPTIONS,
+  checkboxText,
   defaultConfig,
   formatDateValue,
   formatNumber,
@@ -64,8 +66,41 @@ import type {
   ViewType,
 } from './types';
 
+/** What the toast says once a step is undone, and once it's redone: whole sentences each. */
+export interface UndoLabel {
+  undone: string;
+  redone: string;
+}
+
+/** A message without plural forms. */
+type Key = TextKey;
+
+/** The undo toasts for turning a property into each type (any but title). */
+const CHANGE_TYPE: Record<Exclude<PropertyType, 'title'>, { undone: Key; redone: Key }> = {
+  text: { undone: 'database.history.changeType.text.undone', redone: 'database.history.changeType.text.redone' },
+  number: { undone: 'database.history.changeType.number.undone', redone: 'database.history.changeType.number.redone' },
+  select: { undone: 'database.history.changeType.select.undone', redone: 'database.history.changeType.select.redone' },
+  multiSelect: { undone: 'database.history.changeType.multiSelect.undone', redone: 'database.history.changeType.multiSelect.redone' },
+  status: { undone: 'database.history.changeType.status.undone', redone: 'database.history.changeType.status.redone' },
+  date: { undone: 'database.history.changeType.date.undone', redone: 'database.history.changeType.date.redone' },
+  checkbox: { undone: 'database.history.changeType.checkbox.undone', redone: 'database.history.changeType.checkbox.redone' },
+  url: { undone: 'database.history.changeType.url.undone', redone: 'database.history.changeType.url.redone' },
+  email: { undone: 'database.history.changeType.email.undone', redone: 'database.history.changeType.email.redone' },
+  phone: { undone: 'database.history.changeType.phone.undone', redone: 'database.history.changeType.phone.redone' },
+  course: { undone: 'database.history.changeType.course.undone', redone: 'database.history.changeType.course.redone' },
+  tags: { undone: 'database.history.changeType.tags.undone', redone: 'database.history.changeType.tags.redone' },
+  files: { undone: 'database.history.changeType.files.undone', redone: 'database.history.changeType.files.redone' },
+  relation: { undone: 'database.history.changeType.relation.undone', redone: 'database.history.changeType.relation.redone' },
+  rollup: { undone: 'database.history.changeType.rollup.undone', redone: 'database.history.changeType.rollup.redone' },
+  formula: { undone: 'database.history.changeType.formula.undone', redone: 'database.history.changeType.formula.redone' },
+  button: { undone: 'database.history.changeType.button.undone', redone: 'database.history.changeType.button.redone' },
+  id: { undone: 'database.history.changeType.id.undone', redone: 'database.history.changeType.id.redone' },
+  created: { undone: 'database.history.changeType.created.undone', redone: 'database.history.changeType.created.redone' },
+  edited: { undone: 'database.history.changeType.edited.undone', redone: 'database.history.changeType.edited.redone' },
+};
+
 interface UndoStep {
-  label: string;
+  label: UndoLabel;
   undo: () => unknown;
   redo: () => unknown;
 }
@@ -398,7 +433,7 @@ class Databases {
 
   title(rowOrId: DbRow | string): string {
     const id = typeof rowOrId === 'string' ? rowOrId : rowOrId.id;
-    return this.#page(id)?.title || 'Untitled';
+    return this.#page(id)?.title || t('common.untitled');
   }
 
   /**
@@ -541,7 +576,7 @@ class Databases {
       case 'date':
         return formatDateValue(v as DateValue | null);
       case 'checkbox':
-        return v ? 'Yes' : 'No';
+        return checkboxText(!!v);
       case 'created':
         return formatTimestamp(this.#page(row.id, true)?.createdAt ?? 0);
       case 'edited':
@@ -589,7 +624,7 @@ class Databases {
   #evaluating = new Set<string>();
 
   #guard<T>(key: string, f: () => T): T | FormulaError {
-    if (this.#evaluating.has(key)) return new FormulaError('These formulas refer to each other in a loop');
+    if (this.#evaluating.has(key)) return new FormulaError(t('database.formula.loop'));
     this.#evaluating.add(key);
     try {
       return f();
@@ -613,7 +648,7 @@ class Databases {
         const q = names.get(name) ?? names.get(name.trim().toLowerCase());
         if (!q) return undefined;
         const v = this.fvalue(row, q);
-        if (v instanceof FormulaError) throw new FormulaError(`{${q.name}} has a problem: ${v.message}`);
+        if (v instanceof FormulaError) throw new FormulaError(t('database.formula.propertyProblem', { property: `{${q.name}}`, message: v.message }));
         return v;
       },
     };
@@ -706,13 +741,13 @@ class Databases {
   /** Options (or courses) a property's values can take, as groups. */
   groupsFor(p: Property): { key: string; label: string; color?: string }[] {
     if (HAS_OPTIONS.has(p.type)) return options(p).map((o) => ({ key: o.id, label: o.name, color: colorVar(o.color) }));
-    if (p.type === 'course') return planner.courses.map((c) => ({ key: c.id, label: c.name || 'Untitled', color: colorVar(c.color) }));
+    if (p.type === 'course') return planner.courses.map((c) => ({ key: c.id, label: c.name || t('common.untitled'), color: colorVar(c.color) }));
     return [];
   }
 
   labelFor(p: Property, key: string): string {
-    if (HAS_OPTIONS.has(p.type)) return option(p, key)?.name ?? 'Deleted option';
-    if (p.type === 'course') return planner.courseById.get(key)?.name ?? 'Deleted course';
+    if (HAS_OPTIONS.has(p.type)) return option(p, key)?.name ?? t('database.deletedOption');
+    if (p.type === 'course') return planner.courseById.get(key)?.name ?? t('database.deletedCourse');
     if (p.type === 'relation') return this.title(key);
     if (p.type === 'tags') return `#${key}`;
     if (p.type === 'files') return library.byId.get(key)?.name ?? '';
@@ -832,9 +867,9 @@ class Databases {
     if (!cache || cache.stamp !== stamp) this.#hay.set(dbId, (cache = { stamp, texts: new Map() }));
     const texts = cache.texts;
     return (row) => {
-      let t = texts.get(row.id);
-      if (t === undefined) texts.set(row.id, (t = others.map((p) => this.text(row, p)).join('\n').toLowerCase()));
-      return `${(this.#page(row.id)?.title ?? '').toLowerCase()}\n${t}`;
+      let hay = texts.get(row.id);
+      if (hay === undefined) texts.set(row.id, (hay = others.map((p) => this.text(row, p)).join('\n').toLowerCase()));
+      return `${(this.#page(row.id)?.title ?? '').toLowerCase()}\n${hay}`;
     };
   }
 
@@ -849,7 +884,7 @@ class Databases {
       const texts = this.#valueTexts(d.id, props);
       for (const row of this.rowsOf(d.id)) {
         const [shown, lower] = texts(row);
-        const i = lower.findIndex((t) => t && words.every((w) => t.includes(w)));
+        const i = lower.findIndex((text) => text && words.every((w) => text.includes(w)));
         if (i >= 0) out.push({ row, prop: props[i], text: shown[i] });
         if (out.length >= limit) return out;
       }
@@ -866,12 +901,12 @@ class Databases {
     if (!cache || cache.stamp !== stamp) this.#texts.set(dbId, (cache = { stamp, texts: new Map() }));
     const texts = cache.texts;
     return (row) => {
-      let t = texts.get(row.id);
-      if (!t) {
+      let found = texts.get(row.id);
+      if (!found) {
         const shown = props.map((p) => this.text(row, p));
-        texts.set(row.id, (t = [shown, shown.map((x) => x.toLowerCase())]));
+        texts.set(row.id, (found = [shown, shown.map((x) => x.toLowerCase())]));
       }
-      return t;
+      return found;
     };
   }
 
@@ -929,7 +964,7 @@ class Databases {
     this.canUndo = this.#undo.length > 0;
     this.canRedo = true;
     await step.undo();
-    ui.toast(`Undid ${step.label}`);
+    ui.toast(step.label.undone);
   }
 
   async redo() {
@@ -939,7 +974,7 @@ class Databases {
     this.canUndo = true;
     this.canRedo = this.#redo.length > 0;
     await step.redo();
-    ui.toast(`Redid ${step.label}`);
+    ui.toast(step.label.redone);
   }
 
   // -------------------------------------------------------------- cells
@@ -957,7 +992,7 @@ class Databases {
    * Edits made by hand run the database's automations, whose changes join
    * the same undo step.
    */
-  set(changes: CellSet[], { undo = true, label = 'edit', automate = undo }: { undo?: boolean; label?: string; automate?: boolean } = {}) {
+  set(changes: CellSet[], { undo = true, label = { undone: t('database.history.editUndone'), redone: t('database.history.editRedone') }, automate = undo }: { undo?: boolean; label?: UndoLabel; automate?: boolean } = {}) {
     if (!changes.length) return;
     let later: (() => unknown)[] = [];
     if (automate) {
@@ -975,7 +1010,7 @@ class Databases {
   }
 
   setOne(row: DbRow, prop: Property, value: CellValue) {
-    this.set([{ row, prop, value }], { label: `“${prop.name}”` });
+    this.set([{ row, prop, value }], { label: { undone: t('database.history.cellUndone', { name: prop.name }), redone: t('database.history.cellRedone', { name: prop.name }) } });
   }
 
   #write(row: DbRow, p: Property, value: CellValue, syncBack: boolean) {
@@ -1010,14 +1045,14 @@ class Databases {
     const twin = this.prop(otherDb, twinId);
     if (!twin || twin.type !== 'relation') return;
     for (const id of after.filter((x) => !before.includes(x))) {
-      const t = this.rows[id];
-      const cur = t ? asList(t.cells[twinId]) : [];
-      if (t && !cur.includes(row.id)) this.#write(t, twin, [...cur, row.id], false);
+      const other = this.rows[id];
+      const cur = other ? asList(other.cells[twinId]) : [];
+      if (other && !cur.includes(row.id)) this.#write(other, twin, [...cur, row.id], false);
     }
     for (const id of before.filter((x) => !after.includes(x))) {
-      const t = this.rows[id];
-      const cur = t ? asList(t.cells[twinId]) : [];
-      if (t && cur.includes(row.id)) this.#write(t, twin, cur.filter((x) => x !== row.id), false);
+      const other = this.rows[id];
+      const cur = other ? asList(other.cells[twinId]) : [];
+      if (other && cur.includes(row.id)) this.#write(other, twin, cur.filter((x) => x !== row.id), false);
     }
   }
 
@@ -1026,7 +1061,7 @@ class Databases {
    * don't exist yet are added to the property's list.
    */
   parse(text: string, p: Property): CellValue {
-    const t = text.trim();
+    const s = text.trim();
     switch (p.type) {
       case 'title':
       case 'text':
@@ -1034,34 +1069,34 @@ class Databases {
       case 'url':
       case 'email':
       case 'phone':
-        return t;
+        return s;
       case 'number':
-        return parseNumber(t);
+        return parseNumber(s);
       case 'checkbox':
-        return parseCheckbox(t) ?? !!t;
+        return parseCheckbox(s) ?? !!s;
       case 'date':
-        return parseDate(t);
+        return parseDate(s);
       case 'select':
       case 'status':
-        return t ? this.#optionFor(p, t) : null;
+        return s ? this.#optionFor(p, s) : null;
       case 'multiSelect':
-        return [...new Set(t.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean).map((x) => this.#optionFor(p, x)))];
+        return [...new Set(s.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean).map((x) => this.#optionFor(p, x)))];
       case 'course': {
-        const c = planner.courses.find((x) => x.name.trim().toLowerCase() === t.toLowerCase());
+        const c = planner.courses.find((x) => x.name.trim().toLowerCase() === s.toLowerCase());
         return c?.id ?? null;
       }
       case 'tags':
-        return t.split(/[,;\s]+/).map((x) => x.replace(/^#/, '')).filter(Boolean);
+        return s.split(/[,;\s]+/).map((x) => x.replace(/^#/, '')).filter(Boolean);
       case 'relation': {
         const db = p.config.database;
         if (!db) return [];
-        const names = t.split(/[,;\n]/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+        const names = s.split(/[,;\n]/).map((x) => x.trim().toLowerCase()).filter(Boolean);
         return this.rowsOf(db)
           .filter((r) => names.includes(this.title(r).toLowerCase()))
           .map((r) => r.id);
       }
       case 'files': {
-        const names = t.split(/[,;\n]/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+        const names = s.split(/[,;\n]/).map((x) => x.trim().toLowerCase()).filter(Boolean);
         return library.live.filter((f) => names.includes(f.name.toLowerCase())).map((f) => f.id);
       }
       default:
@@ -1125,9 +1160,9 @@ class Databases {
 
   /** The template a new row starts from: the one asked for, or the view's default. */
   #templateFor(dbId: string, id: string | null | undefined): DbRow | undefined {
-    const t = id ? this.rows[id] : undefined;
-    const page = t ? store.byId.get(t.id) : undefined;
-    return t?.template && t.dbId === dbId && page && !page.deletedAt ? t : undefined;
+    const tpl = id ? this.rows[id] : undefined;
+    const page = tpl ? store.byId.get(tpl.id) : undefined;
+    return tpl?.template && tpl.dbId === dbId && page && !page.deletedAt ? tpl : undefined;
   }
 
   /**
@@ -1169,10 +1204,14 @@ class Databases {
     const row = created[0] ?? null;
     if (row) {
       const groupTags = opts.group && this.prop(dbId, opts.group.prop)?.type === 'tags' && opts.group.key ? [opts.group.key] : [];
-      const t = [...(opts.tags ?? []), ...groupTags];
-      if (t.length) void tags.set('pages', row.id, [...new Set([...(store.byId.get(row.id)?.tags ?? []), ...t])]);
+      const newTags = [...(opts.tags ?? []), ...groupTags];
+      if (newTags.length) void tags.set('pages', row.id, [...new Set([...(store.byId.get(row.id)?.tags ?? []), ...newTags])]);
       this.#linkNew([row]);
-      this.#push({ label: 'new row', undo: () => this.#trash([row.id]), redo: () => this.#restore([row.id]) });
+      this.#push({
+        label: { undone: t('database.history.newRowUndone'), redone: t('database.history.newRowRedone') },
+        undo: () => this.#trash([row.id]),
+        redo: () => this.#restore([row.id]),
+      });
       if (opts.automate !== false) this.#added([row]);
     }
     return row;
@@ -1198,7 +1237,12 @@ class Databases {
     );
     const ids = created.map((r) => r.id);
     this.#linkNew(created);
-    if (ids.length) this.#push({ label: ids.length === 1 ? 'a new row' : `${ids.length} new rows`, undo: () => this.#trash(ids), redo: () => this.#restore(ids) });
+    if (ids.length)
+      this.#push({
+        label: { undone: t('database.history.newRowsUndone', { count: ids.length }), redone: t('database.history.newRowsRedone', { count: ids.length }) },
+        undo: () => this.#trash(ids),
+        redo: () => this.#restore(ids),
+      });
     this.#added(created);
     return created;
   }
@@ -1226,15 +1270,15 @@ class Databases {
         fromTemplate: from?.id,
       },
     ]);
-    const t = made[0] ?? null;
-    if (!t) return null;
+    const tpl = made[0] ?? null;
+    if (!tpl) return null;
     if (from) {
-      ui.toast(`Saved “${page?.title || 'Untitled'}” as a template`, { label: 'Edit', run: () => store.open(t.id) });
+      ui.toast(t('database.savedAsTemplate', { title: page?.title || t('common.untitled') }), { label: t('common.actions.edit'), run: () => store.open(tpl.id) });
     } else {
-      store.open(t.id);
-      ui.focusTitle = t.id;
+      store.open(tpl.id);
+      ui.focusTitle = tpl.id;
     }
-    return t;
+    return tpl;
   }
 
   /** The template new rows start from in a view (or every view: `viewId` null). */
@@ -1254,17 +1298,17 @@ class Databases {
   /** Lets rows hold sub-items: a "Parent item" relation and its "Sub-items" twin. */
   async enableSubItems(dbId: string) {
     if (this.subItems(dbId)) return;
-    const parent = await this.addProperty(dbId, 'relation', { name: this.freeName(dbId, 'Parent item'), config: { database: dbId, parent: true } });
-    if (parent) await this.linkBack(dbId, parent.id, true, this.freeName(dbId, 'Sub-items'));
+    const parent = await this.addProperty(dbId, 'relation', { name: this.freeName(dbId, t('database.names.parentItem')), config: { database: dbId, parent: true } });
+    if (parent) await this.linkBack(dbId, parent.id, true, this.freeName(dbId, t('database.names.subItems')));
   }
 
   async disableSubItems(dbId: string) {
     const s = this.subItems(dbId);
     if (!s) return;
     const ok = await ui.confirm({
-      title: 'Turn off sub-items?',
-      message: `“${s.parent.name}” and “${s.children?.name ?? 'Sub-items'}” are deleted, so rows stop being nested. Undo brings them back.`,
-      confirmLabel: 'Turn off',
+      title: t('database.turnOffSubItems.title'),
+      message: t('database.turnOffSubItems.message', { parent: s.parent.name, children: s.children?.name ?? t('database.names.subItems') }),
+      confirmLabel: t('database.turnOffSubItems.confirm'),
     });
     if (!ok) return;
     if (s.children) await this.deleteProperty(dbId, s.children.id);
@@ -1403,18 +1447,21 @@ class Databases {
     if (a.open) {
       store.open(made.id);
       ui.focusTitle = made.id;
-    } else if (db !== row.dbId) ui.toast(`Added a row to ${store.byId.get(db)?.title || 'Untitled'}`, { label: 'Open', run: () => store.open(made.id) });
+    } else if (db !== row.dbId) {
+      ui.toast(t('database.addedRowTo', { database: store.byId.get(db)?.title || t('common.untitled') }), { label: t('common.actions.open'), run: () => store.open(made.id) });
+    }
   }
 
   /** Clicks a button property on a row. */
   press(row: DbRow, p: Property) {
     const actions = p.config.actions ?? [];
     if (!actions.length) {
-      ui.toast('This button doesn’t do anything yet: add actions in its settings');
+      ui.toast(t('database.buttonHasNoActions'));
       return;
     }
     const { sets, later } = this.#plan(row, actions);
-    if (sets.length) this.set(sets, { label: `“${p.config.label || p.name}”` });
+    const name = p.config.label || p.name;
+    if (sets.length) this.set(sets, { label: { undone: t('database.history.buttonUndone', { name }), redone: t('database.history.buttonRedone', { name }) } });
     for (const run of later) void run();
   }
 
@@ -1548,11 +1595,16 @@ class Databases {
   /** Moves rows to the trash, with Undo. */
   async deleteRows(ids: string[]) {
     if (!ids.length) return;
-    const label = ids.length === 1 ? `“${this.title(ids[0])}”` : `${ids.length} rows`;
+    const title = ids.length === 1 ? this.title(ids[0]) : '';
+    const step: UndoLabel =
+      ids.length === 1
+        ? { undone: t('database.history.deleteRowUndone', { title }), redone: t('database.history.deleteRowRedone', { title }) }
+        : { undone: t('database.history.deleteRowsUndone', { count: ids.length }), redone: t('database.history.deleteRowsRedone', { count: ids.length }) };
+    const done = ids.length === 1 ? t('database.deletedRow', { title }) : t('database.deletedRows', { count: ids.length });
     try {
       await this.#trash(ids);
-      this.#push({ label: `deleting ${label}`, undo: () => this.#restore(ids), redo: () => this.#trash(ids) });
-      ui.toast(`Deleted ${label}`, { label: 'Undo', run: () => void this.undo() });
+      this.#push({ label: step, undo: () => this.#restore(ids), redo: () => this.#trash(ids) });
+      ui.toast(done, { label: t('common.actions.undo'), run: () => void this.undo() });
     } catch (e) {
       ui.error(e);
     }
@@ -1585,7 +1637,7 @@ class Databases {
       this.#queue(id, { sortKey: k });
     };
     apply(key);
-    this.#push({ label: 'moving a row', undo: () => apply(old), redo: () => apply(key) });
+    this.#push({ label: { undone: t('database.history.moveRowUndone'), redone: t('database.history.moveRowRedone') }, undo: () => apply(old), redo: () => apply(key) });
   }
 
   /** Moves a row's date by whole days (dragged on the Calendar). */
@@ -1629,7 +1681,7 @@ class Databases {
     if (undo) {
       const after = $state.snapshot(p) as Property;
       this.#push({
-        label: `changes to “${before.name}”`,
+        label: { undone: t('database.history.propertyUndone', { name: before.name }), redone: t('database.history.propertyRedone', { name: before.name }) },
         undo: () => this.updateProperty(dbId, propId, before, { immediate: true, undo: false }),
         redo: () => this.updateProperty(dbId, propId, after, { immediate: true, undo: false }),
       });
@@ -1652,7 +1704,10 @@ class Databases {
   freeName(dbId: string, base: string): string {
     const taken = new Set(this.props(dbId).map((p) => p.name.toLowerCase()));
     if (!taken.has(base.toLowerCase())) return base;
-    for (let i = 2; ; i++) if (!taken.has(`${base} ${i}`.toLowerCase())) return `${base} ${i}`;
+    for (let i = 2; ; i++) {
+      const name = t('database.names.numbered', { name: base, number: i });
+      if (!taken.has(name.toLowerCase())) return name;
+    }
   }
 
   async addProperty(
@@ -1681,7 +1736,7 @@ class Databases {
       return null;
     }
     this.#push({
-      label: `adding “${p.name}”`,
+      label: { undone: t('database.history.addPropertyUndone', { name: p.name }), redone: t('database.history.addPropertyRedone', { name: p.name }) },
       undo: () => this.deleteProperty(dbId, p.id, { undo: false }),
       redo: () => this.#bringBack(dbId, p),
     });
@@ -1710,8 +1765,12 @@ class Databases {
       ui.error(e);
     }
     if (undo) {
-      this.#push({ label: `deleting “${snapshot.name}”`, undo: () => this.#bringBack(dbId, snapshot), redo: () => this.deleteProperty(dbId, propId, { undo: false }) });
-      ui.toast(`Deleted “${snapshot.name || 'Untitled'}”`, { label: 'Undo', run: () => void this.undo() });
+      this.#push({
+        label: { undone: t('database.history.deletePropertyUndone', { name: snapshot.name }), redone: t('database.history.deletePropertyRedone', { name: snapshot.name }) },
+        undo: () => this.#bringBack(dbId, snapshot),
+        redo: () => this.deleteProperty(dbId, propId, { undo: false }),
+      });
+      ui.toast(t('database.deletedProperty', { name: snapshot.name || t('common.untitled') }), { label: t('common.actions.undo'), run: () => void this.undo() });
     }
   }
 
@@ -1719,7 +1778,7 @@ class Databases {
   async duplicateProperty(dbId: string, propId: string) {
     const p = this.prop(dbId, propId);
     if (!p || p.type === 'title') return;
-    const copy = await this.addProperty(dbId, p.type, { name: this.freeName(dbId, `${p.name} copy`), after: p.id, config: structuredClone($state.snapshot(p.config)) });
+    const copy = await this.addProperty(dbId, p.type, { name: this.freeName(dbId, t('database.names.copy', { name: p.name })), after: p.id, config: structuredClone($state.snapshot(p.config)) });
     if (!copy) return;
     const changes = this.rowsOf(dbId)
       .filter((r) => r.cells[p.id] !== undefined)
@@ -1763,8 +1822,9 @@ class Databases {
     }
     for (const c of changes) this.#write(c.row, c.prop, c.value, false);
     this.#saveProp(dbId, p, true);
+    const toasts = CHANGE_TYPE[type];
     this.#push({
-      label: `changing “${p.name}” to ${typeInfo(type).label}`,
+      label: { undone: t(toasts.undone, { name: p.name }), redone: t(toasts.redone, { name: p.name }) },
       undo: () => {
         const cur = this.prop(dbId, propId);
         if (!cur) return;
@@ -1787,7 +1847,7 @@ class Databases {
       if (twin) await this.deleteProperty(other, twin, { undo: false });
       return;
     }
-    const name = twinName ?? this.freeName(other, store.byId.get(dbId)?.title || 'Related');
+    const name = twinName ?? this.freeName(other, store.byId.get(dbId)?.title || t('database.names.related'));
     const twin = await this.addProperty(other, 'relation', { name, config: { database: dbId, back: p.id } });
     if (!twin) return;
     this.updateProperty(dbId, propId, { config: { ...p.config, back: twin.id } }, { immediate: true, undo: false });
@@ -1797,8 +1857,8 @@ class Databases {
       for (const id of asList(row.cells[p.id])) changes.set(id, [...(changes.get(id) ?? []), row.id]);
     }
     for (const [id, linked] of changes) {
-      const t = this.rows[id];
-      if (t) this.#write(t, twin, linked, false);
+      const target = this.rows[id];
+      if (target) this.#write(target, twin, linked, false);
     }
   }
 
@@ -1836,23 +1896,23 @@ class Databases {
   async defaultsFor(dbId: string, type: ViewType): Promise<ViewConfig> {
     const props = this.props(dbId);
     const first = (...types: PropertyType[]) => {
-      for (const t of types) {
-        const p = props.find((x) => x.type === t);
+      for (const kind of types) {
+        const p = props.find((x) => x.type === kind);
         if (p) return p;
       }
       return undefined;
     };
     switch (type) {
       case 'board': {
-        const g = first('status', 'select', 'course', 'checkbox', 'multiSelect') ?? (await this.addProperty(dbId, 'status', { name: this.freeName(dbId, 'Status') }));
+        const g = first('status', 'select', 'course', 'checkbox', 'multiSelect') ?? (await this.addProperty(dbId, 'status', { name: this.freeName(dbId, typeInfo('status').label) }));
         return { group: g?.id ?? null };
       }
       case 'calendar': {
-        const d = first('date') ?? (await this.addProperty(dbId, 'date', { name: this.freeName(dbId, 'Date') }));
+        const d = first('date') ?? (await this.addProperty(dbId, 'date', { name: this.freeName(dbId, typeInfo('date').label) }));
         return { dateProp: d?.id };
       }
       case 'timeline': {
-        const d = first('date') ?? (await this.addProperty(dbId, 'date', { name: this.freeName(dbId, 'Dates') }));
+        const d = first('date') ?? (await this.addProperty(dbId, 'date', { name: this.freeName(dbId, t('database.names.dates')) }));
         return { dateProp: d?.id, scale: 'week', showTable: true };
       }
       case 'form':
@@ -1885,7 +1945,7 @@ class Databases {
     v.type = type;
     v.config = missing ? { ...c, ...needs } : c;
     // A view still named after its old layout takes the new one's name.
-    if (Object.values(VIEW_NAMES).includes(v.name)) v.name = VIEW_NAMES[type];
+    if (isDefaultViewName(v.name)) v.name = VIEW_NAMES[type];
     this.#saveView(dbId, v, true);
   }
 
@@ -1895,7 +1955,7 @@ class Databases {
     const label = VIEW_NAMES[type];
     const taken = new Set(schema.views.map((v) => v.name));
     let name = label;
-    for (let i = 2; taken.has(name); i++) name = `${label} ${i}`;
+    for (let i = 2; taken.has(name); i++) name = t('database.names.numbered', { name: label, number: i });
     const v: DbView = {
       id: shortId(),
       name,
@@ -1916,7 +1976,7 @@ class Databases {
     const v: DbView = {
       ...structuredClone($state.snapshot(src) as DbView),
       id: shortId(),
-      name: `${src.name} copy`,
+      name: t('database.names.copy', { name: src.name }),
       sortKey: keyBetween(src.sortKey, schema.views[i + 1]?.sortKey ?? null),
     };
     schema.views.push(v);
@@ -1958,14 +2018,14 @@ class Databases {
   async create(
     opts: { template?: Template; parentId?: string | null; title?: string; icon?: string; open?: boolean; rows?: NewRow[] } = {},
   ): Promise<PageMeta | null> {
-    const t = opts.template ?? TEMPLATES[0];
+    const tpl = opts.template ?? TEMPLATES[0];
     try {
       await store.flush();
       // One call takes up to BATCH rows; a big import sends the rest after.
       const rows = opts.rows ?? [];
-      const res = await api.createDatabase(opts.parentId ?? null, opts.title ?? (t.key === 'blank' ? '' : t.name), opts.icon ?? t.icon, {
-        properties: t.properties,
-        views: t.views,
+      const res = await api.createDatabase(opts.parentId ?? null, opts.title ?? (tpl.key === 'blank' ? '' : tpl.name), opts.icon ?? tpl.icon, {
+        properties: tpl.properties,
+        views: tpl.views,
         rows: rows.slice(0, BATCH),
       });
       const created = [...res.rows];
@@ -1993,12 +2053,12 @@ class Databases {
   async importText(name: string, text: string, opts: { parentId?: string | null; open?: boolean } = {}): Promise<PageMeta | null> {
     const table = parseCsv(text);
     if (table.length < 1) {
-      ui.toast('That file has no rows to import');
+      ui.toast(t('database.import.noRows'));
       return null;
     }
     const [header, ...body] = table;
     const width = table.map((r) => r.length).reduce((a, b) => Math.max(a, b), -Infinity);
-    const names = Array.from({ length: width }, (_, i) => (header[i] ?? '').trim() || `Column ${i + 1}`);
+    const names = Array.from({ length: width }, (_, i) => (header[i] ?? '').trim() || t('database.names.column', { number: i + 1 }));
     const keys = keysBetween(null, null, width);
     const props: Property[] = names.map((n, i) => {
       if (i === 0) return { id: 'title', name: n, type: 'title', config: {}, sortKey: keys[0] };
@@ -2021,10 +2081,10 @@ class Databases {
       icon: lineIcon('table', 'green'),
       description: '',
       properties: props,
-      views: [{ id: 'table', name: 'Table', type: 'table', config: {}, sortKey: 'a0' }],
+      views: [{ id: 'table', name: VIEW_NAMES.table, type: 'table', config: {}, sortKey: 'a0' }],
     };
     const page = await this.create({ template, title: name, parentId: opts.parentId, open: opts.open, rows });
-    if (page) ui.toast(`Imported ${rows.length} row${rows.length === 1 ? '' : 's'} into “${name}”`);
+    if (page) ui.toast(t('database.import.imported', { count: rows.length, name }));
     return page;
   }
 
@@ -2035,7 +2095,7 @@ class Databases {
   async importInto(dbId: string, text: string) {
     const table = parseCsv(text);
     if (table.length < 2) {
-      ui.toast('That file has no rows to import');
+      ui.toast(t('database.import.noRows'));
       return;
     }
     const [header, ...body] = table;
@@ -2067,13 +2127,13 @@ class Databases {
       return { title, cells };
     });
     const made = await this.addRows(dbId, list);
-    if (made.length) ui.toast(`Added ${made.length} row${made.length === 1 ? '' : 's'} from the file`);
+    if (made.length) ui.toast(t('database.import.added', { count: made.length }));
   }
 
   /** A database as editor JSON (a bold title and a table), for exports. */
   asTable(dbId: string, viewId: string | null): JNode[] {
     const view = this.view(dbId, viewId ?? prefs.dbViews[dbId]);
-    const title = store.byId.get(dbId)?.title || 'Untitled database';
+    const title = store.byId.get(dbId)?.title || t('common.untitledDatabase');
     const heading: JNode = { type: 'paragraph', content: [{ type: 'text', text: title, marks: [{ type: 'bold' }] }] };
     if (!view) return [heading];
     const hidden = new Set(view.config.hidden ?? []);
@@ -2100,10 +2160,11 @@ class Databases {
     const hidden = new Set(view.config.hidden ?? []);
     const props = this.props(dbId).filter((p) => p.type === 'title' || !hidden.has(p.id));
     const { rows } = this.query(dbId, view);
-    const title = store.byId.get(dbId)?.title || 'Untitled';
+    const title = store.byId.get(dbId)?.title || t('common.untitled');
     try {
-      const path = await api.exportDocument(view.name === 'Table' ? title : `${title} - ${view.name}`, 'csv', new TextEncoder().encode(this.#csv(props, rows)));
-      ui.toast(`Saved ${path.split(/[\\/]/).pop()} to Downloads`);
+      const file = isDefaultViewName(view.name, 'table') ? title : t('database.export.fileName', { database: title, view: view.name });
+      const path = await api.exportDocument(file, 'csv', new TextEncoder().encode(this.#csv(props, rows)));
+      ui.toast(t('database.export.saved', { file: path.split(/[\\/]/).pop() ?? path }));
     } catch (e) {
       ui.error(e);
     }
@@ -2189,16 +2250,28 @@ export const FORM_TYPES = new Set<PropertyType>(['title', 'text', 'number', 'sel
 /** Types whose cells a new row can be given from a view's filters. */
 const EDITABLE_CELL = new Set<PropertyType>(['text', 'number', 'select', 'multiSelect', 'status', 'date', 'checkbox', 'url', 'email', 'phone', 'course']);
 
-export const VIEW_NAMES: Record<ViewType, string> = {
-  table: 'Table',
-  board: 'Board',
-  gallery: 'Gallery',
-  list: 'List',
-  calendar: 'Calendar',
-  chart: 'Chart',
-  timeline: 'Timeline',
-  form: 'Form',
+const VIEW_NAME_KEYS: Record<ViewType, Key> = {
+  table: 'database.viewNames.table',
+  board: 'database.viewNames.board',
+  gallery: 'database.viewNames.gallery',
+  list: 'database.viewNames.list',
+  calendar: 'database.viewNames.calendar',
+  chart: 'database.viewNames.chart',
+  timeline: 'database.viewNames.timeline',
+  form: 'database.viewNames.form',
 };
+
+/** What each layout is called, and so what a new view of it is named. */
+export const VIEW_NAMES = Object.fromEntries(Object.entries(VIEW_NAME_KEYS).map(([type, key]) => [type, t(key)])) as Record<ViewType, string>;
+
+/**
+ * Whether a view still has the name it was given automatically: that of
+ * `type`, or of any layout, in any language (a view named in English is
+ * still found in a Spanish interface).
+ */
+export function isDefaultViewName(name: string, type?: ViewType): boolean {
+  return (type ? [VIEW_NAME_KEYS[type]] : Object.values(VIEW_NAME_KEYS)).some((key) => tAll(key).includes(name));
+}
 
 function sortSchema(s: DatabaseSchema): DatabaseSchema {
   return { ...s, properties: [...s.properties].sort(byKey), views: [...s.views].sort(byKey), automations: [...(s.automations ?? [])].sort(byKey) };

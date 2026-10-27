@@ -6,6 +6,8 @@
  */
 
 import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { t } from './i18n';
+import { fmt } from './i18n/format';
 import { prefs } from './prefs.svelte';
 import { ui } from './ui.svelte';
 
@@ -18,7 +20,8 @@ export const MAX_ZOOM = ZOOM_STEPS[ZOOM_STEPS.length - 1];
 // which zooms with CSS instead.
 const NATIVE = '__TAURI_INTERNALS__' in window;
 
-export const zoomLabel = (z: number) => `${Math.round(z * 100)}%`;
+/** A zoom level as a percentage, the locale's way ("110%", "110 %"). */
+export const zoomLabel = (z: number) => fmt.number(z, { style: 'percent' });
 
 /** The next level up (1) or down (-1) from `z`. */
 function step(z: number, dir: 1 | -1): number {
@@ -33,7 +36,7 @@ export function setZoom(z: number) {
   if (next === prefs.zoom) return;
   prefs.zoom = next;
   if (notice) ui.dismissToast(notice);
-  notice = ui.toast(`Zoom ${zoomLabel(next)}`, next === 1 ? undefined : { label: 'Reset', run: () => setZoom(1) }, 1600);
+  notice = ui.toast(t('app.zoom.level', { level: zoomLabel(next) }), next === 1 ? undefined : { label: t('app.zoom.reset'), run: () => setZoom(1) }, 1600);
 }
 
 export const zoomIn = () => setZoom(step(prefs.zoom, 1));

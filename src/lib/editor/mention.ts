@@ -3,11 +3,21 @@ import { PluginKey } from '@tiptap/pm/state';
 import Suggestion from '@tiptap/suggestion';
 import { clock } from '../clock.svelte';
 import { formatDate, formatDue } from '../dates';
+import { t, type MessageKey } from '../i18n';
 import { KINDS, fileKind, library } from '../library.svelte';
 import { planner } from '../planner.svelte';
 import { store } from '../store.svelte';
 import type { MentionKind } from './page-link';
 import { rankGroups, suggestionRenderer, type MenuEntry } from './suggestion.svelte';
+
+/** The "@" menu's sections and what each is called. */
+const GROUP_LABELS = {
+  pages: 'blocks.mention.groups.pages',
+  assignments: 'blocks.mention.groups.assignments',
+  events: 'blocks.mention.groups.events',
+  files: 'blocks.mention.groups.files',
+  create: 'blocks.mention.groups.create',
+} satisfies Record<string, MessageKey>;
 
 function insertMention(editor: Editor, range: Range | null, id: string, kind: MentionKind) {
   const content = [{ type: 'mention', attrs: { id, kind } }, { type: 'text', text: ' ' }];
@@ -36,14 +46,15 @@ export const MentionSuggest = Extension.create({
             .filter((p) => !p.deletedAt && p.id !== store.currentId)
             .sort((a, b) => b.updatedAt - a.updatedAt)
             .map((p) => {
-              const path = store.ancestors(p.id).map((a) => a.title || 'Untitled');
+              const path = store.ancestors(p.id).map((a) => a.title || t('common.untitled'));
               return {
                 id: p.id,
-                title: p.title || 'Untitled',
+                title: p.title || t('common.untitled'),
                 description: path.length ? path.join(' / ') : undefined,
                 emoji: p.icon || undefined,
                 icon: p.icon ? undefined : 'page',
-                group: 'Pages',
+                group: 'pages',
+                groupLabel: t(GROUP_LABELS.pages),
                 run: (editor, range) => insertMention(editor, range, p.id, 'page'),
               };
             });
@@ -51,13 +62,14 @@ export const MentionSuggest = Extension.create({
             .filter((a) => (q ? true : a.status !== 'done'))
             .map((a) => ({
               id: `a:${a.id}`,
-              title: a.title || 'Untitled',
+              title: a.title || t('common.untitled'),
               description: [a.courseId ? planner.courseById.get(a.courseId)?.name : null, formatDue(a.dueDate, a.dueTime, clock.today)]
                 .filter(Boolean)
                 .join(' · '),
               icon: 'assignment',
               keywords: a.courseId ? planner.courseById.get(a.courseId)?.name : undefined,
-              group: 'Assignments',
+              group: 'assignments',
+              groupLabel: t(GROUP_LABELS.assignments),
               run: (editor, range) => insertMention(editor, range, a.id, 'assignment'),
             }));
           const events: MenuEntry[] = planner.liveEvents
@@ -65,10 +77,11 @@ export const MentionSuggest = Extension.create({
             .sort((a, b) => a.startDate.localeCompare(b.startDate))
             .map((e) => ({
               id: `e:${e.id}`,
-              title: e.title || 'Untitled',
-              description: formatDate(e.startDate) + (e.repeat !== 'none' ? ' · repeats' : ''),
+              title: e.title || t('common.untitled'),
+              description: e.repeat !== 'none' ? t('blocks.mention.eventRepeats', { date: formatDate(e.startDate) }) : formatDate(e.startDate),
               icon: 'calendar',
-              group: 'Events',
+              group: 'events',
+              groupLabel: t(GROUP_LABELS.events),
               run: (editor, range) => insertMention(editor, range, e.id, 'event'),
             }));
           const files: MenuEntry[] = library.live.map((f) => ({
@@ -76,7 +89,8 @@ export const MentionSuggest = Extension.create({
             title: f.name,
             description: KINDS[fileKind(f)].label,
             icon: KINDS[fileKind(f)].icon,
-            group: 'Files',
+            group: 'files',
+            groupLabel: t(GROUP_LABELS.files),
             run: (editor, range) => insertMention(editor, range, f.id, 'file'),
           }));
 
@@ -87,10 +101,11 @@ export const MentionSuggest = Extension.create({
             results.push(
               {
                 id: '__page__',
-                title: `New page “${q}”`,
-                description: 'Create it inside this page',
+                title: t('blocks.mention.newPage', { query: q }),
+                description: t('blocks.mention.newPageHint'),
                 icon: 'page-plus',
-                group: 'Create',
+                group: 'create',
+                groupLabel: t(GROUP_LABELS.create),
                 run: (editor, range) => {
                   editor.chain().focus().deleteRange(range).run();
                   void store.create(store.currentId, { open: false, title: q }).then((meta) => {
@@ -100,10 +115,11 @@ export const MentionSuggest = Extension.create({
               },
               {
                 id: '__assignment__',
-                title: `New assignment “${q}”`,
-                description: 'Add it to Assignments',
+                title: t('blocks.mention.newAssignment', { query: q }),
+                description: t('blocks.mention.newAssignmentHint'),
                 icon: 'assignment',
-                group: 'Create',
+                group: 'create',
+                groupLabel: t(GROUP_LABELS.create),
                 run: (editor, range) => {
                   editor.chain().focus().deleteRange(range).run();
                   void planner.addAssignment({ title: q }).then((a) => {
@@ -116,7 +132,7 @@ export const MentionSuggest = Extension.create({
           return results;
         },
         command: ({ editor, range, props }) => props.run(editor, range),
-        render: suggestionRenderer('Nothing found'),
+        render: suggestionRenderer(t('blocks.mention.nothingFound')),
       }),
     ];
   },

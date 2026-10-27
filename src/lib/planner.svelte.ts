@@ -9,6 +9,7 @@ import { store } from './store.svelte';
 import { ui } from './ui.svelte';
 import type { Assignment, AssignmentPatch, CalEvent, Course, CoursePatch, EventPatch, OccurrencePage } from './types';
 import { lineIcon } from './page-icon';
+import { parts, t } from './i18n';
 
 const byDue = (a: Assignment, b: Assignment) =>
   (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999') ||
@@ -124,9 +125,9 @@ class Planner {
   /** Asks for a name and colour, then adds the course. */
   async promptCourse(): Promise<Course | null> {
     const res = await ui.prompt({
-      title: 'New Course',
-      placeholder: 'Course name',
-      confirmLabel: 'Add Course',
+      title: t('planner.course.newTitle'),
+      placeholder: t('planner.course.namePlaceholder'),
+      confirmLabel: t('planner.course.add'),
       icon: 'book',
       color: nextColor(this.courses.map((c) => c.color)),
     });
@@ -146,7 +147,7 @@ class Planner {
     if (!c) return null;
     const page = c.pageId ? store.byId.get(c.pageId) : undefined;
     if (page && !page.deletedAt) return page.id;
-    const meta = await store.create(null, { open: false, title: c.name || 'Course', icon: lineIcon('book-open', c.color) });
+    const meta = await store.create(null, { open: false, title: c.name || t('common.course'), icon: lineIcon('book-open', c.color) });
     if (!meta) return null;
     this.updateCourse(courseId, { pageId: meta.id });
     return meta.id;
@@ -182,11 +183,9 @@ class Planner {
     if (!c) return;
     const used = this.live.filter((a) => a.courseId === id).length + this.liveEvents.filter((e) => e.courseId === id).length;
     const ok = await ui.confirm({
-      title: 'Delete Course?',
-      message: used
-        ? `“${c.name}” will be removed from ${used} item${used === 1 ? '' : 's'}. The assignments and events stay.`
-        : `“${c.name}” will be deleted.`,
-      confirmLabel: 'Delete',
+      title: t('planner.course.deleteTitle'),
+      message: used ? t('planner.course.deleteInUse', { count: used, name: c.name }) : t('planner.course.deleteUnused', { name: c.name }),
+      confirmLabel: t('common.actions.delete'),
       danger: true,
     });
     if (!ok) return;
@@ -276,9 +275,10 @@ class Planner {
     let pageId = this.sessionPage(eventId, date);
     if (!pageId) {
       const parent = e.courseId ? await this.courseFolder(e.courseId) : null;
+      const day = formatDate(date, { month: 'short', day: 'numeric' });
       const meta = await store.create(parent, {
         open: false,
-        title: `${e.title || 'Class'} — ${formatDate(date, { month: 'short', day: 'numeric' })}`,
+        title: e.title ? t('planner.sessionNotes.title', { title: e.title, date: day }) : t('planner.sessionNotes.untitled', { date: day }),
         icon: lineIcon('notebook-pen', e.courseId ? this.courseById.get(e.courseId)?.color : null),
         index: 0,
       });
@@ -314,8 +314,9 @@ class Planner {
     const before = [...e.exdates];
     this.updateEvent(eventId, { exdates: [...before, date] }, { immediate: true });
     if (ui.eventSheet?.id === eventId) ui.eventSheet = null;
-    ui.toast(`Removed ${e.title || 'event'} on ${formatDate(date)}`, {
-      label: 'Undo',
+    const day = formatDate(date);
+    ui.toast(e.title ? t('planner.toast.sessionRemoved', { title: e.title, date: day }) : t('planner.toast.untitledSessionRemoved', { date: day }), {
+      label: t('common.actions.undo'),
       run: () => this.updateEvent(eventId, { exdates: before }, { immediate: true }),
     });
   }
@@ -354,7 +355,10 @@ class Planner {
   async moveSession(eventId: string, date: string, patch: EventPatch) {
     const copy = await this.detach(eventId, date, patch);
     if (!copy) return;
-    ui.toast(`Moved “${copy.title || 'Untitled'}” on ${formatDate(date)} only`, { label: 'Undo', run: () => void this.reattach(copy.id, eventId, date) });
+    ui.toast(t('planner.toast.sessionMoved', { title: copy.title || t('common.untitled'), date: formatDate(date) }), {
+      label: t('common.actions.undo'),
+      run: () => void this.reattach(copy.id, eventId, date),
+    });
   }
 
   /** Undoes `detach`: drops the standalone copy and restores the session. */
@@ -400,7 +404,10 @@ class Planner {
       item.deletedAt = await api.trashItem(kind, id);
       if (ui.assignmentSheet?.id === id) ui.assignmentSheet = null;
       if (ui.eventSheet?.id === id) ui.eventSheet = null;
-      ui.toast(`Moved “${item.title || 'Untitled'}” to Trash`, { label: 'Undo', run: () => void this.restore(kind, id) });
+      ui.toast(t('planner.toast.movedToTrash', { title: item.title || t('common.untitled') }), {
+        label: t('common.actions.undo'),
+        run: () => void this.restore(kind, id),
+      });
     } catch (e) {
       ui.error(e);
     }
@@ -438,24 +445,20 @@ class Planner {
     if (!item) return null;
     const meta = await store.create(null, {
       open: false,
-      title: item.title || 'Untitled',
+      title: item.title || t('common.untitled'),
       icon: lineIcon(kind === 'assignment' ? 'file-text' : 'calendar-days', item.courseId ? this.courseById.get(item.courseId)?.color : null),
     });
     if (!meta) return null;
+    // "Notes for <mention/>": the link goes where the language puts it.
+    const intro = parts(kind === 'assignment' ? 'planner.notesPage.forAssignment' : 'planner.notesPage.fromEvent').flatMap(
+      (p): { type: string; attrs?: object; text?: string }[] =>
+        p.tag === 'mention' ? [{ type: 'mention', attrs: { id, kind } }] : p.text ? [{ type: 'text', text: p.text }] : [],
+    );
     const doc = {
       type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [
-            { type: 'text', text: kind === 'assignment' ? 'Notes for ' : 'Notes from ' },
-            { type: 'mention', attrs: { id, kind } },
-          ],
-        },
-        { type: 'paragraph' },
-      ],
+      content: [{ type: 'paragraph', content: intro }, { type: 'paragraph' }],
     };
-    store.update(meta.id, { content: JSON.stringify(doc), text: `Notes for ${item.title}` }, { immediate: true });
+    store.update(meta.id, { content: JSON.stringify(doc), text: t('planner.notesPage.searchText', { title: item.title }) }, { immediate: true });
     if (kind === 'assignment') this.updateAssignment(id, { pageId: meta.id }, { immediate: true });
     else this.updateEvent(id, { pageId: meta.id }, { immediate: true });
     return meta.id;

@@ -6,6 +6,8 @@
   import Segmented from './Segmented.svelte';
   import { capture, type CaptureKind } from '../capture';
   import { clock } from '../clock.svelte';
+  import { t } from '../i18n';
+  import Rich from '../i18n/Rich.svelte';
 
   let {
     text = $bindable(''),
@@ -21,16 +23,16 @@
   let input = $state<HTMLTextAreaElement>();
 
   const kinds: { value: CaptureKind; label: string; icon: string }[] = [
-    { value: 'todo', label: 'To-do', icon: 'todo' },
-    { value: 'note', label: 'Note', icon: 'note' },
-    { value: 'assignment', label: 'Assignment', icon: 'assignment' },
-    { value: 'event', label: 'Event', icon: 'calendar' },
+    { value: 'todo', label: t('planner.capture.kind.todo'), icon: 'todo' },
+    { value: 'note', label: t('planner.capture.kind.note'), icon: 'note' },
+    { value: 'assignment', label: t('planner.capture.kind.assignment'), icon: 'assignment' },
+    { value: 'event', label: t('planner.capture.kind.event'), icon: 'calendar' },
   ];
   const placeholders: Record<CaptureKind, string> = {
-    todo: 'Something to do…',
-    note: 'A thought — the first line becomes the title',
-    assignment: 'What’s due?',
-    event: 'What’s happening?',
+    todo: t('planner.capture.placeholder.todo'),
+    note: t('planner.capture.placeholder.note'),
+    assignment: t('planner.capture.placeholder.assignment'),
+    event: t('planner.capture.placeholder.event'),
   };
 
   onMount(() => {
@@ -78,15 +80,15 @@
         // Keep typing where you were after picking a type.
         input?.focus();
       }}
-      label="Capture as"
+      label={t('planner.capture.kindLabel')}
     />
     {#if kind === 'assignment' || kind === 'event'}
       <div class="when">
-        <label class="field date" data-tip={kind === 'event' ? 'Date (today if empty)' : 'Due date'}>
-          <input type="date" bind:value={date} aria-label="Date" />
+        <label class="field date" data-tip={kind === 'event' ? t('planner.capture.eventDateTip') : t('planner.dueDate')}>
+          <input type="date" bind:value={date} aria-label={t('planner.capture.date')} />
         </label>
-        <label class="field time" data-tip="Time (optional)">
-          <input type="time" bind:value={time} aria-label="Time" />
+        <label class="field time" data-tip={t('planner.capture.timeTip')}>
+          <input type="time" bind:value={time} aria-label={t('planner.capture.time')} />
         </label>
       </div>
     {/if}
@@ -94,13 +96,13 @@
   <div class="entry">
     <textarea bind:this={input} bind:value={text} rows="1" placeholder={placeholders[kind]} spellcheck="true" onkeydown={onKey}></textarea>
     {#if inline}
-      <button class="btn small primary" onclick={save} disabled={!text.trim() || saving}>Save</button>
+      <button class="btn small primary" onclick={save} disabled={!text.trim() || saving}>{t('common.actions.save')}</button>
     {/if}
   </div>
   {#if inline}
     <p class="hint">
       <Icon name="bolt" size={12} stroke={2} />
-      Press <kbd>{MOD}</kbd><kbd>Shift</kbd><kbd>Space</kbd> anywhere to capture without opening the app first.
+      <Rich key="planner.capture.hint" params={{ mod: MOD }} />
     </p>
   {/if}
 </div>
@@ -163,7 +165,8 @@
     font-size: var(--fs-footnote);
     color: var(--text-3);
   }
-  .hint kbd + kbd {
+  /* The keys are drawn by Rich, so outside this component's scope. */
+  .hint :global(kbd + kbd) {
     margin-left: -3px;
   }
 </style>

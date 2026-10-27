@@ -4,6 +4,7 @@
   import Segmented from '../ui/Segmented.svelte';
   import { databases } from '../databases.svelte';
   import { typeInfo } from './schema';
+  import { t } from '../i18n';
   import type { DbView, SortRule } from '../types';
 
   let { dbId, view }: { dbId: string; view: DbView } = $props();
@@ -28,43 +29,43 @@
 <div class="sorts">
   {#each rules as rule, i (rule.prop)}
     <div class="rule">
-      <span class="lead">{i === 0 ? 'Sort by' : 'then'}</span>
+      <span class="lead">{i === 0 ? t('dbEdit.sort.sortBy') : t('dbEdit.sort.then')}</span>
       <select
         class="pop-input"
         value={rule.prop}
         onchange={(e) => save(rules.map((r, j) => (j === i ? { ...r, prop: (e.currentTarget as HTMLSelectElement).value } : r)))}
-        aria-label="Property"
+        aria-label={t('dbEdit.filter.property')}
       >
-        {#if !databases.prop(dbId, rule.prop)}<option value={rule.prop} disabled>Deleted property</option>{/if}
+        {#if !databases.prop(dbId, rule.prop)}<option value={rule.prop} disabled>{t('dbEdit.filter.deletedProperty')}</option>{/if}
         {#each allProps.filter((p) => p.id === rule.prop || !rules.some((r) => r.prop === p.id)) as p (p.id)}
           <option value={p.id}>{p.name || typeInfo(p.type).label}</option>
         {/each}
       </select>
       <Segmented
-        label="Direction"
+        label={t('dbEdit.sort.direction')}
         value={rule.dir}
         options={[
-          { value: 'asc', label: 'Up', icon: 'arrow-up' },
-          { value: 'desc', label: 'Down', icon: 'arrow-down' },
+          { value: 'asc', label: t('dbEdit.sort.up'), icon: 'arrow-up' },
+          { value: 'desc', label: t('dbEdit.sort.down'), icon: 'arrow-down' },
         ]}
         iconOnly
         onchange={(d) => save(rules.map((r, j) => (j === i ? { ...r, dir: d as 'asc' | 'desc' } : r)))}
       />
       {#if rules.length > 1}
-        <button class="icon-btn small" onclick={() => move(i, i === 0 ? 1 : -1)} aria-label="Change priority" data-tip={i === 0 ? 'Sort by this second' : 'Sort by this first'}>
+        <button class="icon-btn small" onclick={() => move(i, i === 0 ? 1 : -1)} aria-label={t('dbEdit.sort.changePriority')} data-tip={i === 0 ? t('dbEdit.sort.sortSecond') : t('dbEdit.sort.sortFirst')}>
           <Icon name="arrow-up-down" size={13} />
         </button>
       {/if}
-      <button class="icon-btn small" onclick={() => save(rules.filter((_, j) => j !== i))} aria-label="Remove sort" data-tip="Remove"><Icon name="x" size={13} /></button>
+      <button class="icon-btn small" onclick={() => save(rules.filter((_, j) => j !== i))} aria-label={t('dbEdit.sort.remove')} data-tip={t('common.actions.remove')}><Icon name="x" size={13} /></button>
     </div>
   {:else}
-    <p class="empty">Rows are in your own order: drag them to rearrange. Add a sort to order them by a property instead.</p>
+    <p class="empty">{t('dbEdit.sort.empty')}</p>
   {/each}
   {#if unused.length}
-    <button class="pop-item add" onclick={() => save([...rules, { prop: unused[0].id, dir: 'asc' }])}><Icon name="plus" size={14} /><span class="grow">Add a sort</span></button>
+    <button class="pop-item add" onclick={() => save([...rules, { prop: unused[0].id, dir: 'asc' }])}><Icon name="plus" size={14} /><span class="grow">{t('dbEdit.sort.add')}</span></button>
   {/if}
   {#if rules.length}
-    <button class="pop-item add" onclick={() => save([])}><Icon name="x" size={14} /><span class="grow">Back to my own order</span></button>
+    <button class="pop-item add" onclick={() => save([])}><Icon name="x" size={14} /><span class="grow">{t('dbEdit.sort.clear')}</span></button>
   {/if}
 </div>
 

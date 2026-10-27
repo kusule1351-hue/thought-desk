@@ -21,6 +21,7 @@
   import { planner } from '../planner.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
   import type { CellValue, DateValue, DbRow, Property } from '../types';
 
   let {
@@ -104,7 +105,7 @@
     const before = rawText();
     if (text !== before) {
       if (prop.type === 'number' && text.trim() && databases.parse(text, prop) === null) {
-        ui.toast(`“${text.trim()}” isn’t a number`);
+        ui.toast(t('dbEdit.cell.notANumber', { text: text.trim() }));
       } else set(prop.type === 'title' ? text.replace(/\s*\n\s*/g, ' ') : databases.parse(text, prop));
     }
     onclose(move);
@@ -182,11 +183,11 @@
         }}
       >
         <span class="dot" style:--dot={colorVar(c.color)}></span>
-        <span class="grow">{c.name || 'Untitled'}</span>
+        <span class="grow">{c.name || t('common.untitled')}</span>
         {#if current === c.id}<Icon name="check" size={14} stroke={2.4} />{/if}
       </button>
     {:else}
-      <p class="none">No courses yet.</p>
+      <p class="none">{t('dbEdit.cell.noCourses')}</p>
     {/each}
     <div class="pop-sep"></div>
     <button
@@ -197,7 +198,7 @@
         onclose(null);
       }}
     >
-      <Icon name="plus" size={14} /><span class="grow">New course…</span>
+      <Icon name="plus" size={14} /><span class="grow">{t('dbEdit.cell.newCourse')}</span>
     </button>
     {#if current}
       <button
@@ -207,7 +208,7 @@
           onclose(null);
         }}
       >
-        <Icon name="x" size={14} /><span class="grow">Clear</span>
+        <Icon name="x" size={14} /><span class="grow">{t('common.actions.clear')}</span>
       </button>
     {/if}
   </Popover>
@@ -217,15 +218,15 @@
       {@const f = library.byId.get(id)}
       <div class="file-row">
         <button class="pop-item" onclick={() => library.preview(id)}>
-          <Icon name="paperclip" size={14} /><span class="grow">{f?.name ?? 'Missing file'}</span>
+          <Icon name="paperclip" size={14} /><span class="grow">{f?.name ?? t('dbEdit.cell.missingFile')}</span>
         </button>
-        <button class="icon-btn" onclick={() => set(fileIds.filter((x) => x !== id))} aria-label="Remove {f?.name}" data-tip="Remove"><Icon name="x" size={13} /></button>
+        <button class="icon-btn" onclick={() => set(fileIds.filter((x) => x !== id))} aria-label={t('dbEdit.removeNamed', { name: f?.name ?? '' })} data-tip={t('common.actions.remove')}><Icon name="x" size={13} /></button>
       </div>
     {:else}
-      <p class="none">No files yet.</p>
+      <p class="none">{t('dbEdit.cell.noFiles')}</p>
     {/each}
     <div class="pop-sep"></div>
-    <button class="pop-item" onclick={addFiles}><Icon name="plus" size={14} /><span class="grow">Add from Files…</span></button>
+    <button class="pop-item" onclick={addFiles}><Icon name="plus" size={14} /><span class="grow">{t('dbEdit.cell.addFromFiles')}</span></button>
   </Popover>
 {/if}
 

@@ -28,6 +28,7 @@ import { RemoteGlow } from './remote-glow';
 import type { Doc as YDoc } from 'yjs';
 import { storedName } from '../api';
 import { ui } from '../ui.svelte';
+import { t } from '../i18n';
 
 /** Editor-wide shortcuts that don't belong to a single node type. */
 const Shortcuts = Extension.create({
@@ -138,11 +139,11 @@ const SharedImage = Image.extend({
       dom.className = 'remote-image';
       dom.contentEditable = 'false';
       const label = document.createElement('span');
-      label.textContent = `Picture from ${host}`;
+      label.textContent = t('editor.remoteImage.label', { host });
       const show = document.createElement('button');
       show.type = 'button';
       show.className = 'btn small';
-      show.textContent = 'Show';
+      show.textContent = t('common.actions.show');
       show.addEventListener('click', () => {
         shownRemote.add(src);
         const img = document.createElement('img');
@@ -171,13 +172,17 @@ export interface CollabSetup {
   user: { name: string; color: string; id: number };
   /** The other person's cursor colour, for the glow on what they just typed. */
   friendColor: () => string | undefined;
+  /** Whether a person's name is showing now (Session.isAwake). */
+  awake: (id: number) => boolean;
 }
 
 /** Another person's cursor, marked with their client id so their name can
- *  show only while they're active (Session.showName in cowork.svelte.ts). */
-function caret(user: Record<string, unknown>): HTMLElement {
+ *  show only while they're active (Session.showName in cowork.svelte.ts).
+ *  The editor redraws a cursor while its person types; a new one starts with
+ *  its name showing, or the name would drop out until the next keystroke. */
+function caret(user: Record<string, unknown>, awake: (id: number) => boolean): HTMLElement {
   const cursor = document.createElement('span');
-  cursor.className = 'collaboration-carets__caret';
+  cursor.className = awake(Number(user.id)) ? 'collaboration-carets__caret awake' : 'collaboration-carets__caret';
   cursor.style.borderColor = String(user.color);
   cursor.dataset.who = String(Number(user.id) || '');
   const label = document.createElement('div');
@@ -193,7 +198,7 @@ export function buildExtensions(handle: BlockHandleOptions, collab?: CollabSetup
     ...(collab
       ? [
           Collaboration.configure({ document: collab.doc }),
-          CollaborationCaret.configure({ provider: collab.provider, user: collab.user, render: caret }),
+          CollaborationCaret.configure({ provider: collab.provider, user: collab.user, render: (user) => caret(user, collab.awake) }),
           RemoteGlow.configure({ color: collab.friendColor }),
         ]
       : []),
@@ -212,7 +217,10 @@ export function buildExtensions(handle: BlockHandleOptions, collab?: CollabSetup
       },
     }),
     TaskList,
-    TaskItem.configure({ nested: true }),
+    TaskItem.configure({
+      nested: true,
+      a11y: { checkboxLabel: (node) => (node.textContent ? t('editor.taskCheckbox', { text: node.textContent }) : t('editor.taskCheckboxEmpty')) },
+    }),
     Details.configure({ persist: true, HTMLAttributes: { class: 'toggle' } }),
     DetailsSummary,
     DetailsContent,
@@ -239,12 +247,12 @@ export function buildExtensions(handle: BlockHandleOptions, collab?: CollabSetup
         // Only lines of text get a hint. Containers count as "empty" too
         // (a new table, an empty quote), and would show it over their cells.
         if (!node.isTextblock) return '';
-        if (node.type.name === 'heading') return `Heading ${node.attrs.level}`;
-        if (node.type.name === 'detailsSummary') return 'Toggle';
+        if (node.type.name === 'heading') return t('editor.placeholder.heading', { level: Number(node.attrs.level) });
+        if (node.type.name === 'detailsSummary') return t('editor.placeholder.toggle');
         if (node.type.name === 'codeBlock') return '';
-        if (node.type.name === 'flashcardFront') return 'Term or question';
-        if (node.type.name === 'flashcardBack') return 'Definition or answer';
-        return 'Write something, or type / for commands';
+        if (node.type.name === 'flashcardFront') return t('editor.placeholder.flashcardFront');
+        if (node.type.name === 'flashcardBack') return t('editor.placeholder.flashcardBack');
+        return t('editor.placeholder.paragraph');
       },
     }),
     Callout,

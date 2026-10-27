@@ -9,32 +9,33 @@
   import { databases } from '../databases.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
   import type { DbRow, DbView } from '../types';
 
   let { dbId, view, onpick, onclose }: { dbId: string; view: DbView; onpick: (templateId: string) => void; onclose: () => void } = $props();
 
   const templates = $derived(databases.templatesOf(dbId));
-  const current = $derived(view.config.template && templates.some((t) => t.id === view.config.template) ? view.config.template : '');
+  const current = $derived(view.config.template && templates.some((tpl) => tpl.id === view.config.template) ? view.config.template : '');
 
-  function more(e: MouseEvent, t: DbRow | null) {
+  function more(e: MouseEvent, tpl: DbRow | null) {
     e.stopPropagation();
-    const id = t?.id ?? '';
+    const id = tpl?.id ?? '';
     ui.openMenuAt(e.currentTarget as Element, [
-      { label: 'Default for this view', icon: 'check', checked: current === id, action: () => databases.setDefaultTemplate(dbId, id, view.id) },
-      { label: 'Default for every view', icon: 'layers', action: () => databases.setDefaultTemplate(dbId, id, null) },
-      ...(t
+      { label: t('dbAuto.templates.defaultForView'), icon: 'check', checked: current === id, action: () => databases.setDefaultTemplate(dbId, id, view.id) },
+      { label: t('dbAuto.templates.defaultForEveryView'), icon: 'layers', action: () => databases.setDefaultTemplate(dbId, id, null) },
+      ...(tpl
         ? [
             { separator: true as const },
             {
-              label: 'Edit',
+              label: t('common.actions.edit'),
               icon: 'pencil',
               action: () => {
                 onclose();
-                store.open(t.id);
+                store.open(tpl.id);
               },
             },
-            { label: 'Duplicate', icon: 'copy', action: () => void databases.duplicateRows([t.id]) },
-            { label: 'Delete', icon: 'trash', danger: true, action: () => void databases.deleteRows([t.id]) },
+            { label: t('common.actions.duplicate'), icon: 'copy', action: () => void databases.duplicateRows([tpl.id]) },
+            { label: t('common.actions.delete'), icon: 'trash', danger: true, action: () => void databases.deleteRows([tpl.id]) },
           ]
         : []),
     ]);
@@ -42,33 +43,38 @@
 </script>
 
 <div class="tp">
-  <div class="pop-head">New row from</div>
+  <div class="pop-head">{t('dbAuto.templates.newRowFrom')}</div>
   <div class="opt-row">
     <button class="pop-item" onclick={() => onpick('')}>
       <Icon name="page" size={14} />
-      <span class="grow">Empty row</span>
-      {#if current === ''}<span class="badge">Default</span>{/if}
+      <span class="grow">{t('dbAuto.templates.emptyRow')}</span>
+      {#if current === ''}<span class="badge">{t('dbAuto.templates.default')}</span>{/if}
     </button>
-    <button class="more" onclick={(e) => more(e, null)} aria-label="Options for an empty row" data-tip="Make the default"><Icon name="more" size={14} /></button>
+    <button class="more" onclick={(e) => more(e, null)} aria-label={t('dbAuto.templates.emptyRowOptions')} data-tip={t('dbAuto.templates.makeDefault')}><Icon name="more" size={14} /></button>
   </div>
-  {#each templates as t (t.id)}
-    {@const page = store.byId.get(t.id)}
+  {#each templates as tpl (tpl.id)}
+    {@const page = store.byId.get(tpl.id)}
     <div class="opt-row">
-      <button class="pop-item" onclick={() => onpick(t.id)}>
+      <button class="pop-item" onclick={() => onpick(tpl.id)}>
         {#if page?.icon}<span class="emoji"><PageIcon icon={page.icon} /></span>{:else}<Icon name="template" size={14} />{/if}
-        <span class="grow name">{page?.title || 'Untitled template'}</span>
-        {#if current === t.id}<span class="badge">Default</span>{/if}
+        <span class="grow name">{page?.title || t('dbAuto.templates.untitled')}</span>
+        {#if current === tpl.id}<span class="badge">{t('dbAuto.templates.default')}</span>{/if}
       </button>
       <button
         class="more"
         onclick={() => {
           onclose();
-          store.open(t.id);
+          store.open(tpl.id);
         }}
-        aria-label="Edit {page?.title || 'template'}"
-        data-tip="Edit"><Icon name="pencil" size={13} /></button
+        aria-label={page?.title ? t('dbAuto.templates.editNamed', { title: page.title }) : t('dbAuto.templates.editUnnamed')}
+        data-tip={t('common.actions.edit')}><Icon name="pencil" size={13} /></button
       >
-      <button class="more" onclick={(e) => more(e, t)} aria-label="More for {page?.title || 'template'}" data-tip="More"><Icon name="more" size={14} /></button>
+      <button
+        class="more"
+        onclick={(e) => more(e, tpl)}
+        aria-label={page?.title ? t('dbAuto.templates.moreNamed', { title: page.title }) : t('dbAuto.templates.moreUnnamed')}
+        data-tip={t('common.actions.more')}><Icon name="more" size={14} /></button
+      >
     </div>
   {/each}
   <div class="pop-sep"></div>
@@ -79,10 +85,10 @@
       void databases.newTemplate(dbId);
     }}
   >
-    <Icon name="plus" size={14} /><span class="grow">New template</span>
+    <Icon name="plus" size={14} /><span class="grow">{t('dbAuto.templates.new')}</span>
   </button>
   {#if !templates.length}
-    <p class="tip">A template is a row to start from: its values and its page (a checklist, headings, notes) are copied into each new row.</p>
+    <p class="tip">{t('dbAuto.templates.tip')}</p>
   {/if}
 </div>
 

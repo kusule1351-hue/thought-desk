@@ -17,6 +17,8 @@
    */
   import { onMount, tick, untrack } from 'svelte';
   import Icon from '../components/Icon.svelte';
+  import { t } from '../i18n';
+  import Rich from '../i18n/Rich.svelte';
   import { PALETTE, suggest, type MathCommand } from './commands';
   import { katexLoaded, loadKatex, mathError, mathHTML } from './katex';
 
@@ -266,13 +268,13 @@
       spellcheck="false"
       autocapitalize="off"
       autocomplete="off"
-      placeholder={display ? 'E = mc^2   (type \\ for commands)' : 'x^2   (type \\ for commands)'}
-      aria-label="Equation (LaTeX)"
+      placeholder={t('blocks.math.placeholder', { example: display ? 'E = mc^2' : 'x^2' })}
+      aria-label={t('blocks.math.field')}
     ></textarea>
   </div>
 
   {#if suggestions.length && typing}
-    <ul class="suggest" role="listbox" aria-label="Commands">
+    <ul class="suggest" role="listbox" aria-label={t('blocks.math.commands')}>
       {#each suggestions as s, i (s.name)}
         <li role="option" aria-selected={i === active}>
           <button class:on={i === active} onmousedown={(e) => e.preventDefault()} onclick={() => accept(i)} onmouseenter={() => (active = i)}>
@@ -289,8 +291,8 @@
   {#if paletteOpen}
     <div class="palette">
       <div class="tabs" role="tablist">
-        {#each PALETTE as g, i (g.name)}
-          <button role="tab" class:on={paletteTab === i} aria-selected={paletteTab === i} onmousedown={(e) => e.preventDefault()} onclick={() => (paletteTab = i)}>{g.name}</button>
+        {#each PALETTE as g, i (i)}
+          <button role="tab" class:on={paletteTab === i} aria-selected={paletteTab === i} onmousedown={(e) => e.preventDefault()} onclick={() => (paletteTab = i)}>{t(g.label)}</button>
         {/each}
       </div>
       <div class="symbols">
@@ -305,10 +307,10 @@
 
   <div class="foot">
     <button class="pal-btn" class:on={paletteOpen} onmousedown={(e) => e.preventDefault()} onclick={() => (paletteOpen = !paletteOpen)}>
-      <Icon name="sigma" size={13} /> Symbols
+      <Icon name="sigma" size={13} /> {t('blocks.math.symbols')}
     </button>
     <span class="hint">
-      {#if display}<kbd>{MOD}</kbd><kbd>Enter</kbd> done · <kbd>Tab</kbd> next slot{:else}<kbd>Enter</kbd> done · <kbd>Tab</kbd> next slot{/if}
+      {#if display}<Rich key="blocks.math.hintBlock" params={{ mod: MOD }}>{#snippet kbd(text: string)}<kbd>{text}</kbd>{/snippet}</Rich>{:else}<Rich key="blocks.math.hintInline">{#snippet kbd(text: string)}<kbd>{text}</kbd>{/snippet}</Rich>{/if}
     </span>
   </div>
 </div>

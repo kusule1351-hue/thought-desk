@@ -27,9 +27,11 @@
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
   import { randomIcon } from '../page-icon';
-  import { OPS, RELATIVE_DAYS, ruleActive } from './query';
+  import { OPS, ruleActive, ruleText } from './query';
   import { option } from './schema';
   import type { DbView, FilterRule, Property, ViewType } from '../types';
+  import { t, type TextKey } from '../i18n';
+  type Label = TextKey;
 
   let {
     id,
@@ -119,7 +121,8 @@
 
   // -------------------------------------------------------------- popovers
 
-  let panel = $state<{ kind: 'filter' | 'sort' | 'settings' | 'templates' | 'automations'; anchor: Element } | null>(null);
+  type PanelKind = 'filter' | 'sort' | 'settings' | 'templates' | 'automations';
+  let panel = $state<{ kind: PanelKind; anchor: Element } | null>(null);
   let filterBtn = $state<HTMLButtonElement>();
   let settingsBtn = $state<HTMLButtonElement>();
   let table = $state<{ addRow: (template?: string) => Promise<void> }>();
@@ -142,42 +145,39 @@
     if (settingsBtn) panel = { kind: 'settings', anchor: settingsBtn };
   }
 
-  /** "Status is Done, Doing", "Due is before today"… for the chips. */
+  /** "Status is Done, Doing", "Due is before today"… for the chips (worded by query.ts, beside the filters' labels). */
   function describe(r: FilterRule): string {
     const p = databases.prop(id, r.prop);
     if (!p) return '';
-    const op = OPS[databases.kind(id, p)].find((o) => o.op === r.op);
-    let value = '';
-    if (Array.isArray(r.value)) value = (r.value as string[]).map((k) => (p.type === 'select' || p.type === 'status' || p.type === 'multiSelect' ? (option(p, k)?.name ?? '') : databases.labelFor(p, k))).join(', ');
-    else if (op?.input === 'date') value = RELATIVE_DAYS.find((d) => d.key === r.value)?.label.toLowerCase() ?? String(r.value ?? '');
-    else if (op?.input === 'days') value = `${r.value ?? 7} days`;
-    else if (r.value !== undefined && r.value !== null) value = String(r.value);
-    return `${p.name} ${op?.label ?? ''}${value ? ` ${value}` : ''}`;
+    const names = Array.isArray(r.value)
+      ? (r.value as string[]).map((k) => (p.type === 'select' || p.type === 'status' || p.type === 'multiSelect' ? (option(p, k)?.name ?? '') : databases.labelFor(p, k)))
+      : [];
+    return ruleText(p.name, databases.kind(id, p), r, names);
   }
 
   // ------------------------------------------------------------------ tabs
 
   function addViewMenu(e: MouseEvent) {
-    const types: { type: ViewType; icon: string; hint: string }[] = [
-      { type: 'table', icon: 'table', hint: 'Rows and columns' },
-      { type: 'board', icon: 'board', hint: 'Cards by status' },
-      { type: 'gallery', icon: 'grid', hint: 'Cards with pictures' },
-      { type: 'list', icon: 'list', hint: 'Simple and tidy' },
-      { type: 'calendar', icon: 'calendar', hint: 'By date' },
-      { type: 'chart', icon: 'chart', hint: 'Totals at a glance' },
-      { type: 'timeline', icon: 'timeline', hint: 'Dates as bars' },
-      { type: 'form', icon: 'form', hint: 'Add rows by filling in' },
+    const types: { type: ViewType; icon: string; hint: Label }[] = [
+      { type: 'table', icon: 'table', hint: 'dbTable.layoutHint.table' },
+      { type: 'board', icon: 'board', hint: 'dbTable.addViewHint.board' },
+      { type: 'gallery', icon: 'grid', hint: 'dbTable.addViewHint.gallery' },
+      { type: 'list', icon: 'list', hint: 'dbTable.addViewHint.list' },
+      { type: 'calendar', icon: 'calendar', hint: 'dbTable.layoutHint.calendar' },
+      { type: 'chart', icon: 'chart', hint: 'dbTable.layoutHint.chart' },
+      { type: 'timeline', icon: 'timeline', hint: 'dbTable.layoutHint.timeline' },
+      { type: 'form', icon: 'form', hint: 'dbTable.layoutHint.form' },
     ];
     ui.openMenuAt(
       e.currentTarget as Element,
       [
-        { header: 'Add a view' },
-        ...types.map((t) => ({
-          label: VIEW_NAMES[t.type],
-          icon: t.icon,
-          hint: t.hint,
+        { header: t('dbTable.addView') },
+        ...types.map((layout) => ({
+          label: VIEW_NAMES[layout.type],
+          icon: layout.icon,
+          hint: t(layout.hint),
           action: async () => {
-            const v = await databases.addView(id, t.type);
+            const v = await databases.addView(id, layout.type);
             if (v) show(v);
           },
         })),
@@ -193,7 +193,7 @@
       y: e.clientY,
       items: [
         {
-          label: 'Settings',
+          label: t('dbTable.tabMenu.settings'),
           icon: 'sliders',
           action: () => {
             show(v);
@@ -201,20 +201,29 @@
           },
         },
         {
-          label: 'Duplicate',
+          label: t('common.actions.duplicate'),
           icon: 'copy',
           action: async () => {
             const copy = await databases.duplicateView(id, v.id);
             if (copy) show(copy);
           },
         },
-        { label: 'Move left', icon: 'arrow-left', disabled: i === 0, action: () => databases.moveView(id, v.id, i - 1) },
-        { label: 'Move right', icon: 'arrow-right', disabled: i === views.length - 1, action: () => databases.moveView(id, v.id, i + 1) },
+        { label: t('dbTable.tabMenu.moveLeft'), icon: 'arrow-left', disabled: i === 0, action: () => databases.moveView(id, v.id, i - 1) },
+        { label: t('dbTable.tabMenu.moveRight'), icon: 'arrow-right', disabled: i === views.length - 1, action: () => databases.moveView(id, v.id, i + 1) },
         { separator: true },
-        { label: 'Delete view', icon: 'trash', danger: true, disabled: views.length < 2, action: () => void databases.deleteView(id, v.id) },
+        { label: t('dbTable.deleteView'), icon: 'trash', danger: true, disabled: views.length < 2, action: () => void databases.deleteView(id, v.id) },
       ],
     });
   }
+
+  /** The popovers' names for screen readers. */
+  const PANEL_LABELS: Record<PanelKind, Label> = {
+    filter: 'dbTable.panel.filter',
+    sort: 'dbTable.panel.sort',
+    settings: 'dbTable.panel.settings',
+    templates: 'dbTable.panel.templates',
+    automations: 'dbTable.panel.automations',
+  };
 
   const ICONS: Record<ViewType, string> = {
     table: 'table',
@@ -275,18 +284,18 @@
   >
     {#if embedded}
       <div class="emb-head">
-        <button class="emb-title" onclick={() => store.open(id)} data-tip="Open as a full page">
+        <button class="emb-title" onclick={() => store.open(id)} data-tip={t('dbTable.header.openFullPage')}>
           {#if meta.icon}<span class="emoji"><PageIcon icon={meta.icon} /></span>{:else}<Icon name="database" size={16} />{/if}
-          <span>{meta.title || 'Untitled database'}</span>
+          <span>{meta.title || t('common.untitledDatabase')}</span>
         </button>
       </div>
     {:else}
       <header class="head" class:has-icon={!!meta.icon}>
         {#if meta.icon}
-          <button class="db-icon" onclick={pickIcon} data-tip="Change icon"><PageIcon icon={meta.icon} /></button>
+          <button class="db-icon" onclick={pickIcon} data-tip={t('dbTable.header.changeIcon')}><PageIcon icon={meta.icon} /></button>
         {:else}
           <div class="head-tools">
-            <button class="tool" onclick={() => store.update(id, { icon: randomIcon() }, { immediate: true })}><Icon name="smile" size={16} /> Add icon</button>
+            <button class="tool" onclick={() => store.update(id, { icon: randomIcon() }, { immediate: true })}><Icon name="smile" size={16} /> {t('dbTable.header.addIcon')}</button>
           </div>
         {/if}
         <!-- svelte-ignore a11y_missing_content -->
@@ -295,7 +304,7 @@
           bind:this={titleEl}
           contenteditable="plaintext-only"
           spellcheck="false"
-          data-placeholder="Untitled database"
+          data-placeholder={t('common.untitledDatabase')}
           oninput={onTitleInput}
           onkeydown={(e) => {
             if (e.key === 'Enter') {
@@ -308,7 +317,7 @@
           class="desc"
           bind:this={descEl}
           contenteditable="plaintext-only"
-          data-placeholder="Add a description"
+          data-placeholder={t('dbTable.header.addDescription')}
           oninput={() => databases.setDescription(id, descEl?.textContent ?? '')}
           onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), descEl?.blur())}
         ></p>
@@ -316,7 +325,7 @@
     {/if}
 
     <div class="bar">
-      <div class="tabs" role="tablist" aria-label="Views">
+      <div class="tabs" role="tablist" aria-label={t('dbTable.viewTabs')}>
         {#each views as v (v.id)}
           <button
             class="tab"
@@ -325,13 +334,13 @@
             aria-selected={v.id === view.id}
             onclick={() => (v.id === view.id ? openSettings() : show(v))}
             oncontextmenu={(e) => tabMenu(e, v)}
-            data-tip={v.id === view.id ? 'View settings' : undefined}
+            data-tip={v.id === view.id ? t('dbTable.viewSettings') : undefined}
           >
             <Icon name={ICONS[v.type]} size={14} />
             <span>{v.name || VIEW_NAMES[v.type]}</span>
           </button>
         {/each}
-        <button class="icon-btn add-view" onclick={addViewMenu} aria-label="Add a view" data-tip="Add a view"><Icon name="plus" size={15} /></button>
+        <button class="icon-btn add-view" onclick={addViewMenu} aria-label={t('dbTable.addView')} data-tip={t('dbTable.addView')}><Icon name="plus" size={15} /></button>
       </div>
       <div class="tools">
         {#if view.type === 'form'}
@@ -341,7 +350,7 @@
           <input
             class="pop-input search"
             bind:value={search}
-            placeholder="Search rows"
+            placeholder={t('dbTable.toolbar.searchRows')}
             autofocus
             onkeydown={(e) => {
               if (e.key === 'Escape') {
@@ -350,10 +359,10 @@
               }
             }}
             onblur={() => !search && (searching = false)}
-            aria-label="Search rows"
+            aria-label={t('dbTable.toolbar.searchRows')}
           />
         {:else}
-          <button class="icon-btn" onclick={() => (searching = true)} aria-label="Search" data-tip="Search rows"><Icon name="search" size={15} /></button>
+          <button class="icon-btn" onclick={() => (searching = true)} aria-label={t('dbTable.toolbar.search')} data-tip={t('dbTable.toolbar.searchRows')}><Icon name="search" size={15} /></button>
         {/if}
         {#if view.type !== 'form'}
         <button
@@ -361,14 +370,14 @@
           class:active={activeFilters.length > 0}
           bind:this={filterBtn}
           onclick={(e) => (panel = { kind: 'filter', anchor: e.currentTarget as Element })}
-          aria-label="Filter"
-          data-tip="Filter"
+          aria-label={t('dbTable.toolbar.filter')}
+          data-tip={t('dbTable.toolbar.filter')}
         >
           <Icon name="filter" size={15} />
         </button>
         {/if}
         {#if view.type !== 'chart' && view.type !== 'calendar' && view.type !== 'form'}
-          <button class="icon-btn" class:active={sorts.length > 0} onclick={(e) => (panel = { kind: 'sort', anchor: e.currentTarget as Element })} aria-label="Sort" data-tip="Sort">
+          <button class="icon-btn" class:active={sorts.length > 0} onclick={(e) => (panel = { kind: 'sort', anchor: e.currentTarget as Element })} aria-label={t('dbTable.toolbar.sort')} data-tip={t('dbTable.toolbar.sort')}>
             <Icon name="sort" size={15} />
           </button>
         {/if}
@@ -376,22 +385,22 @@
           class="icon-btn"
           class:active={activeRules > 0}
           onclick={(e) => (panel = { kind: 'automations', anchor: e.currentTarget as Element })}
-          aria-label="Automations"
-          data-tip={activeRules ? `${activeRules} automation${activeRules === 1 ? '' : 's'} on` : 'Automations'}
+          aria-label={t('dbTable.toolbar.automations')}
+          data-tip={activeRules ? t('dbTable.toolbar.automationsOn', { count: activeRules }) : t('dbTable.toolbar.automations')}
         >
           <Icon name="bolt" size={15} />
         </button>
-        <button class="icon-btn" bind:this={settingsBtn} onclick={(e) => (panel = { kind: 'settings', anchor: e.currentTarget as Element })} aria-label="View settings" data-tip="Layout, grouping and properties">
+        <button class="icon-btn" bind:this={settingsBtn} onclick={(e) => (panel = { kind: 'settings', anchor: e.currentTarget as Element })} aria-label={t('dbTable.viewSettings')} data-tip={t('dbTable.toolbar.settingsTip')}>
           <Icon name="sliders" size={15} />
         </button>
         {#if view.type !== 'chart' && view.type !== 'form'}
           <div class="new-group">
-            <button class="btn small primary new" onclick={() => addRow()}><Icon name="plus" size={14} stroke={2.2} /> New</button>
+            <button class="btn small primary new" onclick={() => addRow()}><Icon name="plus" size={14} stroke={2.2} /> {t('common.actions.new')}</button>
             <button
               class="btn small primary new-more"
               onclick={(e) => (panel = { kind: 'templates', anchor: e.currentTarget as Element })}
-              aria-label="Templates"
-              data-tip={templateCount ? `${templateCount} template${templateCount === 1 ? '' : 's'}` : 'Templates'}
+              aria-label={t('dbTable.toolbar.templates')}
+              data-tip={templateCount ? t('dbTable.toolbar.templateCount', { count: templateCount }) : t('dbTable.toolbar.templates')}
             >
               <Icon name="chevron-down" size={13} stroke={2.2} />
             </button>
@@ -411,14 +420,14 @@
         {#each activeFilters as r (r.id)}
           <button class="chip small" onclick={(e) => (panel = { kind: 'filter', anchor: e.currentTarget as Element })}><Icon name="filter" size={12} /> {describe(r)}</button>
         {/each}
-        {#if activeFilters.length || search}<span class="count">{result.rows.length} of {total}</span>{/if}
+        {#if activeFilters.length || search}<span class="count">{t('dbTable.shownOfTotal', { shown: result.rows.length, count: total })}</span>{/if}
         <button
           class="clear"
           onclick={() => {
             databases.updateView(id, view.id, { filters: [], sorts: [] });
             search = '';
             searching = false;
-          }}>Clear</button
+          }}>{t('dbTable.clearFilters')}</button
         >
       </div>
     {/if}
@@ -426,7 +435,7 @@
     <div class="view-body" class:pad={!embedded} class:edge={!embedded && (view.type === 'table' || view.type === 'board')}>
       {#key view.id}
         {#if !ready && !databases.showsEarly(id, view, search)}
-          <div class="reading">Loading rows…</div>
+          <div class="reading">{t('dbTable.loadingRows')}</div>
         {:else if view.type === 'table'}
           <TableView bind:this={table} dbId={id} {view} rows={result.rows} groups={result.groups} onfilter={filterOn} />
         {:else if view.type === 'board'}
@@ -447,7 +456,7 @@
       {/key}
     </div>
     {#if dropping}
-      <div class="drop-hint"><Icon name="upload" size={18} /> Drop a CSV to add its rows</div>
+      <div class="drop-hint"><Icon name="upload" size={18} /> {t('dbTable.dropCsv')}</div>
     {/if}
   </section>
 
@@ -457,10 +466,10 @@
       align="end"
       width={panel.kind === 'settings' ? 300 : panel.kind === 'filter' ? 440 : panel.kind === 'templates' ? 280 : panel.kind === 'automations' ? 420 : 360}
       onclose={() => (panel = null)}
-      label={panel.kind}
+      label={t(PANEL_LABELS[panel.kind])}
     >
       {#if panel.kind === 'templates'}
-        <TemplatesPanel dbId={id} {view} onpick={(t) => void addRow(t)} onclose={() => (panel = null)} />
+        <TemplatesPanel dbId={id} {view} onpick={(tpl) => void addRow(tpl)} onclose={() => (panel = null)} />
       {:else if panel.kind === 'automations'}
         <AutomationsPanel dbId={id} />
       {:else if panel.kind === 'filter'}

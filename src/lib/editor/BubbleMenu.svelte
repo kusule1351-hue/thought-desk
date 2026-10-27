@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { MOD } from '../platform';
+  import { comboLabel, keyName } from '../shortcuts.svelte';
   import type { Editor } from '@tiptap/core';
   import { BubbleMenuPlugin } from '@tiptap/extension-bubble-menu';
   import { NodeSelection } from '@tiptap/pm/state';
@@ -8,7 +8,36 @@
   import Icon from '../components/Icon.svelte';
   import { ui } from '../ui.svelte';
   import { KINDS, currentKind, turnInto } from './blocks';
-  import { PALETTE } from '../colors';
+  import { PALETTE, type ColorKey } from '../colors';
+  import { t, type MessageKey } from '../i18n';
+
+  /** The letter each colour swatch shows its colour on. */
+  const SAMPLE = t('editor.bubble.sample');
+  /** Each swatch's name for screen readers: the text in that colour, or a highlight in it. */
+  const TEXT_COLOR = {
+    red: 'editor.bubble.textColor.red',
+    orange: 'editor.bubble.textColor.orange',
+    yellow: 'editor.bubble.textColor.yellow',
+    green: 'editor.bubble.textColor.green',
+    teal: 'editor.bubble.textColor.teal',
+    blue: 'editor.bubble.textColor.blue',
+    indigo: 'editor.bubble.textColor.indigo',
+    purple: 'editor.bubble.textColor.purple',
+    pink: 'editor.bubble.textColor.pink',
+    gray: 'editor.bubble.textColor.gray',
+  } as const satisfies Record<ColorKey, MessageKey>;
+  const HIGHLIGHT_COLOR = {
+    red: 'editor.bubble.highlightColor.red',
+    orange: 'editor.bubble.highlightColor.orange',
+    yellow: 'editor.bubble.highlightColor.yellow',
+    green: 'editor.bubble.highlightColor.green',
+    teal: 'editor.bubble.highlightColor.teal',
+    blue: 'editor.bubble.highlightColor.blue',
+    indigo: 'editor.bubble.highlightColor.indigo',
+    purple: 'editor.bubble.highlightColor.purple',
+    pink: 'editor.bubble.highlightColor.pink',
+    gray: 'editor.bubble.highlightColor.gray',
+  } as const satisfies Record<ColorKey, MessageKey>;
 
   let { editor }: { editor: Editor } = $props();
 
@@ -31,9 +60,10 @@
       textColor: (editor.getAttributes('textColor').color as string | undefined) ?? null,
       highlightColor: editor.isActive('highlight') ? ((editor.getAttributes('highlight').color as string | undefined) ?? 'default') : null,
       link: editor.isActive('link'),
-      kind: KINDS.find((k) => k.kind === currentKind(editor))?.label ?? 'Text',
+      kind: currentKind(editor),
     };
   });
+  const kindLabel = $derived(KINDS.find((k) => k.kind === active.kind)?.label ?? KINDS[0].label);
 
   onMount(() => {
     const key = 'textBubble';
@@ -112,7 +142,7 @@
       KINDS.map((k) => ({
         label: k.label,
         icon: k.icon,
-        checked: k.label === active.kind,
+        checked: k.kind === active.kind,
         action: () => turnInto(editor, k.kind),
       })),
     );
@@ -136,36 +166,36 @@
 <div class="bubble popover" class:tall={mode === 'color'} bind:this={el} style="visibility: hidden">
   {#if mode === 'format'}
     <button class="kind" onmousedown={keep} onclick={openTurnInto}>
-      <span>{active.kind}</span>
+      <span>{kindLabel}</span>
       <Icon name="chevron-down" size={12} stroke={2.2} />
     </button>
     <span class="sep"></span>
-    <button class="fmt" class:on={active.bold} onmousedown={keep} onclick={() => editor.chain().focus().toggleBold().run()} data-tip="Bold" data-tip-key="{MOD}+B"><Icon name="bold" stroke={2.3} /></button>
-    <button class="fmt" class:on={active.italic} onmousedown={keep} onclick={() => editor.chain().focus().toggleItalic().run()} data-tip="Italic" data-tip-key="{MOD}+I"><Icon name="italic" stroke={2.1} /></button>
-    <button class="fmt" class:on={active.underline} onmousedown={keep} onclick={() => editor.chain().focus().toggleUnderline().run()} data-tip="Underline" data-tip-key="{MOD}+U"><Icon name="underline" stroke={2.1} /></button>
-    <button class="fmt" class:on={active.strike} onmousedown={keep} onclick={() => editor.chain().focus().toggleStrike().run()} data-tip="Strikethrough" data-tip-key="{MOD}+Shift+S"><Icon name="strike" stroke={2.1} /></button>
-    <button class="fmt" class:on={active.code} onmousedown={keep} onclick={() => editor.chain().focus().toggleCode().run()} data-tip="Inline code" data-tip-key="{MOD}+E"><Icon name="code" stroke={2.1} /></button>
-    <button class="fmt" onmousedown={keep} onclick={() => editor.chain().focus().insertInlineMath().run()} data-tip="Math" data-tip-key="{MOD}+Shift+E"><Icon name="function" stroke={2.1} /></button>
-    <button class="fmt" class:on={active.highlight} onmousedown={keep} onclick={() => editor.chain().focus().toggleHighlight().run()} data-tip="Highlight" data-tip-key="{MOD}+Shift+H"><Icon name="highlight" stroke={2} /></button>
-    <button class="fmt" onmousedown={keep} onclick={() => (mode = 'color')} data-tip="Color" aria-label="Color">
-      <span class="glyph swatch-ink" class:text={!!active.textColor} class:tint={!!active.highlightColor && active.highlightColor !== 'default'} data-ink={active.textColor ?? active.highlightColor}>A</span>
+    <button class="fmt" class:on={active.bold} onmousedown={keep} onclick={() => editor.chain().focus().toggleBold().run()} data-tip={t('editor.bubble.bold')} data-tip-key={comboLabel('Mod+KeyB')}><Icon name="bold" stroke={2.3} /></button>
+    <button class="fmt" class:on={active.italic} onmousedown={keep} onclick={() => editor.chain().focus().toggleItalic().run()} data-tip={t('editor.bubble.italic')} data-tip-key={comboLabel('Mod+KeyI')}><Icon name="italic" stroke={2.1} /></button>
+    <button class="fmt" class:on={active.underline} onmousedown={keep} onclick={() => editor.chain().focus().toggleUnderline().run()} data-tip={t('editor.bubble.underline')} data-tip-key={comboLabel('Mod+KeyU')}><Icon name="underline" stroke={2.1} /></button>
+    <button class="fmt" class:on={active.strike} onmousedown={keep} onclick={() => editor.chain().focus().toggleStrike().run()} data-tip={t('editor.bubble.strikethrough')} data-tip-key={comboLabel('Mod+Shift+KeyS')}><Icon name="strike" stroke={2.1} /></button>
+    <button class="fmt" class:on={active.code} onmousedown={keep} onclick={() => editor.chain().focus().toggleCode().run()} data-tip={t('editor.bubble.inlineCode')} data-tip-key={comboLabel('Mod+KeyE')}><Icon name="code" stroke={2.1} /></button>
+    <button class="fmt" onmousedown={keep} onclick={() => editor.chain().focus().insertInlineMath().run()} data-tip={t('editor.bubble.math')} data-tip-key={comboLabel('Mod+Shift+KeyE')}><Icon name="function" stroke={2.1} /></button>
+    <button class="fmt" class:on={active.highlight} onmousedown={keep} onclick={() => editor.chain().focus().toggleHighlight().run()} data-tip={t('editor.bubble.highlight')} data-tip-key={comboLabel('Mod+Shift+KeyH')}><Icon name="highlight" stroke={2} /></button>
+    <button class="fmt" onmousedown={keep} onclick={() => (mode = 'color')} data-tip={t('editor.bubble.color')} aria-label={t('editor.bubble.color')}>
+      <span class="glyph swatch-ink" class:text={!!active.textColor} class:tint={!!active.highlightColor && active.highlightColor !== 'default'} data-ink={active.textColor ?? active.highlightColor}>{SAMPLE}</span>
     </button>
     <span class="sep"></span>
-    <button class="fmt link" class:on={active.link} onmousedown={keep} onclick={startLink} data-tip="Link" data-tip-key="{MOD}+K"><Icon name="link" stroke={2} /><span>Link</span></button>
+    <button class="fmt link" class:on={active.link} onmousedown={keep} onclick={startLink} data-tip={t('editor.bubble.link')} data-tip-key={comboLabel('Mod+KeyK')}><Icon name="link" stroke={2} /><span>{t('editor.bubble.link')}</span></button>
   {:else if mode === 'color'}
     <div class="colors">
-      <div class="color-row" role="group" aria-label="Text color">
-        <span class="row-name">Text</span>
-        <button class="swatch" class:on={!active.textColor} onmousedown={keep} onclick={() => setTextColor(null)} data-tip="Default" aria-label="Default text color"><span class="glyph">A</span></button>
+      <div class="color-row" role="group" aria-label={t('editor.bubble.textColor.group')}>
+        <span class="row-name">{t('editor.bubble.textColor.row')}</span>
+        <button class="swatch" class:on={!active.textColor} onmousedown={keep} onclick={() => setTextColor(null)} data-tip={t('editor.bubble.textColor.defaultTip')} aria-label={t('editor.bubble.textColor.default')}><span class="glyph">{SAMPLE}</span></button>
         {#each PALETTE as c (c.key)}
-          <button class="swatch" class:on={active.textColor === c.key} onmousedown={keep} onclick={() => setTextColor(c.key)} data-tip={c.label} aria-label="{c.label} text"><span class="glyph swatch-ink text" data-ink={c.key}>A</span></button>
+          <button class="swatch" class:on={active.textColor === c.key} onmousedown={keep} onclick={() => setTextColor(c.key)} data-tip={c.label} aria-label={t(TEXT_COLOR[c.key])}><span class="glyph swatch-ink text" data-ink={c.key}>{SAMPLE}</span></button>
         {/each}
       </div>
-      <div class="color-row" role="group" aria-label="Highlight color">
-        <span class="row-name">Highlight</span>
-        <button class="swatch" class:on={!active.highlightColor} onmousedown={keep} onclick={() => setHighlightColor(null)} data-tip="None" aria-label="No highlight"><span class="glyph none">A</span></button>
+      <div class="color-row" role="group" aria-label={t('editor.bubble.highlightColor.group')}>
+        <span class="row-name">{t('editor.bubble.highlightColor.row')}</span>
+        <button class="swatch" class:on={!active.highlightColor} onmousedown={keep} onclick={() => setHighlightColor(null)} data-tip={t('editor.bubble.highlightColor.noneTip')} aria-label={t('editor.bubble.highlightColor.none')}><span class="glyph none">{SAMPLE}</span></button>
         {#each PALETTE as c (c.key)}
-          <button class="swatch" class:on={active.highlightColor === c.key} onmousedown={keep} onclick={() => setHighlightColor(c.key)} data-tip={c.label} aria-label="{c.label} highlight"><span class="glyph swatch-ink tint" data-ink={c.key}>A</span></button>
+          <button class="swatch" class:on={active.highlightColor === c.key} onmousedown={keep} onclick={() => setHighlightColor(c.key)} data-tip={c.label} aria-label={t(HIGHLIGHT_COLOR[c.key])}><span class="glyph swatch-ink tint" data-ink={c.key}>{SAMPLE}</span></button>
         {/each}
       </div>
     </div>
@@ -181,7 +211,7 @@
       <input
         bind:this={linkInput}
         bind:value={href}
-        placeholder="Paste or type a link"
+        placeholder={t('editor.bubble.linkForm.placeholder')}
         spellcheck="false"
         onkeydown={(e) => {
           if (e.key === 'Escape') {
@@ -192,10 +222,10 @@
         }}
       />
       {#if active.link}
-        <button type="button" class="fmt" onmousedown={keep} onclick={() => href && openUrl(href).catch(ui.error)} data-tip="Open in browser"><Icon name="arrow-right" /></button>
-        <button type="button" class="fmt" onmousedown={keep} onclick={removeLink} data-tip="Remove link"><Icon name="unlink" /></button>
+        <button type="button" class="fmt" onmousedown={keep} onclick={() => href && openUrl(href).catch(ui.error)} data-tip={t('editor.bubble.linkForm.open')}><Icon name="arrow-right" /></button>
+        <button type="button" class="fmt" onmousedown={keep} onclick={removeLink} data-tip={t('editor.bubble.linkForm.remove')}><Icon name="unlink" /></button>
       {/if}
-      <button type="submit" class="fmt apply" data-tip="Apply" data-tip-key="Enter"><Icon name="enter" /></button>
+      <button type="submit" class="fmt apply" data-tip={t('editor.bubble.linkForm.apply')} data-tip-key={keyName('Enter')}><Icon name="enter" /></button>
     </form>
   {/if}
 </div>

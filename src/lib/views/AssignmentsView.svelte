@@ -12,6 +12,8 @@
   import { Progressive, takeGrouped } from '../progressive.svelte';
   import { ui } from '../ui.svelte';
   import type { Assignment } from '../types';
+  import { t, type MessageKey } from '../i18n';
+  import { fmt } from '../i18n/format';
 
   /** 'all', a course id, or 'none' for assignments without a course. */
   let courseFilter = $state<string>('all');
@@ -20,10 +22,21 @@
   let quickDate = $state('');
 
   const scopes: { value: AssignmentScope; label: string }[] = [
-    { value: 'upcoming', label: 'Upcoming' },
-    { value: 'all', label: 'All' },
-    { value: 'done', label: 'Completed' },
+    { value: 'upcoming', label: t('planner.assignments.scope.upcoming') },
+    { value: 'all', label: t('planner.assignments.scope.all') },
+    { value: 'done', label: t('planner.assignments.scope.done') },
   ];
+
+  /** Due-date buckets in reading order, with their headings. */
+  const BUCKETS = [
+    ['overdue', 'planner.assignments.group.overdue'],
+    ['today', 'common.today'],
+    ['tomorrow', 'common.tomorrow'],
+    ['week', 'planner.assignments.group.week'],
+    ['later', 'planner.assignments.group.later'],
+    ['none', 'planner.assignments.group.none'],
+    ['done', 'planner.assignments.group.done'],
+  ] as const satisfies readonly (readonly [string, MessageKey])[];
 
   // A course that was deleted can't stay selected.
   $effect(() => {
@@ -54,7 +67,7 @@
     const today = clock.today;
     if (prefs.assignmentScope === 'done') {
       const done = [...filtered].sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0));
-      return done.length ? [{ key: 'done', label: 'Completed', items: done }] : [];
+      return done.length ? [{ key: 'done', label: t('planner.assignments.group.done'), items: done }] : [];
     }
     const buckets: Record<string, Assignment[]> = { overdue: [], today: [], tomorrow: [], week: [], later: [], none: [], done: [] };
     for (const a of filtered) {
@@ -69,16 +82,7 @@
         else buckets.later.push(a);
       }
     }
-    const labels: [string, string][] = [
-      ['overdue', 'Overdue'],
-      ['today', 'Today'],
-      ['tomorrow', 'Tomorrow'],
-      ['week', 'This Week'],
-      ['later', 'Later'],
-      ['none', 'No Due Date'],
-      ['done', 'Completed'],
-    ];
-    return labels.filter(([k]) => buckets[k].length).map(([key, label]) => ({ key, label, items: buckets[key] }));
+    return BUCKETS.filter(([k]) => buckets[k].length).map(([key, label]) => ({ key, label: t(label), items: buckets[key] }));
   });
 
   const shownGroups = $derived(takeGrouped(groups, (g) => g.items, lazy.limit));
@@ -87,9 +91,9 @@
     const open = planner.live.filter((a) => a.status !== 'done');
     const overdue = open.filter((a) => dueState(a, clock.today, clock.time) === 'overdue').length;
     const week = open.filter((a) => a.dueDate && a.dueDate >= clock.today && diffDays(clock.today, a.dueDate) < 7).length;
-    if (!open.length) return planner.live.length ? 'All caught up' : 'Track coursework and deadlines';
-    const parts = [`${week} due this week`];
-    if (overdue) parts.push(`${overdue} overdue`);
+    if (!open.length) return planner.live.length ? t('planner.assignments.allCaughtUp') : t('planner.assignments.intro');
+    const parts = [t('planner.dueThisWeek', { count: week })];
+    if (overdue) parts.push(t('planner.overdue', { count: overdue }));
     return parts.join(' · ');
   });
 
@@ -112,9 +116,9 @@
 
   async function addCourse() {
     const res = await ui.prompt({
-      title: 'New Course',
-      placeholder: 'Course name',
-      confirmLabel: 'Add Course',
+      title: t('planner.course.newTitle'),
+      placeholder: t('planner.course.namePlaceholder'),
+      confirmLabel: t('planner.course.add'),
       icon: 'book',
       color: nextColor(planner.courses.map((c) => c.color)),
     });
@@ -132,15 +136,15 @@
       y: e.clientY,
       items: [
         {
-          label: 'Rename…',
+          label: t('planner.course.renameMenu'),
           icon: 'pencil',
           action: async () => {
-            const res = await ui.prompt({ title: 'Rename Course', value: c.name, confirmLabel: 'Rename', icon: 'book' });
+            const res = await ui.prompt({ title: t('planner.course.renameTitle'), value: c.name, confirmLabel: t('common.actions.rename'), icon: 'book' });
             if (res) void planner.updateCourse(id, { name: res.value });
           },
         },
         { separator: true },
-        { header: 'Color' },
+        { header: t('planner.course.color') },
         ...PALETTE.map((p) => ({
           label: p.label,
           dot: colorVar(p.key),
@@ -148,42 +152,42 @@
           action: () => void planner.updateCourse(id, { color: p.key }),
         })),
         { separator: true },
-        { label: 'Delete Course', icon: 'trash', danger: true, action: () => void planner.deleteCourse(id) },
+        { label: t('planner.course.deleteMenu'), icon: 'trash', danger: true, action: () => void planner.deleteCourse(id) },
       ],
     });
   }
 
   const emptyText = $derived(
     query
-      ? 'Try a different search.'
+      ? t('planner.assignments.emptySearch')
       : prefs.assignmentScope === 'done'
-        ? 'Finished assignments show up here.'
+        ? t('planner.assignments.emptyDone')
         : prefs.assignmentScope === 'upcoming' && planner.live.length
-          ? 'Nothing left to do here. Enjoy the free time.'
-          : 'Add homework, essays and exams with their due dates. They show up in your calendar too.',
+          ? t('planner.assignments.emptyUpcoming')
+          : t('planner.assignments.emptyStart'),
   );
 </script>
 
 <div class="view">
   <header class="view-head">
     <div>
-      <h1 class="view-title">Assignments</h1>
+      <h1 class="view-title">{t('common.views.assignments')}</h1>
       <p class="view-sub">{summary}</p>
     </div>
     <div class="view-actions">
-      <button class="btn primary" onclick={newAssignment}><Icon name="plus" size={15} stroke={2.2} /> New Assignment</button>
+      <button class="btn primary" onclick={newAssignment}><Icon name="plus" size={15} stroke={2.2} /> {t('planner.newAssignment')}</button>
     </div>
   </header>
 
   <div class="toolbar">
-    <Segmented options={scopes} value={prefs.assignmentScope} onchange={(v) => (prefs.assignmentScope = v)} label="Show" />
+    <Segmented options={scopes} value={prefs.assignmentScope} onchange={(v) => (prefs.assignmentScope = v)} label={t('planner.assignments.scopeLabel')} />
     <span class="spacer"></span>
-    <SearchField bind:value={query} placeholder="Search assignments" width={220} />
+    <SearchField bind:value={query} placeholder={t('planner.assignments.search')} width={220} />
   </div>
 
-  <div class="courses" role="radiogroup" aria-label="Course">
+  <div class="courses" role="radiogroup" aria-label={t('common.course')}>
     <button class="chip" class:on={courseFilter === 'all'} role="radio" aria-checked={courseFilter === 'all'} onclick={() => (courseFilter = 'all')}>
-      All Courses
+      {t('planner.assignments.allCourses')}
     </button>
     {#each planner.courses as c (c.id)}
       <button
@@ -193,34 +197,41 @@
         aria-checked={courseFilter === c.id}
         onclick={() => (courseFilter = c.id)}
         oncontextmenu={(e) => courseMenu(e, c.id)}
-        data-tip="Right-click to edit"
+        data-tip={t('planner.assignments.editCourseTip')}
       >
-        <span class="dot" style:--dot={colorVar(c.color)}></span>{c.name || 'Untitled'}
+        <span class="dot" style:--dot={colorVar(c.color)}></span>{c.name || t('common.untitled')}
       </button>
     {/each}
     {#if planner.live.some((a) => !a.courseId) && planner.courses.length}
       <button class="chip" class:on={courseFilter === 'none'} role="radio" aria-checked={courseFilter === 'none'} onclick={() => (courseFilter = 'none')}>
-        No Course
+        {t('planner.assignments.noCourse')}
       </button>
     {/if}
-    <button class="chip add" onclick={addCourse}><Icon name="plus" size={13} stroke={2.2} /> Course</button>
+    <button class="chip add" onclick={addCourse}><Icon name="plus" size={13} stroke={2.2} /> {t('planner.course.addChip')}</button>
   </div>
 
   {#if prefs.assignmentScope !== 'done'}
     <form class="group quick" onsubmit={quickAdd}>
       <span class="quick-icon"><Icon name="plus" size={16} stroke={2.2} /></span>
-      <input class="quick-title" bind:value={quickTitle} placeholder={activeCourse ? `Add to ${planner.courseById.get(activeCourse)?.name}` : 'Add an assignment'} spellcheck="false" />
-      <label class="field quick-date" data-tip="Due date">
-        <input type="date" bind:value={quickDate} aria-label="Due date" />
+      <input
+        class="quick-title"
+        bind:value={quickTitle}
+        placeholder={activeCourse
+          ? t('planner.assignments.addTo', { course: planner.courseById.get(activeCourse)?.name ?? '' })
+          : t('planner.assignments.addAssignment')}
+        spellcheck="false"
+      />
+      <label class="field quick-date" data-tip={t('planner.dueDate')}>
+        <input type="date" bind:value={quickDate} aria-label={t('planner.dueDate')} />
       </label>
-      <button class="btn small primary" type="submit" disabled={!quickTitle.trim()}>Add</button>
+      <button class="btn small primary" type="submit" disabled={!quickTitle.trim()}>{t('common.actions.add')}</button>
     </form>
   {/if}
 
   {#each shownGroups as { group: g, items } (g.key)}
     <h2 class="group-title" class:overdue={g.key === 'overdue'}>
       <span>{g.label}</span>
-      <span class="count">{g.items.length}</span>
+      <span class="count">{fmt.number(g.items.length)}</span>
     </h2>
     <div class="group">
       {#each items as a (a.id)}
@@ -230,11 +241,15 @@
   {:else}
     <EmptyState
       icon="assignment"
-      title={query ? 'No matches' : prefs.assignmentScope === 'done' ? 'Nothing completed yet' : 'No assignments'}
+      title={query
+        ? t('planner.assignments.noMatches')
+        : prefs.assignmentScope === 'done'
+          ? t('planner.assignments.noneCompleted')
+          : t('planner.assignments.noAssignments')}
       text={emptyText}
     >
       {#if !query && prefs.assignmentScope !== 'done'}
-        <button class="btn primary" onclick={newAssignment}><Icon name="plus" size={15} stroke={2.2} /> New Assignment</button>
+        <button class="btn primary" onclick={newAssignment}><Icon name="plus" size={15} stroke={2.2} /> {t('planner.newAssignment')}</button>
       {/if}
     </EmptyState>
   {/each}

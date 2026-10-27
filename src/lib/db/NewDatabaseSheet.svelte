@@ -11,6 +11,7 @@
   import { ui } from '../ui.svelte';
   import { TEMPLATES, type Template } from './templates';
   import { typeInfo } from './schema';
+  import { t } from '../i18n';
 
   let { parentId: parentIn, onCreated: createdIn }: { parentId: string | null; onCreated?: (id: string) => void } = $props();
   // Read once: closing the sheet clears what the caller passed.
@@ -24,10 +25,10 @@
     ui.newDatabase = null;
   }
 
-  async function choose(t: Template) {
+  async function choose(tpl: Template) {
     if (busy) return;
     busy = true;
-    const page = await databases.create({ template: t, parentId, open: !onCreated });
+    const page = await databases.create({ template: tpl, parentId, open: !onCreated });
     busy = false;
     if (!page) return;
     close();
@@ -46,21 +47,21 @@
   }
 </script>
 
-<Modal onclose={close} width={780} label="New database" top="7vh">
+<Modal onclose={close} width={780} label={t('dbTable.newDatabase.title')} top="7vh">
   <div class="modal-head">
-    <h2>New database</h2>
-    <button class="icon-btn" onclick={close} aria-label="Close"><Icon name="x" /></button>
+    <h2>{t('dbTable.newDatabase.title')}</h2>
+    <button class="icon-btn" onclick={close} aria-label={t('common.actions.close')}><Icon name="x" /></button>
   </div>
   <div class="modal-body">
-    <p class="lede">Rows you can sort, filter and see as a table, board, gallery, calendar or chart. Every row is a page too, with room for notes.</p>
+    <p class="lede">{t('dbTable.newDatabase.lede')}</p>
     <div class="grid">
-      {#each TEMPLATES as t (t.key)}
-        <button class="tile" onclick={() => choose(t)} disabled={busy}>
-          <span class="icon"><PageIcon icon={t.icon} /></span>
-          <span class="name">{t.name}</span>
-          <span class="desc">{t.description}</span>
+      {#each TEMPLATES as tpl (tpl.key)}
+        <button class="tile" onclick={() => choose(tpl)} disabled={busy}>
+          <span class="icon"><PageIcon icon={tpl.icon} /></span>
+          <span class="name">{tpl.name}</span>
+          <span class="desc">{tpl.description}</span>
           <span class="props">
-            {#each t.properties.filter((p) => p.type !== 'title').slice(0, 5) as p (p.id)}
+            {#each tpl.properties.filter((p) => p.type !== 'title').slice(0, 5) as p (p.id)}
               <span class="prop"><Icon name={typeInfo(p.type).icon} size={11} /> {p.name}</span>
             {/each}
           </span>
@@ -68,14 +69,14 @@
       {/each}
       <button class="tile import" onclick={() => file.click()} disabled={busy}>
         <span class="icon"><Icon name="upload" size={22} /></span>
-        <span class="name">Import a spreadsheet</span>
-        <span class="desc">A CSV from Excel, Google Sheets or Notion. Column types are worked out for you.</span>
+        <span class="name">{t('dbTable.newDatabase.importTitle')}</span>
+        <span class="desc">{t('dbTable.newDatabase.importText')}</span>
       </button>
     </div>
     <input bind:this={file} type="file" accept=".csv,.tsv,.txt,text/csv" hidden onchange={importFile} />
   </div>
   <div class="modal-foot">
-    <span>Tip: paste rows from a spreadsheet straight into any table.</span>
+    <span>{t('dbTable.newDatabase.tip')}</span>
   </div>
 </Modal>
 

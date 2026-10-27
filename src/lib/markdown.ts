@@ -1,6 +1,7 @@
 /** Converts editor JSON into GitHub-flavored Markdown. */
 
 import { iconText } from './page-icon';
+import { t } from './i18n';
 
 interface Mark {
   type: string;
@@ -153,7 +154,7 @@ function block(n: JNode, cx: Cx): string {
     case 'callout':
       return prefixLines(`${iconText(n.attrs?.icon) || '💡'} ${blocks(n.content, cx)}`, '> ', '> ');
     case 'codeBlock': {
-      const code = (n.content ?? []).map((t) => t.text ?? '').join('');
+      const code = (n.content ?? []).map((c) => c.text ?? '').join('');
       const fence = '`'.repeat(Math.max(3, longestRun(code, '`') + 1));
       return `${fence}${n.attrs?.language ?? ''}\n${code}\n${fence}`;
     }
@@ -197,5 +198,5 @@ function blocks(nodes: JNode[] | undefined, cx: Cx): string {
 
 export function toMarkdown(doc: JNode, title: string, titleOf: TitleOf, links: Links = {}): string {
   const body = blocks(doc.content, { ...links, titleOf }).replace(/\n{3,}/g, '\n\n').trim();
-  return `# ${title || 'Untitled'}\n\n${body}\n`;
+  return `# ${title || t('common.untitled')}\n\n${body}\n`;
 }

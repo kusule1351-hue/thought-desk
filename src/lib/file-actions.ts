@@ -2,11 +2,12 @@
 
 import { library, previewable } from './library.svelte';
 import { ui, type MenuItem } from './ui.svelte';
+import { t } from './i18n';
 
 export async function renameFile(id: string) {
   const f = library.byId.get(id);
   if (!f) return;
-  const res = await ui.prompt({ title: 'Rename File', value: f.name, confirmLabel: 'Rename', icon: 'file', select: 'stem' });
+  const res = await ui.prompt({ title: t('pages.file.renameTitle'), value: f.name, confirmLabel: t('common.actions.rename'), icon: 'file', select: 'stem' });
   if (res) await library.rename(id, res.value);
 }
 
@@ -14,15 +15,15 @@ export function fileMenuItems(id: string, { preview = true } = {}): MenuItem[] {
   const f = library.byId.get(id);
   if (!f) return [];
   const items: MenuItem[] = [];
-  if (preview) items.push({ label: previewable(f) ? 'Preview' : 'Get Info', icon: 'eye', action: () => library.preview(id) });
+  if (preview) items.push({ label: previewable(f) ? t('pages.file.preview') : t('pages.file.getInfo'), icon: 'eye', action: () => library.preview(id) });
   items.push(
-    { label: 'Open in Default App', icon: 'external', disabled: f.missing, action: () => void library.open(id) },
-    { label: 'Show in Folder', icon: 'folder', disabled: f.missing, action: () => void library.reveal(id) },
-    { label: 'Save a Copy to Downloads', icon: 'download', disabled: f.missing, action: () => void library.saveCopy(id) },
+    { label: t('pages.file.openInDefaultApp'), icon: 'external', disabled: f.missing, action: () => void library.open(id) },
+    { label: t('pages.showInFolder'), icon: 'folder', disabled: f.missing, action: () => void library.reveal(id) },
+    { label: t('pages.file.saveCopy'), icon: 'download', disabled: f.missing, action: () => void library.saveCopy(id) },
     { separator: true },
-    { label: 'Rename…', icon: 'pencil', action: () => void renameFile(id) },
+    { label: t('pages.file.renameMenu'), icon: 'pencil', action: () => void renameFile(id) },
     { separator: true },
-    { label: 'Move to Trash', icon: 'trash', danger: true, action: () => void library.trash(id) },
+    { label: t('common.actions.moveToTrash'), icon: 'trash', danger: true, action: () => void library.trash(id) },
   );
   return items;
 }

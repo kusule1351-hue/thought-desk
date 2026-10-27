@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { mount, unmount } from 'svelte';
 import ItemChip from './ItemChip.svelte';
+import { t } from '../i18n';
 import { library } from '../library.svelte';
 import { planner } from '../planner.svelte';
 import { store } from '../store.svelte';
@@ -9,10 +10,10 @@ import { store } from '../store.svelte';
 export type MentionKind = 'page' | 'assignment' | 'event' | 'file';
 
 export function titleOf(id: string, kind: MentionKind = 'page'): string {
-  if (kind === 'assignment') return planner.assignmentById.get(id)?.title || 'Untitled';
-  if (kind === 'event') return planner.eventById.get(id)?.title || 'Untitled';
-  if (kind === 'file') return library.byId.get(id)?.name || 'File';
-  return store.byId.get(id)?.title || 'Untitled';
+  if (kind === 'assignment') return planner.assignmentById.get(id)?.title || t('common.untitled');
+  if (kind === 'event') return planner.eventById.get(id)?.title || t('common.untitled');
+  if (kind === 'file') return library.byId.get(id)?.name || t('blocks.file.fallbackName');
+  return store.byId.get(id)?.title || t('common.untitled');
 }
 
 function chipView(block: boolean) {

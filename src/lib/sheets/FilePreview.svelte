@@ -6,6 +6,7 @@
   import FileTile from '../ui/FileTile.svelte';
   import TagRow from '../ui/TagRow.svelte';
   import { fileMenuItems, renameFile } from '../file-actions';
+  import { t } from '../i18n';
   import { KINDS, fileKind, fileSrc, library, previewable } from '../library.svelte';
   import { planner } from '../planner.svelte';
   import { store } from '../store.svelte';
@@ -27,7 +28,7 @@
     if (file && mode === 'text') {
       fetch(fileSrc(file))
         .then((r) => (r.ok ? r.text() : Promise.reject(r.statusText)))
-        .then((t) => (text = t.length > TEXT_LIMIT ? `${t.slice(0, TEXT_LIMIT)}\n…` : t))
+        .then((body) => (text = body.length > TEXT_LIMIT ? `${body.slice(0, TEXT_LIMIT)}\n…` : body))
         .catch(() => (failed = true));
     }
   });
@@ -51,14 +52,14 @@
   }
 </script>
 
-<Modal onclose={close} width={760} top="6vh" label="File preview">
+<Modal onclose={close} width={760} top="6vh" label={t('library.preview.label')}>
   {#if file}
     <header class="modal-head">
       <FileTile {file} size={26} thumb={false} />
-      <h2><button class="name" onclick={() => renameFile(id)} data-tip="Rename">{file.name}</button></h2>
-      <button class="btn small raised" onclick={() => library.open(id)} disabled={file.missing}><Icon name="external" size={13} stroke={2} /> Open</button>
-      <button class="icon-btn" onclick={more} data-tip="More" aria-label="More"><Icon name="more" /></button>
-      <button class="icon-btn" onclick={close} aria-label="Close"><Icon name="x" /></button>
+      <h2><button class="name" onclick={() => renameFile(id)} data-tip={t('common.actions.rename')}>{file.name}</button></h2>
+      <button class="btn small raised" onclick={() => library.open(id)} disabled={file.missing}><Icon name="external" size={13} stroke={2} /> {t('common.actions.open')}</button>
+      <button class="icon-btn" onclick={more} data-tip={t('common.actions.more')} aria-label={t('common.actions.more')}><Icon name="more" /></button>
+      <button class="icon-btn" onclick={close} aria-label={t('common.actions.close')}><Icon name="x" /></button>
     </header>
 
     <div class="modal-body">
@@ -66,7 +67,7 @@
         {#if failed}
           <div class="none">
             <FileTile {file} size={72} thumb={false} />
-            <p>This file couldn’t be read.</p>
+            <p>{t('library.preview.unreadable')}</p>
           </div>
         {:else if mode === 'image'}
           <img src={fileSrc(file)} alt={file.name} onerror={() => (failed = true)} />
@@ -81,52 +82,52 @@
             <audio src={fileSrc(file)} controls preload="metadata"></audio>
           </div>
         {:else if mode === 'text'}
-          <pre class="text">{text ?? 'Loading…'}</pre>
+          <pre class="text">{text ?? t('common.loading')}</pre>
         {:else}
           <div class="none">
             <FileTile {file} size={72} thumb={false} />
-            <p>{file.missing ? 'This file is missing from the Thought Desk folder.' : 'No preview for this kind of file.'}</p>
-            {#if !file.missing}<button class="btn small raised" onclick={() => library.open(id)}>Open in Default App</button>{/if}
+            <p>{file.missing ? t('library.preview.missing') : t('library.preview.noPreview')}</p>
+            {#if !file.missing}<button class="btn small raised" onclick={() => library.open(id)}>{t('library.preview.openInDefaultApp')}</button>{/if}
           </div>
         {/if}
       </div>
 
       <div class="info">
         <div>
-          <h3 class="group-title">Details</h3>
+          <h3 class="group-title">{t('library.preview.details')}</h3>
           <div class="group">
-            <div class="group-row compact"><div class="row-label">Kind</div><span class="v">{KINDS[fileKind(file)].label}</span></div>
-            <div class="group-row compact"><div class="row-label">Size</div><span class="v">{formatBytes(file.size)}</span></div>
-            <div class="group-row compact"><div class="row-label">Added</div><span class="v">{relativeTime(file.createdAt)}</span></div>
-            <div class="group-row compact"><div class="row-label">Tags</div><TagRow table="files" id={file.id} compact /></div>
+            <div class="group-row compact"><div class="row-label">{t('library.preview.kind')}</div><span class="v">{KINDS[fileKind(file)].label}</span></div>
+            <div class="group-row compact"><div class="row-label">{t('library.preview.size')}</div><span class="v">{formatBytes(file.size)}</span></div>
+            <div class="group-row compact"><div class="row-label">{t('library.preview.added')}</div><span class="v">{relativeTime(file.createdAt)}</span></div>
+            <div class="group-row compact"><div class="row-label">{t('common.tags')}</div><TagRow table="files" id={file.id} compact /></div>
           </div>
         </div>
         <div>
-          <h3 class="group-title">Used In</h3>
+          <h3 class="group-title">{t('library.preview.usedIn')}</h3>
           <div class="group">
             {#each used.pages as p (p.id)}
               <button class="group-row compact use" onclick={() => openPage(p.id)}>
                 <span class="use-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={15} />{/if}</span>
-                <span class="use-name">{p.title || 'Untitled'}</span>
+                <span class="use-name">{p.title || t('common.untitled')}</span>
                 <Icon name="chevron-right" size={13} stroke={2} />
               </button>
             {/each}
             {#each used.assignments as a (a.id)}
               <button class="group-row compact use" onclick={() => openAssignment(a.id)}>
                 <span class="use-icon" style:color={planner.courseColor(a.courseId)}><Icon name="assignment" size={15} /></span>
-                <span class="use-name">{a.title || 'Untitled'}</span>
+                <span class="use-name">{a.title || t('common.untitled')}</span>
                 <Icon name="chevron-right" size={13} stroke={2} />
               </button>
             {/each}
             {#if !used.pages.length && !used.assignments.length}
-              <div class="group-row compact"><span class="row-label"><small>Not used in any page or assignment</small></span></div>
+              <div class="group-row compact"><span class="row-label"><small>{t('library.preview.notUsed')}</small></span></div>
             {/if}
           </div>
         </div>
       </div>
     </div>
   {:else}
-    <div class="modal-body"><p class="gone">This file is no longer in your library.</p></div>
+    <div class="modal-body"><p class="gone">{t('library.preview.gone')}</p></div>
   {/if}
 </Modal>
 

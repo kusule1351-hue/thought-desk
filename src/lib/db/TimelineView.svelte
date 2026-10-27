@@ -14,6 +14,8 @@
   import { prefs } from '../prefs.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
+  import { t, type MessageKey } from '../i18n';
+  import { fmt } from '../i18n/format';
   import { Progressive } from '../progressive.svelte';
   import { addDaysIso, pinFirst } from './query';
   import { isoDate, option, toDate } from './schema';
@@ -23,6 +25,13 @@
 
   type Scale = NonNullable<ViewConfig['scale']>;
   const PPD: Record<Scale, number> = { day: 44, week: 22, month: 6, quarter: 2.4 };
+  const SCALES: Scale[] = ['day', 'week', 'month', 'quarter'];
+  const SCALE_LABELS = {
+    day: 'dbViews.timeline.scales.day',
+    week: 'dbViews.timeline.scales.week',
+    month: 'dbViews.timeline.scales.month',
+    quarter: 'dbViews.timeline.scales.quarter',
+  } as const satisfies Record<Scale, MessageKey>;
   const ROW_H = 36;
 
   const c = $derived(view.config);
@@ -82,7 +91,7 @@
 
   type Cell = { left: number; width: number; label: string; key: string };
 
-  function cells(unit: 'day' | 'week' | 'month' | 'year' | 'quarter', fmt: (d: Date, start: string) => string): Cell[] {
+  function cells(unit: 'day' | 'week' | 'month' | 'year' | 'quarter', labelOf: (d: Date, start: string) => string): Cell[] {
     const out: Cell[] = [];
     let cur = from;
     while (cur <= until) {
@@ -96,32 +105,34 @@
       const nextIso = isoDate(next);
       const a = index(cur);
       const b = Math.min(index(nextIso), count);
-      out.push({ left: a * ppd, width: (b - a) * ppd, label: fmt(d, cur), key: cur });
+      out.push({ left: a * ppd, width: (b - a) * ppd, label: labelOf(d, cur), key: cur });
       cur = nextIso;
     }
     return out;
   }
 
-  const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
-  const monthShort = new Intl.DateTimeFormat(undefined, { month: 'short' });
-  const weekdayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'narrow' });
+  const monthYear = (d: Date) => fmt.date(d, { month: 'long', year: 'numeric' });
+  const yearLabel = (d: Date) => fmt.date(d, { year: 'numeric' });
 
   const header = $derived.by(() => {
     switch (scale) {
       case 'day':
-        return { top: cells('month', (d) => monthFmt.format(d)), bottom: cells('day', (d) => `${weekdayFmt.format(d)} ${d.getDate()}`) };
+        return {
+          top: cells('month', monthYear),
+          bottom: cells('day', (d) => t('dbViews.timeline.dayCell', { weekday: fmt.date(d, { weekday: 'narrow' }), day: d.getDate() })),
+        };
       case 'week':
         return {
-          top: cells('month', (d) => monthFmt.format(d)),
+          top: cells('month', monthYear),
           bottom: cells('week', (d, start) => {
             const end = toDate(addDaysIso(start, 6 - ((d.getDay() - prefs.weekStart + 7) % 7)));
-            return `${d.getDate()}–${end.getDate()}`;
+            return t('dbViews.timeline.weekCell', { from: d.getDate(), to: end.getDate() });
           }),
         };
       case 'month':
-        return { top: cells('year', (d) => String(d.getFullYear())), bottom: cells('month', (d) => monthShort.format(d)) };
+        return { top: cells('year', yearLabel), bottom: cells('month', (d) => fmt.date(d, { month: 'short' })) };
       case 'quarter':
-        return { top: cells('year', (d) => String(d.getFullYear())), bottom: cells('quarter', (d) => `Q${Math.floor(d.getMonth() / 3) + 1}`) };
+        return { top: cells('year', yearLabel), bottom: cells('quarter', (d) => t('dbViews.timeline.quarter', { quarter: Math.floor(d.getMonth() / 3) + 1 })) };
     }
   });
 
@@ -237,7 +248,13 @@
       const stop = shift(end, endDelta);
       changes.push({ row, prop, value: day(stop) > day(start) ? { start, end: stop } : { start } });
     }
-    if (changes.length) databases.set(changes, { label: d.mode === 'move' ? 'moving dates' : 'changing dates' });
+    if (changes.length)
+      databases.set(changes, {
+        label:
+          d.mode === 'move'
+            ? { undone: t('dbViews.timeline.undoMove'), redone: t('dbViews.timeline.redoMove') }
+            : { undone: t('dbViews.timeline.undoResize'), redone: t('dbViews.timeline.redoResize') },
+      });
   }
 
   // A row without a date: hovering its lane shows where a click would put it.
@@ -259,7 +276,7 @@
           { row, prop: endProp, value: { start: end } },
         ]
       : [{ row, prop, value: end > start ? { start, end } : { start } }];
-    databases.set(changes, { label: 'scheduling a row' });
+    databases.set(changes, { label: { undone: t('dbViews.timeline.undoSchedule'), redone: t('dbViews.timeline.redoSchedule') } });
     ghost = null;
   }
 
@@ -302,45 +319,40 @@
     return undefined;
   };
 
-  const rangeFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+  const dayLabel = (iso: string) => fmt.date(toDate(iso), { month: 'short', day: 'numeric' });
   function describe(id: string): string {
     const s = shown_(id);
     if (!s) return '';
-    const a = rangeFmt.format(toDate(addDaysIso(from, s.start)));
+    const a = dayLabel(addDaysIso(from, s.start));
     if (s.end === s.start) return a;
-    return `${a} – ${rangeFmt.format(toDate(addDaysIso(from, s.end)))} · ${s.end - s.start + 1} days`;
+    return t('dbViews.timeline.span', { from: a, to: dayLabel(addDaysIso(from, s.end)), count: s.end - s.start + 1 });
   }
 </script>
 
 {#if !prop}
   <div class="setup">
-    <p>Choose which date places rows on the timeline.</p>
-    <button class="btn small raised" onclick={onsettings}><Icon name="sliders" size={14} /> Choose a date</button>
+    <p>{t('dbViews.timeline.setupHint')}</p>
+    <button class="btn small raised" onclick={onsettings}><Icon name="sliders" size={14} /> {t('dbViews.chooseDate')}</button>
   </div>
 {:else}
   <div class="tl" style:--ppd="{ppd}px" style:--row-h="{ROW_H}px" style:--label-left="{showTable ? 268 : 8}px">
     <div class="bar">
       <Segmented
-        label="Scale"
+        label={t('dbViews.timeline.scale')}
         value={scale}
-        options={[
-          { value: 'day', label: 'Days' },
-          { value: 'week', label: 'Weeks' },
-          { value: 'month', label: 'Months' },
-          { value: 'quarter', label: 'Quarters' },
-        ]}
+        options={SCALES.map((value) => ({ value, label: t(SCALE_LABELS[value]) }))}
         onchange={(s) => void setScale(s as Scale)}
       />
       <span class="grow"></span>
-      {#if undated}<span class="undated">{undated} without a date: click a lane to schedule</span>{/if}
-      <button class="btn small raised" onclick={() => scrollToDay(clock.today, true)}>Today</button>
+      {#if undated}<span class="undated">{t('dbViews.timeline.undated', { count: undated })}</span>{/if}
+      <button class="btn small raised" onclick={() => scrollToDay(clock.today, true)}>{t('dbViews.today')}</button>
     </div>
 
     <div class="scroller" bind:this={scroller}>
       <div class="canvas" style:width="{(showTable ? 260 : 0) + width}px">
         <!-- Header -->
         <div class="head">
-          {#if showTable}<div class="corner">{prop.name}{endProp ? ` → ${endProp.name}` : ''}</div>{/if}
+          {#if showTable}<div class="corner">{endProp ? t('dbViews.timeline.dateColumns', { start: prop.name, end: endProp.name }) : prop.name}</div>{/if}
           <div class="scale" style:width="{width}px">
             <div class="line top">
               {#each header.top as h (h.key)}<div class="hc" style:left="{h.left}px" style:width="{h.width}px"><span>{h.label}</span></div>{/each}
@@ -369,21 +381,21 @@
                     <input
                       class="name-input"
                       value={page?.title ?? ''}
-                      placeholder="Untitled"
+                      placeholder={t('common.untitled')}
                       {@attach nameInput}
                       onkeydown={(e) => {
                         if (e.key === 'Enter' || e.key === 'Escape') (e.currentTarget as HTMLInputElement).blur();
                       }}
                       onblur={(e) => commitName(row, e.currentTarget as HTMLInputElement)}
-                      aria-label="Title"
+                      aria-label={t('dbViews.titleField')}
                     />
                   {:else}
                     <button class="title" onclick={() => store.open(row.id)} ondblclick={() => (naming = row.id)}>
                       {#if page?.icon}<span class="emoji"><PageIcon icon={page.icon} /></span>{:else}<Icon name="page" size={14} />{/if}
-                      <span class="t" class:untitled={!page?.title}>{page?.title || 'Untitled'}</span>
+                      <span class="t" class:untitled={!page?.title}>{page?.title || t('common.untitled')}</span>
                     </button>
                     {#if s}
-                      <button class="jump" onclick={() => scrollToDay(addDaysIso(from, s.start), true)} aria-label="Show on the timeline" data-tip="Show on the timeline"><Icon name="arrow-right" size={12} /></button>
+                      <button class="jump" onclick={() => scrollToDay(addDaysIso(from, s.start), true)} aria-label={t('dbViews.timeline.showOnTimeline')} data-tip={t('dbViews.timeline.showOnTimeline')}><Icon name="arrow-right" size={12} /></button>
                     {/if}
                   {/if}
                 </div>
@@ -407,7 +419,7 @@
                     style:--tint={tint(row)}
                     role="button"
                     tabindex="0"
-                    aria-label="{page?.title || 'Untitled'}, {describe(row.id)}"
+                    aria-label={t('dbViews.timeline.bar', { title: page?.title || t('common.untitled'), dates: describe(row.id) })}
                     data-tip={drag?.id === row.id ? undefined : describe(row.id)}
                     onpointerdown={(e) => onBarDown(e, row, 'move')}
                     onpointermove={onBarMove}
@@ -418,7 +430,7 @@
                     {#if editable}
                       <span class="grip left" onpointerdown={(e) => onBarDown(e, row, 'start')} onpointermove={onBarMove} onpointerup={() => onBarUp(row)}></span>
                     {/if}
-                    <span class="b-label">{page?.icon ? `${page.icon} ` : ''}{page?.title || 'Untitled'}</span>
+                    <span class="b-label">{page?.icon ? `${page.icon} ` : ''}{page?.title || t('common.untitled')}</span>
                     {#if editable}
                       <span class="grip right" onpointerdown={(e) => onBarDown(e, row, 'end')} onpointermove={onBarMove} onpointerup={() => onBarUp(row)}></span>
                     {/if}
@@ -436,9 +448,9 @@
         </div>
       </div>
     </div>
-    <button class="add-row" onclick={add}><Icon name="plus" size={14} /> New</button>
+    <button class="add-row" onclick={add}><Icon name="plus" size={14} /> {t('common.actions.new')}</button>
     {#if !rows.length}
-      <p class="empty">{databases.rowsOf(dbId).length ? 'No rows match this view.' : 'No rows yet. Click New to add one for today.'}</p>
+      <p class="empty">{databases.rowsOf(dbId).length ? t('dbViews.timeline.noMatches') : t('dbViews.timeline.empty')}</p>
     {/if}
   </div>
 {/if}

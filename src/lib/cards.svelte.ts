@@ -3,6 +3,7 @@
 import { untrack } from 'svelte';
 import { api } from './api';
 import { clock } from './clock.svelte';
+import { t } from './i18n';
 import { isDue, schedule, type Grade } from './srs';
 import { store } from './store.svelte';
 import { ui } from './ui.svelte';
@@ -78,7 +79,7 @@ class Cards {
     const fresh = pool.filter((c) => !c.review);
     const queue = all ? [...due, ...fresh] : [...due, ...fresh.slice(0, NEW_PER_SESSION)];
     if (!queue.length) {
-      ui.toast(pool.length ? 'Nothing due. Come back tomorrow.' : 'No flashcards yet. Type /flashcard in a page.');
+      ui.toast(pool.length ? t('library.flashcards.nothingDue') : t('library.flashcards.noCards'));
       return;
     }
     ui.study = { title, cards: queue };
@@ -110,9 +111,9 @@ class Cards {
   async reset(pageId: string) {
     const page = store.byId.get(pageId);
     const ok = await ui.confirm({
-      title: 'Reset Progress?',
-      message: `Every card in “${page?.title || 'Untitled'}” will be new again.`,
-      confirmLabel: 'Reset',
+      title: t('library.flashcards.resetTitle'),
+      message: t('library.flashcards.resetMessage', { title: page?.title || t('common.untitled') }),
+      confirmLabel: t('library.flashcards.reset'),
       danger: true,
     });
     if (!ok) return;

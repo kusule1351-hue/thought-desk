@@ -8,6 +8,7 @@
   import Icon from '../components/Icon.svelte';
   import { databases } from '../databases.svelte';
   import { store } from '../store.svelte';
+  import { t } from '../i18n';
   import type { DbRow, Property } from '../types';
 
   let {
@@ -65,29 +66,29 @@
     }
   }
 
-  const dbTitle = $derived(store.byId.get(target)?.title || 'Untitled');
+  const dbTitle = $derived(store.byId.get(target)?.title || t('common.untitled'));
 </script>
 
 <div class="rel">
-  <input class="pop-input" bind:this={input} bind:value={query} onkeydown={onKey} placeholder="Link to a row in {dbTitle}" aria-label="Search rows" />
+  <input class="pop-input" bind:this={input} bind:value={query} onkeydown={onKey} placeholder={t('dbEdit.relation.searchPlaceholder', { database: dbTitle })} aria-label={t('dbEdit.relation.searchLabel')} />
   {#if !target || !databases.isDatabase(target)}
-    <p class="none">Pick which database this links to in the property’s settings.</p>
+    <p class="none">{t('dbEdit.relation.noDatabase')}</p>
   {:else}
     <div class="list">
       {#each candidates as r, i (r.id)}
         {@const p = store.byId.get(r.id)}
         <button class="pop-item" class:active={i === active} onmousemove={() => (active = i)} onclick={() => toggle(r)}>
           {#if p?.icon}<span class="emoji"><PageIcon icon={p.icon} /></span>{:else}<Icon name="page" size={14} />{/if}
-          <span class="grow">{p?.title || 'Untitled'}</span>
+          <span class="grow">{p?.title || t('common.untitled')}</span>
           {#if linked.includes(r.id)}<Icon name="check" size={14} stroke={2.4} />{/if}
         </button>
       {/each}
       {#if canCreate}
         <button class="pop-item" class:active={active === candidates.length} onmousemove={() => (active = candidates.length)} onclick={create}>
-          <Icon name="plus" size={14} /><span class="grow">New row “{query.trim()}” in {dbTitle}</span>
+          <Icon name="plus" size={14} /><span class="grow">{t('dbEdit.relation.newRow', { title: query.trim(), database: dbTitle })}</span>
         </button>
       {/if}
-      {#if !count}<p class="none">{q ? 'No rows match' : `${dbTitle} has no rows yet`}</p>{/if}
+      {#if !count}<p class="none">{q ? t('dbEdit.relation.noMatches') : t('dbEdit.relation.noRows', { database: dbTitle })}</p>{/if}
     </div>
   {/if}
 </div>

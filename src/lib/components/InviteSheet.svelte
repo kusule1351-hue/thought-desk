@@ -4,6 +4,7 @@
   import { account } from '../account.svelte';
   import { cowork } from '../cowork.svelte';
   import { friends, nameOf } from '../friends.svelte';
+  import { t } from '../i18n';
   import { inviteFriend } from '../live-actions';
   import { prefs } from '../prefs.svelte';
   import { store } from '../store.svelte';
@@ -17,10 +18,10 @@
   const waiting = $derived(cowork.outgoing.find((r) => prefs.coworkPages[r.id] === pageId));
 </script>
 
-<Modal onclose={close} width={420} label="Invite a friend" closeButton>
+<Modal onclose={close} width={420} label={t('social.invite.label')} closeButton>
   <div class="invite">
-    <h2>Write “{page?.title || 'Untitled'}” together</h2>
-    <p class="lead">Your friend gets an invite; when they join, this page opens in a new tab for both of you and you write together. Only this page is shared, and you both keep it afterwards.</p>
+    <h2>{t('social.invite.title', { title: page?.title || t('common.untitled') })}</h2>
+    <p class="lead">{t('social.invite.lead')}</p>
 
     {#if !account.signedIn || account.needsUsername}
       <button
@@ -28,34 +29,34 @@
         onclick={() => {
           close();
           ui.accountSheet = true;
-        }}>{account.signedIn ? 'Pick a Username First' : 'Sign In First'}</button
+        }}>{account.signedIn ? t('social.invite.pickUsernameFirst') : t('social.invite.signInFirst')}</button
       >
     {:else if waiting}
-      <p class="note">Waiting for {cowork.otherName(waiting)} to join.</p>
-      <button class="btn" onclick={() => void cowork.withdraw(waiting).catch((e) => ui.error(e))}>Withdraw Invite</button>
+      <p class="note">{cowork.aboutOther(waiting, 'social.invite.waitingFor', 'social.invite.waitingForFriend')}</p>
+      <button class="btn" onclick={() => void cowork.withdraw(waiting).catch((e) => ui.error(e))}>{t('social.invite.withdraw')}</button>
     {:else if !friends.accepted.length}
-      <p class="note">Add a friend first, with + next to Friends in the sidebar.</p>
+      <p class="note">{t('social.invite.addFirst')}</p>
     {:else}
-      <ul class="people" aria-label="Friends">
+      <ul class="people" aria-label={t('social.invite.friends')}>
         {#each friends.accepted as f (f.profile.id)}
           <li>
             <span class="who">
               <span class="avatar-wrap">
                 <Avatar name={nameOf(f)} url={f.profile.avatarUrl} seed={f.profile.id} size={28} />
-                {#if f.online}<span class="online" aria-label="Online"></span>{/if}
+                {#if f.online}<span class="online" aria-label={t('social.online')}></span>{/if}
               </span>
               <span>
                 <span class="name">{nameOf(f)}</span>
-                <span class="sub">@{f.profile.username}{f.online ? ' · here now' : ''}</span>
+                <span class="sub">{f.online ? t('social.invite.handleHere', { username: f.profile.username ?? '' }) : `@${f.profile.username ?? ''}`}</span>
               </span>
             </span>
             <button
               class="btn small raised"
-              aria-label="Invite {nameOf(f)}"
+              aria-label={t('social.invite.inviteNamed', { name: nameOf(f) })}
               onclick={() => {
                 inviteFriend(f, pageId);
                 close();
-              }}>Invite</button
+              }}>{t('social.invite.invite')}</button
             >
           </li>
         {/each}

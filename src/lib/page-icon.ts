@@ -3,10 +3,10 @@
  * colour ("icon:book-open" or "icon:book-open:blue").
  */
 
-import { PALETTE } from './colors';
-import { PAGE_ICONS, type PageIconDef } from './page-icons-data';
+import { PALETTE, type ColorKey } from './colors';
+import { PAGE_ICONS, PAGE_ICON_GROUPS, PAGE_ICON_GROUP_LABELS, type PageIconDef } from './page-icons-data';
 
-export { PAGE_ICONS };
+export { PAGE_ICONS, PAGE_ICON_GROUPS, PAGE_ICON_GROUP_LABELS };
 
 const BY_NAME = new Map<string, PageIconDef>(PAGE_ICONS.map((i) => [i.name, i]));
 
@@ -27,11 +27,12 @@ export const lineIcon = (name: string, color?: string | null) => (color ? `icon:
 export const iconText = (value: string | null | undefined) => (value && !value.startsWith('icon:') ? value : '');
 
 /** Colours a line icon can take (none means it follows the text). */
-export const ICON_COLORS = PALETTE.filter((c) => c.key !== 'gray').map((c) => c.key);
+export type IconColor = Exclude<ColorKey, 'gray'>;
+export const ICON_COLORS = PALETTE.map((c) => c.key).filter((k): k is IconColor => k !== 'gray');
 
 /** A random line icon in a random colour, for "Add icon". */
 export function randomIcon(): string {
-  const pool = PAGE_ICONS.filter((i) => i.group !== 'Life');
+  const pool = PAGE_ICONS.filter((i) => i.group !== 'life');
   const def = pool[Math.floor(Math.random() * pool.length)];
   return lineIcon(def.name, ICON_COLORS[Math.floor(Math.random() * ICON_COLORS.length)]);
 }

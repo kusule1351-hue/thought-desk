@@ -2,6 +2,7 @@
 
 import { untrack } from 'svelte';
 import { api } from './api';
+import { t } from './i18n';
 import { prefs } from './prefs.svelte';
 import { ui } from './ui.svelte';
 import type { PageMeta, PagePatch } from './types';
@@ -578,8 +579,8 @@ class Store {
       await api.trashPage(id);
       this.#leave(id);
       await this.refresh();
-      ui.toast(`Moved “${page.title || 'Untitled'}” to Trash`, {
-        label: 'Undo',
+      ui.toast(t('app.movedToTrash', { title: page.title || t('common.untitled') }), {
+        label: t('common.actions.undo'),
         run: () => void this.restore(id),
       });
     } catch (e) {

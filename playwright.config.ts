@@ -20,6 +20,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:1420',
     viewport: { width: 1280, height: 820 },
+    // The tests find things by their English names: the interface follows the
+    // system's language, so it's pinned to English whatever the machine runs.
+    locale: 'en-US',
     actionTimeout: 5_000,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

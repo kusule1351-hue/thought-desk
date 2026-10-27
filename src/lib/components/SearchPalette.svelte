@@ -14,20 +14,40 @@
   import { api } from '../api';
   import { calendar } from '../calendar.svelte';
   import { clock } from '../clock.svelte';
-  import { dueState, formatDate, formatDue, formatTime } from '../dates';
+  import { dueState, formatDate, formatDue } from '../dates';
   import { rank } from '../editor/suggestion.svelte';
   import { KINDS, fileKind, library } from '../library.svelte';
   import { planner } from '../planner.svelte';
+  import { keyName } from '../shortcuts.svelte';
   import { store } from '../store.svelte';
   import { tags } from '../tags.svelte';
   import { ui } from '../ui.svelte';
   import { formatBytes, relativeTime } from '../time';
+  import { searchText, t, tEn, type TextKey } from '../i18n';
+  import { fmt } from '../i18n/format';
   import type { FileMeta, SearchHit } from '../types';
+
+  type Label = TextKey;
+
+  type GroupId = 'recent' | 'upNext' | 'pages' | 'assignments' | 'tags' | 'courses' | 'rows' | 'events' | 'files' | 'goTo' | 'create';
+  const GROUP_LABELS: Record<GroupId, Label> = {
+    recent: 'onboarding.search.groups.recent',
+    upNext: 'onboarding.search.groups.upNext',
+    pages: 'onboarding.search.groups.pages',
+    assignments: 'onboarding.search.groups.assignments',
+    tags: 'common.tags',
+    courses: 'onboarding.search.groups.courses',
+    rows: 'onboarding.search.groups.rows',
+    events: 'onboarding.search.groups.events',
+    files: 'onboarding.search.groups.files',
+    goTo: 'onboarding.search.groups.goTo',
+    create: 'onboarding.search.groups.create',
+  };
 
   /** One result row. Rows of the same group are listed together. */
   interface Row {
     key: string;
-    group: string;
+    group: GroupId;
     title: string;
     icon?: string;
     emoji?: string;
@@ -110,29 +130,50 @@
   function pathOf(id: string) {
     return store
       .ancestors(id)
-      .map((a) => a.title || 'Untitled')
+      .map((a) => a.title || t('common.untitled'))
       .join(' / ');
   }
 
+  /**
+   * A Go To command, named in the interface's language. Its keywords are in
+   * that language and in English, with its English name, so typing in
+   * English still finds it.
+   */
+  function command(id: string, name: Label, words: Label, icon: string, run: () => void) {
+    const title = t(name);
+    const english = tEn(name);
+    return { id, title, icon, keywords: title === english ? searchText(words) : `${searchText(words)} ${english}`, run };
+  }
+
   const GOTO = [
-    { title: 'Home', icon: 'home', keywords: 'today start dashboard', run: () => store.go('home') },
-    { title: 'Quick Capture', icon: 'bolt', keywords: 'capture inbox note todo add', run: () => (ui.capture = { text: '' }) },
-    { title: 'Assignments', icon: 'assignment', keywords: 'homework tasks due', run: () => store.go('assignments') },
-    { title: 'Calendar', icon: 'calendar', keywords: 'schedule events week month', run: () => store.go('calendar') },
-    { title: 'Flashcards', icon: 'cards', keywords: 'study cards decks review memorize quiz', run: () => store.go('cards') },
-    { title: 'Study Flashcards', icon: 'cards', keywords: 'review due cards learn', run: () => void cards.study(null, 'All Decks') },
-    { title: 'Import Calendar', icon: 'download', keywords: 'ics canvas google outlook schedule timetable', run: () => void importCalendar() },
-    { title: 'Files', icon: 'files', keywords: 'library attachments documents', run: () => store.go('files') },
-    { title: 'Friends', icon: 'users', keywords: 'people account requests invites write together live', run: () => store.go('friends') },
-    { title: 'Account', icon: 'user', keywords: 'sign in log in profile username google github email', run: () => (ui.accountSheet = true) },
-    { title: 'New Tab', icon: 'plus', keywords: 'tab open another window', run: () => void tabs.newTab() },
-    { title: 'Export All Notes as Markdown', icon: 'download', keywords: 'export backup markdown md obsidian folder save all notes csv', run: () => void exportWorkspace() },
-    { title: 'New Database', icon: 'database', keywords: 'table board tracker spreadsheet template kanban list', run: () => (ui.newDatabase = { parentId: null }) },
-    { title: 'Import a Spreadsheet', icon: 'upload', keywords: 'csv excel sheets database table import', run: () => (ui.newDatabase = { parentId: null }) },
-    { title: 'Settings', icon: 'settings', keywords: 'preferences theme accent color', run: () => (ui.settingsOpen = true) },
-    { title: 'Keyboard Shortcuts', icon: 'keyboard', keywords: 'keys hotkeys help cheat sheet', run: () => (ui.shortcutsHelp = true) },
-    { title: 'Trash', icon: 'trash', keywords: 'deleted restore', run: () => (ui.trashOpen = true) },
+    command('home', 'common.views.home', 'onboarding.search.commands.homeWords', 'home', () => store.go('home')),
+    command('capture', 'onboarding.search.commands.quickCapture', 'onboarding.search.commands.quickCaptureWords', 'bolt', () => (ui.capture = { text: '' })),
+    command('assignments', 'common.views.assignments', 'onboarding.search.commands.assignmentsWords', 'assignment', () => store.go('assignments')),
+    command('calendar', 'common.views.calendar', 'onboarding.search.commands.calendarWords', 'calendar', () => store.go('calendar')),
+    command('cards', 'common.views.flashcards', 'onboarding.search.commands.flashcardsWords', 'cards', () => store.go('cards')),
+    command('study', 'onboarding.search.commands.study', 'onboarding.search.commands.studyWords', 'cards', () => void cards.study(null, t('onboarding.search.allDecks'))),
+    command('importCalendar', 'onboarding.search.commands.importCalendar', 'onboarding.search.commands.importCalendarWords', 'download', () => void importCalendar()),
+    command('files', 'common.views.files', 'onboarding.search.commands.filesWords', 'files', () => store.go('files')),
+    command('friends', 'common.views.friends', 'onboarding.search.commands.friendsWords', 'users', () => store.go('friends')),
+    command('account', 'onboarding.search.commands.account', 'onboarding.search.commands.accountWords', 'user', () => (ui.accountSheet = true)),
+    command('newTab', 'onboarding.search.commands.newTab', 'onboarding.search.commands.newTabWords', 'plus', () => void tabs.newTab()),
+    command('export', 'onboarding.search.commands.exportMarkdown', 'onboarding.search.commands.exportMarkdownWords', 'download', () => void exportWorkspace()),
+    command('newDatabase', 'onboarding.search.commands.newDatabase', 'onboarding.search.commands.newDatabaseWords', 'database', () => (ui.newDatabase = { parentId: null })),
+    command('importSheet', 'onboarding.search.commands.importSpreadsheet', 'onboarding.search.commands.importSpreadsheetWords', 'upload', () => (ui.newDatabase = { parentId: null })),
+    command('settings', 'common.views.settings', 'onboarding.search.commands.settingsWords', 'settings', () => (ui.settingsOpen = true)),
+    command('shortcuts', 'onboarding.search.commands.shortcuts', 'onboarding.search.commands.shortcutsWords', 'keyboard', () => (ui.shortcutsHelp = true)),
+    command('trash', 'common.views.trash', 'onboarding.search.commands.trashWords', 'trash', () => (ui.trashOpen = true)),
   ];
+
+  /** When an event starts: its date, and its time when it has one, in the locale's order ("Oct 14, 3:05 PM"). */
+  function eventWhen(e: { startDate: string; startTime: string | null }): string {
+    if (!e.startTime) return formatDate(e.startDate);
+    const [y, mo, d] = e.startDate.split('-').map(Number);
+    const [h, m] = e.startTime.split(':').map(Number);
+    const year: Intl.DateTimeFormatOptions = y !== new Date().getFullYear() ? { year: 'numeric' } : {};
+    // Written in UTC, so a time the clocks skip that night (2:30 when they spring forward) still reads as typed.
+    return fmt.dateTime(Date.UTC(y, mo - 1, d, h, m), { month: 'short', day: 'numeric', ...year, hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
+  }
 
   const rows = $derived.by((): Row[] => {
     const q = query.trim();
@@ -140,8 +181,8 @@
     const pages = hits.map(
       (hit): Row => ({
         key: `p:${hit.id}`,
-        group: q ? 'Pages' : 'Recently Edited',
-        title: hit.title || 'Untitled',
+        group: q ? 'pages' : 'recent',
+        title: hit.title || t('common.untitled'),
         emoji: hit.icon || undefined,
         icon: hit.icon ? undefined : store.byId.get(hit.id)?.kind === 'database' ? 'database' : 'page',
         path: pathOf(hit.id) || undefined,
@@ -155,8 +196,8 @@
       const course = a.courseId ? planner.courseById.get(a.courseId) : undefined;
       return {
         key: `a:${a.id}`,
-        group: q ? 'Assignments' : 'Up Next',
-        title: a.title || 'Untitled',
+        group: q ? 'assignments' : 'upNext',
+        title: a.title || t('common.untitled'),
         icon: a.status === 'done' ? 'check' : 'assignment',
         color: planner.courseColor(a.courseId),
         path: course?.name,
@@ -180,27 +221,28 @@
     // "#exam" lists matching tags first.
     const tagQuery = q.replace(/^#/, '').toLowerCase();
     const tagRows = tags.used
-      .filter((t) => t.includes(tagQuery))
+      .filter((tag) => tag.includes(tagQuery))
       .slice(0, q.startsWith('#') ? 8 : 3)
       .map(
-        (t): Row => ({
-          key: `t:${t}`,
-          group: 'Tags',
-          title: `#${t}`,
+        (tag): Row => ({
+          key: `t:${tag}`,
+          group: 'tags',
+          title: `#${tag}`,
           icon: 'tag',
-          color: tags.color(t),
-          meta: `${tags.counts.get(t) ?? 0} item${tags.counts.get(t) === 1 ? '' : 's'}`,
-          run: () => store.openTag(t),
+          color: tags.color(tag),
+          meta: t('onboarding.search.tagItems', { count: tags.counts.get(tag) ?? 0 }),
+          run: () => store.openTag(tag),
         }),
       );
     if (q.startsWith('#')) out.push(...tagRows);
-    const courses = planner.courses.map((c) => ({ c, title: c.name, keywords: `${c.teacher} ${c.room} course class` }));
+    const courseWords = searchText('onboarding.search.courseWords');
+    const courses = planner.courses.map((c) => ({ c, title: c.name, keywords: `${c.teacher} ${c.room} ${courseWords}` }));
     out.push(
       ...rank(courses, q, 3).map(
         ({ c }): Row => ({
           key: `c:${c.id}`,
-          group: 'Courses',
-          title: c.name || 'Untitled',
+          group: 'courses',
+          title: c.name || t('common.untitled'),
           icon: 'book',
           color: colorVar(c.color),
           path: c.teacher || undefined,
@@ -217,17 +259,17 @@
         .map(
           ({ row, prop, text }): Row => ({
             key: `r:${row.id}`,
-            group: 'Database Rows',
-            title: store.byId.get(row.id)?.title || 'Untitled',
+            group: 'rows',
+            title: store.byId.get(row.id)?.title || t('common.untitled'),
             emoji: store.byId.get(row.id)?.icon || undefined,
             icon: store.byId.get(row.id)?.icon ? undefined : 'page',
-            path: `${store.byId.get(row.dbId)?.title || 'Untitled database'} · ${prop.name}: ${text}`,
+            path: t('onboarding.search.rowPath', { database: store.byId.get(row.dbId)?.title || t('common.untitledDatabase'), property: prop.name, value: text }),
             run: () => store.open(row.id),
             side: () => split.show(row.id),
           }),
         ),
     );
-    const tagWords = (list: string[]) => list.map((t) => `#${t} ${t}`).join(' ');
+    const tagWords = (list: string[]) => list.map((tag) => `#${tag} ${tag}`).join(' ');
     const assignments = planner.live.map((a) => ({
       a,
       title: a.title,
@@ -239,12 +281,12 @@
       ...rank(events, q, 5).map(
         ({ e }): Row => ({
           key: `e:${e.id}`,
-          group: 'Events',
-          title: e.title || 'Untitled',
+          group: 'events',
+          title: e.title || t('common.untitled'),
           icon: 'calendar',
           color: planner.eventColor(e),
           path: e.location || undefined,
-          meta: formatDate(e.startDate) + (e.startTime ? `, ${formatTime(e.startTime)}` : '') + (e.repeat !== 'none' ? ' · repeats' : ''),
+          meta: e.repeat !== 'none' ? t('onboarding.search.repeats', { when: eventWhen(e) }) : eventWhen(e),
           run: () => {
             calendar.show(e.startDate);
             planner.openEvent(e.id);
@@ -252,12 +294,12 @@
         }),
       ),
     );
-    const files = library.live.map((f) => ({ f, title: f.name, keywords: `${KINDS[fileKind(f)].label} ${tagWords(f.tags)}` }));
+    const files = library.live.map((f) => ({ f, title: f.name, keywords: `${searchText(KINDS[fileKind(f)].labelKey)} ${tagWords(f.tags)}` }));
     out.push(
       ...rank(files, q, 5).map(
         ({ f }): Row => ({
           key: `f:${f.id}`,
-          group: 'Files',
+          group: 'files',
           title: f.name,
           file: f,
           path: KINDS[fileKind(f)].label,
@@ -267,24 +309,38 @@
       ),
     );
     if (!q.startsWith('#')) out.push(...tagRows);
-    out.push(...rank(GOTO, q, 3).map((g): Row => ({ key: `g:${g.title}`, group: 'Go To', title: g.title, icon: g.icon, run: g.run })));
+    out.push(...rank(GOTO, q, 3).map((g): Row => ({ key: `g:${g.id}`, group: 'goTo', title: g.title, icon: g.icon, run: g.run })));
     out.push(
-      { key: 'new-page', group: 'Create', title: `New page “${q}”`, icon: 'page-plus', meta: 'Page', run: () => void store.create(null, { title: q }) },
-      { key: 'new-database', group: 'Create', title: `New database “${q}”`, icon: 'database', meta: 'Database', run: () => void databases.create({ title: q }) },
+      {
+        key: 'new-page',
+        group: 'create',
+        title: t('onboarding.search.newPage', { query: q }),
+        icon: 'page-plus',
+        meta: t('onboarding.search.kinds.page'),
+        run: () => void store.create(null, { title: q }),
+      },
+      {
+        key: 'new-database',
+        group: 'create',
+        title: t('onboarding.search.newDatabase', { query: q }),
+        icon: 'database',
+        meta: t('onboarding.search.kinds.database'),
+        run: () => void databases.create({ title: q }),
+      },
       {
         key: 'new-assignment',
-        group: 'Create',
-        title: `New assignment “${q}”`,
+        group: 'create',
+        title: t('onboarding.search.newAssignment', { query: q }),
         icon: 'assignment',
-        meta: 'Assignment',
+        meta: t('onboarding.search.kinds.assignment'),
         run: () => planner.newAssignment({ title: q }),
       },
       {
         key: 'new-event',
-        group: 'Create',
-        title: `New event “${q}”`,
+        group: 'create',
+        title: t('onboarding.search.newEvent', { query: q }),
         icon: 'calendar',
-        meta: 'Event',
+        meta: t('onboarding.search.kinds.event'),
         run: () => planner.newEvent({ title: q, startDate: clock.today, endDate: clock.today, startTime: '09:00', endTime: '10:00' }),
       },
     );
@@ -318,10 +374,10 @@
     list?.querySelector(`[data-index="${i}"]`)?.scrollIntoView({ block: 'nearest' });
   });
 
-  const nothingFound = $derived(query.trim() !== '' && rows.every((r) => r.group === 'Create'));
+  const nothingFound = $derived(query.trim() !== '' && rows.every((r) => r.group === 'create'));
 </script>
 
-<Modal onclose={close} width={640} top="16vh" label="Search" glass>
+<Modal onclose={close} width={640} top="16vh" label={t('common.views.search')} glass>
   <div class="search">
     <Icon name="search" size={20} stroke={2} />
     <input
@@ -329,7 +385,7 @@
       bind:value={query}
       oninput={onInput}
       onkeydown={onKey}
-      placeholder="Search pages, assignments, events and files"
+      placeholder={t('onboarding.search.placeholder')}
       spellcheck="false"
       autocomplete="off"
     />
@@ -337,11 +393,11 @@
   {#if rows.length}
     <div class="results" bind:this={list}>
       {#if nothingFound}
-        <div class="none">Nothing matches “{query.trim()}”</div>
+        <div class="none">{t('onboarding.search.nothingMatches', { query: query.trim() })}</div>
       {/if}
       {#each rows as row, i (row.key)}
         {#if i === 0 || rows[i - 1].group !== row.group}
-          <div class="group">{row.group}</div>
+          <div class="group">{t(GROUP_LABELS[row.group])}</div>
         {/if}
         <button
           class="hit"
@@ -371,9 +427,9 @@
       {/each}
     </div>
     <div class="foot">
-      <span class="hint"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
-      <span class="hint"><kbd>Enter</kbd> Open</span>
-      <span class="hint"><kbd>Esc</kbd> Close</span>
+      <span class="hint"><kbd>{keyName('ArrowUp')}</kbd><kbd>{keyName('ArrowDown')}</kbd> {t('onboarding.search.navigate')}</span>
+      <span class="hint"><kbd>{keyName('Enter')}</kbd> {t('common.actions.open')}</span>
+      <span class="hint"><kbd>{keyName('Escape')}</kbd> {t('common.actions.close')}</span>
     </div>
   {/if}
 </Modal>

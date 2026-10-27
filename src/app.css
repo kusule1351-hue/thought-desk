@@ -1535,13 +1535,13 @@ html.printing .prose > :is(ul, ol) > li {
   background: var(--callout-bg);
 }
 .prose .fc-front::before {
-  content: 'Front';
+  content: attr(data-label);
 }
 .prose .fc-back {
   box-shadow: inset 1px 0 0 var(--hairline);
 }
 .prose .fc-back::before {
-  content: 'Back';
+  content: attr(data-label);
 }
 /* Front over back when the pane is narrow (pane-size.ts). */
 [data-below-560] .prose .flashcard {
@@ -1840,10 +1840,10 @@ html.printing .prose > :is(ul, ol) > li {
   color: var(--text-4);
   pointer-events: none;
 }
-/* A short hint in list items, and none in table cells (too narrow). */
+/* A short hint in list items (--list-hint, set by Editor.svelte), and none in table cells (too narrow). */
 .prose li > p.is-empty::before,
 .prose li > div > p.is-empty::before {
-  content: 'List';
+  content: var(--list-hint);
 }
 .prose :is(td, th) p.is-empty::before {
   content: none;

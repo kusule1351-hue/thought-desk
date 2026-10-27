@@ -16,6 +16,7 @@ import type { Clerk as ClerkJS } from '@clerk/clerk-js/no-rhc';
 import { listen } from '@tauri-apps/api/event';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { api } from '../api';
+import { t } from '../i18n';
 import { isDesktop } from '../platform';
 import type { CloudUser, Provider } from './types';
 
@@ -116,8 +117,8 @@ export async function sessionToken(minLeft = 30): Promise<string | null> {
   const session = (await clerkIfSignedIn())?.session;
   if (!session) return null;
   try {
-    const t = await session.getToken();
-    return t && secondsLeft(t) < minLeft ? await session.getToken({ skipCache: true }) : t;
+    const jwt = await session.getToken();
+    return jwt && secondsLeft(jwt) < minLeft ? await session.getToken({ skipCache: true }) : jwt;
   } catch (e) {
     throw friendly(e);
   }
@@ -130,7 +131,7 @@ const TRANSFER = new Set(['external_account_not_found', 'external_account_exists
 async function finish(c: ClerkJS, back: URLSearchParams) {
   const failed = back.get('__clerk_error_code') ?? '';
   if (back.get('__clerk_status') === 'failed' && !TRANSFER.has(failed))
-    throw new Error(failed === 'oauth_access_denied' ? 'Sign-in was cancelled.' : "Sign-in didn't finish. Try again.");
+    throw new Error(failed === 'oauth_access_denied' ? t('social.cloud.signInCancelled') : t('social.cloud.signInUnfinished'));
   const signIn = c.client!.signIn;
   const nonce = back.get('rotating_token_nonce');
   await signIn.reload(nonce ? { rotatingTokenNonce: nonce } : undefined);
@@ -138,10 +139,10 @@ async function finish(c: ClerkJS, back: URLSearchParams) {
   if (signIn.firstFactorVerification.status === 'transferable') {
     // New here: the sign-in becomes a sign-up, with what Google or GitHub said.
     const signUp = await c.client!.signUp.create({ transfer: true });
-    if (signUp.status !== 'complete') throw new Error("Your account couldn't be made. Try signing in with an email code.");
+    if (signUp.status !== 'complete') throw new Error(t('social.cloud.accountNotMadeOauth'));
     session = signUp.createdSessionId;
   }
-  if (!session) throw new Error("Sign-in didn't finish. Try again.");
+  if (!session) throw new Error(t('social.cloud.signInUnfinished'));
   await c.setActive({ session });
 }
 
@@ -156,13 +157,14 @@ export async function signInWith(provider: Provider) {
     const redirectUrl = port ? `http://127.0.0.1:${port}/auth/callback` : location.origin + location.pathname;
     const signIn = await c.client!.signIn.create({ strategy: `oauth_${provider}`, redirectUrl });
     const url = signIn.firstFactorVerification.externalVerificationRedirectURL;
-    if (!url) throw new Error("Sign-in didn't start. Try again.");
+    if (!url) throw new Error(t('social.cloud.signInNotStarted'));
     if (!port) {
       location.href = url.href;
       return new Promise<void>(() => {});
     }
     let stop: (() => void) | undefined;
     const back = new Promise<string>((resolve, reject) => {
+      // A marker, never shown: the account sheet says nothing for it.
       cancel = () => reject(new Error('cancelled'));
       void listen<string>('auth-callback', (e) => resolve(e.payload)).then((unlisten) => (stop = unlisten));
     });
@@ -200,7 +202,7 @@ export async function sendEmailCode(email: string) {
   try {
     const signIn = await (await clerk()).client!.signIn.create({ identifier: email, signUpIfMissing: true });
     const factor = signIn.supportedFirstFactors?.find((f) => f.strategy === 'email_code');
-    if (!factor || !('emailAddressId' in factor)) throw new Error("Email sign-in isn't available. Use Google or GitHub.");
+    if (!factor || !('emailAddressId' in factor)) throw new Error(t('social.cloud.emailUnavailable'));
     await signIn.prepareFirstFactor({ strategy: 'email_code', emailAddressId: factor.emailAddressId });
   } catch (e) {
     throw friendly(e);
@@ -211,7 +213,7 @@ export async function verifyEmailCode(code: string) {
   try {
     const c = await clerk();
     const signIn = c.client!.signIn;
-    if (signIn.status !== 'needs_first_factor') throw new Error('Ask for a new code.');
+    if (signIn.status !== 'needs_first_factor') throw new Error(t('social.cloud.askNewCode'));
     let session: string | null;
     try {
       session = (await signIn.attemptFirstFactor({ strategy: 'email_code', code })).createdSessionId;
@@ -219,10 +221,10 @@ export async function verifyEmailCode(code: string) {
       if (codeOf(e) !== 'sign_up_if_missing_transfer') throw e;
       // New here: the code checked the address, so the sign-in becomes a sign-up.
       const signUp = await c.client!.signUp.create({ transfer: true });
-      if (signUp.status !== 'complete') throw new Error("Your account couldn't be made. Try again in a while.");
+      if (signUp.status !== 'complete') throw new Error(t('social.cloud.accountNotMadeEmail'));
       session = signUp.createdSessionId;
     }
-    if (!session) throw new Error("Sign-in didn't finish. Try again.");
+    if (!session) throw new Error(t('social.cloud.signInUnfinished'));
     await c.setActive({ session });
   } catch (e) {
     throw friendly(e);
@@ -252,17 +254,18 @@ export function friendly(e: unknown): Error {
   const first = (e as { errors?: { message?: string; longMessage?: string }[] } | null)?.errors?.[0];
   const code = codeOf(e);
   const message = e instanceof Error ? e.message : String(e);
-  if (code === 'form_code_incorrect') return new Error("That code isn't right. Check it, or ask for a new one.");
-  if (code === 'verification_expired') return new Error('That code has expired. Ask for a new one.');
-  if (code === 'verification_failed') return new Error('Too many wrong codes. Ask for a new one.');
-  if (code === 'too_many_requests' || (e as { status?: number } | null)?.status === 429) return new Error('Too many tries for now. Wait a minute and try again.');
-  if (code === 'form_param_format_invalid' || code === 'form_identifier_invalid') return new Error("That doesn't look like an email address.");
+  if (code === 'form_code_incorrect') return new Error(t('social.cloud.codeWrong'));
+  if (code === 'verification_expired') return new Error(t('social.cloud.codeExpired'));
+  if (code === 'verification_failed') return new Error(t('social.cloud.tooManyCodes'));
+  if (code === 'too_many_requests' || (e as { status?: number } | null)?.status === 429) return new Error(t('social.cloud.tooManyTries'));
+  if (code === 'form_param_format_invalid' || code === 'form_identifier_invalid') return new Error(t('social.cloud.notEmail'));
   if (code === 'native_api_disabled' || code.startsWith('origin_')) {
     console.warn('Clerk refused this app:', code);
-    return new Error("Signing in isn't set up for this copy of Thought Desk yet.");
+    return new Error(t('social.cloud.notSetUp'));
   }
   if (code === 'clerk_offline' || code === 'network_error' || e instanceof TypeError || /failed to fetch|network/i.test(message))
-    return new Error("Can't reach the sign-in service. Check your internet connection.");
-  if (first) return new Error(first.longMessage || first.message || 'Something went wrong. Try again.');
-  return e instanceof Error ? e : new Error(message || 'Something went wrong. Try again.');
+    return new Error(t('social.cloud.signInOffline'));
+  // Anything else: Clerk's own explanation, or the error's, as it comes.
+  if (first) return new Error(first.longMessage || first.message || t('social.cloud.somethingWrong'));
+  return e instanceof Error ? e : new Error(message || t('social.cloud.somethingWrong'));
 }

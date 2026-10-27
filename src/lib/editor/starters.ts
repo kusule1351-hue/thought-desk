@@ -1,12 +1,14 @@
 /**
  * Ways to start an empty page: lecture notes, a study guide, a flashcard
  * deck, a checklist. Each is editor JSON, plus a title and line icon for a page
- * that has none yet.
+ * that has none yet. The titles and the text are written into the page in
+ * the interface's language of the day; after that they're the page's own.
  */
 
 import type { JSONContent } from '@tiptap/core';
 import { newCardId } from './flashcard';
 import { lineIcon } from '../page-icon';
+import { t } from '../i18n';
 
 export interface Starter {
   key: string;
@@ -19,16 +21,16 @@ export interface Starter {
   content: () => JSONContent[];
 }
 
-const text = (t: string): JSONContent => ({ type: 'text', text: t });
-const heading = (t: string, level = 2): JSONContent => ({ type: 'heading', attrs: { level }, content: [text(t)] });
-const paragraph = (t = ''): JSONContent => (t ? { type: 'paragraph', content: [text(t)] } : { type: 'paragraph' });
+const text = (value: string): JSONContent => ({ type: 'text', text: value });
+const heading = (value: string, level = 2): JSONContent => ({ type: 'heading', attrs: { level }, content: [text(value)] });
+const paragraph = (value = ''): JSONContent => (value ? { type: 'paragraph', content: [text(value)] } : { type: 'paragraph' });
 const bullets = (...items: string[]): JSONContent => ({
   type: 'bulletList',
-  content: items.map((t) => ({ type: 'listItem', content: [paragraph(t)] })),
+  content: items.map((item) => ({ type: 'listItem', content: [paragraph(item)] })),
 });
 const todos = (...items: string[]): JSONContent => ({
   type: 'taskList',
-  content: items.map((t) => ({ type: 'taskItem', attrs: { checked: false }, content: [paragraph(t)] })),
+  content: items.map((item) => ({ type: 'taskItem', attrs: { checked: false }, content: [paragraph(item)] })),
 });
 const math = (latex = ''): JSONContent => ({ type: 'mathBlock', attrs: { latex } });
 const card = (front = '', back = ''): JSONContent => ({
@@ -43,67 +45,67 @@ const card = (front = '', back = ''): JSONContent => ({
 export const STARTERS: Starter[] = [
   {
     key: 'lecture',
-    label: 'Lecture notes',
+    label: t('editor.starters.lecture.label'),
     icon: lineIcon('notebook-pen', 'blue'),
-    hint: 'Key ideas, questions and a summary',
-    title: (date) => `Lecture notes · ${date}`,
+    hint: t('editor.starters.lecture.hint'),
+    title: (date) => t('editor.starters.lecture.title', { date }),
     content: () => [
-      heading('Key ideas'),
+      heading(t('editor.starters.lecture.keyIdeas')),
       bullets(''),
-      heading('Questions to ask'),
+      heading(t('editor.starters.lecture.questions')),
       bullets(''),
-      heading('Summary'),
+      heading(t('editor.starters.lecture.summary')),
       paragraph(),
-      heading('Follow up'),
-      todos('Review these notes before the next class'),
+      heading(t('editor.starters.lecture.followUp')),
+      todos(t('editor.starters.lecture.review')),
     ],
   },
   {
     key: 'study',
-    label: 'Study guide',
+    label: t('editor.starters.study.label'),
     icon: lineIcon('graduation-cap', 'purple'),
-    hint: 'Topics to cover, key terms as flashcards, practice questions',
-    title: () => 'Study guide',
+    hint: t('editor.starters.study.hint'),
+    title: () => t('editor.starters.study.title'),
     content: () => [
-      heading('Topics'),
+      heading(t('editor.starters.study.topics')),
       todos(''),
-      heading('Key terms'),
-      paragraph('Each card is a term on the front and its meaning on the back. Study them from Flashcards.'),
+      heading(t('editor.starters.study.keyTerms')),
+      paragraph(t('editor.starters.study.cardsIntro')),
       card(),
-      heading('Practice questions'),
+      heading(t('editor.starters.study.practice')),
       bullets(''),
     ],
   },
   {
     key: 'formulas',
-    label: 'Formula sheet',
+    label: t('editor.starters.formulas.label'),
     icon: lineIcon('sigma', 'indigo'),
-    hint: 'Equations to know, what each symbol means, and a worked example',
-    title: () => 'Formula sheet',
+    hint: t('editor.starters.formulas.hint'),
+    title: () => t('editor.starters.formulas.title'),
     content: () => [
-      heading('Key formulas'),
+      heading(t('editor.starters.formulas.keyFormulas')),
       math(),
-      paragraph('where …'),
-      heading('Worked example'),
+      paragraph(t('editor.starters.formulas.where')),
+      heading(t('editor.starters.formulas.workedExample')),
       paragraph(),
-      heading('Remember'),
+      heading(t('editor.starters.formulas.remember')),
       card(),
     ],
   },
   {
     key: 'cards',
-    label: 'Flashcards',
+    label: t('editor.starters.cards.label'),
     icon: lineIcon('layers', 'orange'),
-    hint: 'Type a question, Enter for the answer, Enter again for the next card',
-    title: () => 'Flashcards',
+    hint: t('editor.starters.cards.hint'),
+    title: () => t('editor.starters.cards.title'),
     content: () => [card()],
   },
   {
     key: 'checklist',
-    label: 'Checklist',
+    label: t('editor.starters.checklist.label'),
     icon: lineIcon('list-checks', 'green'),
-    hint: 'A list of things to do (they show on Home too)',
-    title: () => 'To do',
+    hint: t('editor.starters.checklist.hint'),
+    title: () => t('editor.starters.checklist.title'),
     content: () => [todos('')],
   },
 ];

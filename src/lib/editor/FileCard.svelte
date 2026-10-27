@@ -3,6 +3,7 @@
   import Icon from '../components/Icon.svelte';
   import FileTile from '../ui/FileTile.svelte';
   import { fileMenuItems } from '../file-actions';
+  import { t } from '../i18n';
   import { KINDS, fileKind, library } from '../library.svelte';
   import { formatBytes } from '../time';
   import { ui } from '../ui.svelte';
@@ -30,15 +31,15 @@
     <FileTile {file} size={40} />
     <span class="text">
       <span class="name">{file.name}</span>
-      <span class="meta">{KINDS[fileKind(file)].label} · {file.missing ? 'Missing' : formatBytes(file.size)}</span>
+      <span class="meta">{KINDS[fileKind(file)].label} · {file.missing ? t('blocks.file.missing') : formatBytes(file.size)}</span>
     </span>
     <span class="acts">
-      <button class="act" onclick={(e) => { e.stopPropagation(); void library.open(id); }} data-tip="Open in default app"><Icon name="external" size={15} /></button>
-      <button class="act" onclick={more} data-tip="More"><Icon name="more" size={15} /></button>
+      <button class="act" onclick={(e) => { e.stopPropagation(); void library.open(id); }} data-tip={t('blocks.file.openInDefaultApp')}><Icon name="external" size={15} /></button>
+      <button class="act" onclick={more} data-tip={t('common.actions.more')}><Icon name="more" size={15} /></button>
     </span>
   {:else}
     <span class="tile-gone"><Icon name="file" size={18} /></span>
-    <span class="text"><span class="name">Deleted file</span><span class="meta">Restore it from the Trash</span></span>
+    <span class="text"><span class="name">{t('blocks.file.deleted')}</span><span class="meta">{t('blocks.file.restoreFromTrash')}</span></span>
   {/if}
 </span>
 

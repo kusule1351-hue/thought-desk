@@ -10,8 +10,17 @@
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
   import type { Assignment } from '../types';
+  import { t, type MessageKey, type PluralKey } from '../i18n';
+  import { fmt } from '../i18n/format';
 
   let { a, compact = false, showCourse = true }: { a: Assignment; compact?: boolean; showCourse?: boolean } = $props();
+
+  /** Priority 1–3 (0 is none). */
+  const PRIORITIES: Partial<Record<number, Exclude<MessageKey, PluralKey>>> = {
+    1: 'planner.assignment.priority.low',
+    2: 'planner.assignment.priority.medium',
+    3: 'planner.assignment.priority.high',
+  };
 
   const course = $derived(a.courseId ? planner.courseById.get(a.courseId) : undefined);
   const urgency = $derived(dueState(a, clock.today, clock.time));
@@ -45,28 +54,33 @@
   <StatusCheck
     done={a.status === 'done'}
     color={planner.courseColor(a.courseId)}
-    label={a.status === 'done' ? 'Mark as not done' : 'Mark as done'}
+    label={a.status === 'done' ? t('planner.markNotDone') : t('planner.markDone')}
     ontoggle={() => planner.toggleDone(a.id)}
   />
   <div class="main">
-    <span class="title">{a.title || 'Untitled'}</span>
+    <span class="title">{a.title || t('common.untitled')}</span>
     {#if (showCourse && course) || a.status === 'doing' || a.priority || a.fileIds.length || (page && !page.deletedAt) || isGraded(a)}
       <span class="meta">
         {#if isGraded(a)}
-          <span class="bit grade" data-tip="{formatPoints(a.score!)} / {formatPoints(a.maxScore!)} points">{formatPercent(scorePercent(a))}</span>
+          <span class="bit grade" data-tip={t('planner.assignment.points', { score: formatPoints(a.score!), max: formatPoints(a.maxScore!) })}
+            >{formatPercent(scorePercent(a))}</span
+          >
         {/if}
         {#if showCourse && course}<span class="bit"><span class="dot" style:--dot={planner.courseColor(course.id)}></span>{course.name}</span>{/if}
-        {#if a.status === 'doing'}<span class="bit doing"><Icon name="clock" size={12} stroke={2.2} />In progress</span>{/if}
+        {#if a.status === 'doing'}<span class="bit doing"><Icon name="clock" size={12} stroke={2.2} />{t('planner.assignment.inProgress')}</span>{/if}
         {#if a.priority}
-          <span class="bit prio p{a.priority}"><Icon name="flag" size={12} stroke={2.2} />{['', 'Low', 'Medium', 'High'][a.priority]}</span>
+          {@const prio = PRIORITIES[a.priority]}
+          <span class="bit prio p{a.priority}"><Icon name="flag" size={12} stroke={2.2} />{prio ? t(prio) : ''}</span>
         {/if}
-        {#if a.fileIds.length}<span class="bit"><Icon name="paperclip" size={12} stroke={2.2} />{a.fileIds.length}</span>{/if}
-        {#if page && !page.deletedAt}<span class="bit"><Icon name="note" size={12} stroke={2.2} />Notes</span>{/if}
+        {#if a.fileIds.length}<span class="bit"><Icon name="paperclip" size={12} stroke={2.2} />{fmt.number(a.fileIds.length)}</span>{/if}
+        {#if page && !page.deletedAt}<span class="bit"><Icon name="note" size={12} stroke={2.2} />{t('planner.assignment.hasNotes')}</span>{/if}
       </span>
     {/if}
   </div>
   {#if due}<span class="due {urgency}">{due}</span>{/if}
-  <button class="act" tabindex="-1" onclick={(e) => menu(e, e.currentTarget as Element)} data-tip="More" aria-label="More"><Icon name="more" size={15} /></button>
+  <button class="act" tabindex="-1" onclick={(e) => menu(e, e.currentTarget as Element)} data-tip={t('common.actions.more')} aria-label={t('common.actions.more')}
+    ><Icon name="more" size={15} /></button
+  >
 </div>
 
 <style>

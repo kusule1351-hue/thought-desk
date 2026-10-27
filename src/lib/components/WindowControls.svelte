@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { onMount } from 'svelte';
+  import { t } from '../i18n';
 
   const win = getCurrentWindow();
   // Windows ships hinted caption glyphs that stay crisp at every display
@@ -18,12 +19,12 @@
 </script>
 
 <div class="controls" class:native={nativeGlyphs}>
-  <button class="ctl" onclick={() => win.minimize()} aria-label="Minimize" data-tip="Minimize">
+  <button class="ctl" onclick={() => win.minimize()} aria-label={t('shell.window.minimize')} data-tip={t('shell.window.minimize')}>
     {#if nativeGlyphs}<span class="glyph">&#xE921;</span>{:else}
       <svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5h10" stroke="currentColor" /></svg>
     {/if}
   </button>
-  <button class="ctl" onclick={() => win.toggleMaximize()} aria-label={maximized ? 'Restore' : 'Maximize'} data-tip={maximized ? 'Restore Down' : 'Maximize'}>
+  <button class="ctl" onclick={() => win.toggleMaximize()} aria-label={maximized ? t('shell.window.restore') : t('shell.window.maximize')} data-tip={maximized ? t('shell.window.restoreDown') : t('shell.window.maximize')}>
     {#if nativeGlyphs}<span class="glyph">{maximized ? '' : ''}</span>{:else if maximized}
       <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor">
         <rect x="0.5" y="2.5" width="7" height="7" rx="1" />
@@ -33,7 +34,7 @@
       <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" /></svg>
     {/if}
   </button>
-  <button class="ctl close" onclick={() => win.close()} aria-label="Close" data-tip="Close">
+  <button class="ctl close" onclick={() => win.close()} aria-label={t('common.actions.close')} data-tip={t('common.actions.close')}>
     {#if nativeGlyphs}<span class="glyph">&#xE8BB;</span>{:else}
       <svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" stroke-width="1.05"><path d="M0.5 0.5l9 9M9.5 0.5l-9 9" /></svg>
     {/if}

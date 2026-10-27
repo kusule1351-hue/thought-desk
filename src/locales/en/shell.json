@@ -1,0 +1,239 @@
+{
+  "newPage": "New page",
+  "@newPage": "tooltip of the sidebar buttons that make a new page",
+  "newTab": "New tab",
+  "@newTab": "tooltip and name of the title bar button that opens a new tab",
+  "splitView": "Split view",
+  "@splitView": "a second page shown beside the main one: the title bar button that turns it on, and the empty side pane's heading",
+  "closeSplitView": "Close split view",
+  "@closeSplitView": "button that closes the second page shown beside the main one",
+  "rowCount": {
+    "one": "{count} row",
+    "other": "{count} rows"
+  },
+  "@rowCount": "how many rows a database has (title bar, sidebar tooltip); {count} is the number",
+  "sidebar": {
+    "hide": "Hide sidebar",
+    "@hide": "tooltip of the button that hides the sidebar",
+    "views": "Views",
+    "@views": "screen-reader name of the sidebar's list of places (Home, Assignments, Calendar…)",
+    "sections": {
+      "favorites": "Favorites",
+      "@favorites": "sidebar heading over the pages someone starred",
+      "courses": "Courses",
+      "@courses": "sidebar heading over the school courses (Biology, History)",
+      "databases": "Databases",
+      "@databases": "sidebar heading over the databases (tables of rows)",
+      "pages": "Pages",
+      "@pages": "sidebar heading over every page, in a tree"
+    },
+    "dueSoon": {
+      "one": "{count} due within a week",
+      "other": "{count} due within a week"
+    },
+    "@dueSoon": "tooltip of the number beside Assignments; {count} is how many assignments are due in the next 7 days",
+    "dueSoonOverdue": {
+      "one": "{count} due within a week, some overdue",
+      "other": "{count} due within a week, some overdue"
+    },
+    "@dueSoonOverdue": "the same tooltip when some of them are already late; {count} is how many are due in the next 7 days",
+    "eventsToday": {
+      "one": "{count} event today",
+      "other": "{count} events today"
+    },
+    "@eventsToday": "tooltip of the number beside Calendar; {count} is how many calendar events are today",
+    "fileCount": {
+      "one": "{count} file",
+      "other": "{count} files"
+    },
+    "@fileCount": "tooltip of the number beside Files; {count} is how many files are in the library",
+    "cardsToStudy": {
+      "one": "{count} card to study today",
+      "other": "{count} cards to study today"
+    },
+    "@cardsToStudy": "tooltip of the number beside Flashcards; {count} is how many flashcards are due today",
+    "waiting": {
+      "one": "{count} waiting for you",
+      "other": "{count} waiting for you"
+    },
+    "@waiting": "tooltip of the number beside Friends; {count} is how many friend requests and invitations to write together await an answer",
+    "openAssignments": {
+      "one": "{count} open assignment",
+      "other": "{count} open assignments"
+    },
+    "@openAssignments": "tooltip of the number beside a course in the sidebar; {count} is how many of its assignments aren't done",
+    "newCourse": "New course",
+    "addCourse": "Add a course",
+    "@addCourse": "button shown under Courses when there are none yet",
+    "newDatabase": "New database",
+    "addDatabase": "Add a database",
+    "@addDatabase": "button shown under Databases when there are none yet",
+    "addPage": "Add a page",
+    "@addPage": "button shown under Pages when there are none yet",
+    "hideItem": "Hide from Sidebar",
+    "@hideItem": "right-click menu command on a sidebar item (Home, Courses…) that stops showing it in the sidebar",
+    "customize": "Customize Sidebar…",
+    "@customize": "right-click menu command that opens Settings, where the sidebar's items are turned on and off",
+    "hidden": {
+      "@home": "message after Home was hidden from the sidebar. “Settings → Sidebar” names the Sidebar section of Settings: use the same words as there. Same for the others in this group",
+      "home": "Home is hidden. Settings → Sidebar shows it again.",
+      "assignments": "Assignments is hidden. Settings → Sidebar shows it again.",
+      "calendar": "Calendar is hidden. Settings → Sidebar shows it again.",
+      "files": "Files is hidden. Settings → Sidebar shows it again.",
+      "flashcards": "Flashcards is hidden. Settings → Sidebar shows it again.",
+      "friends": "Friends is hidden. Settings → Sidebar shows it again.",
+      "favorites": "Favorites is hidden. Settings → Sidebar shows it again.",
+      "courses": "Courses is hidden. Settings → Sidebar shows it again.",
+      "databases": "Databases is hidden. Settings → Sidebar shows it again.",
+      "tags": "Tags is hidden. Settings → Sidebar shows it again."
+    }
+  },
+  "titleBar": {
+    "showSidebar": "Show sidebar",
+    "@showSidebar": "tooltip of the title bar button that brings the hidden sidebar back",
+    "back": "Back",
+    "@back": "tooltip of the button that goes back to the previous page or view",
+    "forward": "Forward",
+    "@forward": "tooltip of the button that goes forward again after going back",
+    "breadcrumb": "Breadcrumb",
+    "@breadcrumb": "screen-reader name of the path to the open page shown in the title bar (Parent › Page)",
+    "live": {
+      "offline": "Offline",
+      "@offline": "the writing-together chip in the title bar: the connection is lost",
+      "connecting": "Connecting…",
+      "@connecting": "the writing-together chip: the connection is being made",
+      "with": "Live with {name}",
+      "@with": "the writing-together chip: writing this page with someone, who is here now; {name} is their name or @username",
+      "withPaused": "Live with {name} · paused",
+      "@withPaused": "the writing-together chip: the session is paused because nobody typed for a while; {name} is the other person's name or @username",
+      "withAway": "Live with {name} · away",
+      "@withAway": "the writing-together chip: the other person isn't on the page right now; {name} is their name or @username",
+      "withFriend": "Live with a friend",
+      "@withFriend": "the writing-together chip, when the other person's name isn't known yet",
+      "withFriendPaused": "Live with a friend · paused",
+      "@withFriendPaused": "the writing-together chip, paused, when the other person's name isn't known yet",
+      "withFriendAway": "Live with a friend · away",
+      "@withFriendAway": "the writing-together chip, the other person away, when their name isn't known yet",
+      "withYourFriend": "Live with Your friend",
+      "@withYourFriend": "the writing-together chip, when the other person is no longer among your friends, so their name isn't known: “Your friend” stands for them, like a name",
+      "withYourFriendPaused": "Live with Your friend · paused",
+      "@withYourFriendPaused": "the writing-together chip, paused, when the other person is no longer among your friends, so their name isn't known",
+      "withYourFriendAway": "Live with Your friend · away",
+      "@withYourFriendAway": "the writing-together chip, the other person away, when they're no longer among your friends, so their name isn't known",
+      "tip": "Writing together: who's here, and End Session",
+      "@tip": "tooltip of the writing-together chip: clicking it shows who's on the page and a button called End Session (use the same words as that button)"
+    },
+    "saving": "Saving…",
+    "@saving": "title bar status while the page is being saved",
+    "created": {
+      "now": "Created just now",
+      "@now": "title bar status of a page nobody has typed in yet, made under a minute ago",
+      "relative": "Created {when}",
+      "@relative": "title bar status of a page nobody has typed in yet; {when} is a relative time like “5 minutes ago” or “yesterday”",
+      "date": "Created {date}",
+      "@date": "title bar status of a page nobody has typed in yet, made a week ago or more; {date} is the date, like “Mar 3, 2025”"
+    },
+    "edited": {
+      "now": "Edited just now",
+      "@now": "title bar status of a page changed under a minute ago",
+      "relative": "Edited {when}",
+      "@relative": "title bar status of a page; {when} is a relative time like “5 minutes ago” or “yesterday”",
+      "date": "Edited {date}",
+      "@date": "title bar status of a page last changed a week ago or more; {date} is the date, like “Mar 3, 2025”"
+    },
+    "study": {
+      "=0": "Study",
+      "one": "Study {count}",
+      "other": "Study {count}"
+    },
+    "@study": "button that studies the open page's flashcards (a verb); {count} is how many are due or new, left out when none are",
+    "studyTip": {
+      "one": "Study this page’s {count} flashcard",
+      "other": "Study this page’s {count} flashcards"
+    },
+    "@studyTip": "tooltip of the Study button; {count} is how many flashcards the page has",
+    "addFavorite": "Add to Favorites",
+    "@addFavorite": "tooltip of the star button: puts the page in the sidebar's Favorites",
+    "removeFavorite": "Remove from Favorites",
+    "@removeFavorite": "tooltip of the star button on a page already in Favorites",
+    "appearance": {
+      "system": "Appearance: System",
+      "@system": "tooltip of the button that switches light and dark: now following the computer's setting",
+      "dark": "Appearance: Dark",
+      "@dark": "tooltip of the button that switches light and dark: now dark",
+      "light": "Appearance: Light",
+      "@light": "tooltip of the button that switches light and dark: now light"
+    },
+    "trashTip": {
+      "=0": "Trash",
+      "one": "Trash · {count} item",
+      "other": "Trash · {count} items"
+    },
+    "@trashTip": "tooltip of the Trash button; {count} is how many deleted pages, assignments, events and files are in it",
+    "badgeOverflow": "{max}+",
+    "@badgeOverflow": "the number on the Trash button when there are more than it shows; {max} is that number (99): “more than 99”"
+  },
+  "tabs": {
+    "label": "Tabs",
+    "@label": "screen-reader name of the row of tabs in the title bar",
+    "liveSession": "Live session",
+    "@liveSession": "screen-reader name of the green dot on a tab whose page is being written together right now",
+    "close": "Close tab",
+    "@close": "button on a tab that closes it"
+  },
+  "tree": {
+    "collapse": "Collapse",
+    "@collapse": "screen-reader name of the arrow that hides a page's subpages in the sidebar (a verb)",
+    "expand": "Expand",
+    "@expand": "screen-reader name of the arrow that shows a page's subpages in the sidebar (a verb)",
+    "addInside": "Add a page inside",
+    "@addInside": "tooltip of the + button on a sidebar page: makes a new page inside it"
+  },
+  "splitPane": {
+    "label": "Side page",
+    "@label": "screen-reader name of the second page shown beside the main one in split view",
+    "dragHint": "Drag to the left, or click, to open in the main view",
+    "@dragHint": "tooltip of the side page's title, at the right of the window",
+    "swapSides": "Swap sides",
+    "@swapSides": "button that switches the main page and the side page",
+    "openInMain": "Open in the main view",
+    "@openInMain": "button that opens the side page in the main view and closes split view",
+    "openOnLeft": "This page is open on the left.",
+    "@openOnLeft": "in split view, when the side would show the same page as the main view",
+    "chooseAnother": "Choose another page",
+    "pickTitle": "Open a page beside this one",
+    "@pickTitle": "heading of the empty side pane in split view",
+    "pickHint": "Pick one below, or Alt+click any page in the sidebar or a link in your notes.",
+    "@pickHint": "under that heading; Alt is the keyboard key",
+    "findPage": "Find a page",
+    "@findPage": "placeholder of the search field that finds a page to show beside",
+    "noMatches": "No pages match.",
+    "@noMatches": "shown when no page's name has what was typed in that search field"
+  },
+  "splitDrop": {
+    "label": "Drop to open {title}",
+    "@label": "screen-reader name of the area a dragged page can be dropped on; {title} is the page's name",
+    "moveHere": "Move here",
+    "@moveHere": "label while dragging the side page onto the main view: it moves there",
+    "openHere": "Open here",
+    "@openHere": "label while dragging a page onto the main view: it opens there",
+    "moveToSide": "Move to the side",
+    "@moveToSide": "label while dragging the main page to the side of the window: it moves there",
+    "openBeside": "Open beside",
+    "@openBeside": "label while dragging a page to the side of the window: it opens beside the main page. The page's name follows it, after a dot"
+  },
+  "window": {
+    "minimize": "Minimize",
+    "@minimize": "Windows title bar button that minimizes the window: use Windows' own word for it",
+    "maximize": "Maximize",
+    "@maximize": "Windows title bar button that makes the window fill the screen: use Windows' own word for it",
+    "restore": "Restore",
+    "@restore": "screen-reader name of the same button on a maximized window: brings back its earlier size (not restoring from the Trash)",
+    "restoreDown": "Restore Down",
+    "@restoreDown": "tooltip of that button on a maximized window: use Windows' own words for it"
+  },
+  "toasts": {
+    "dismiss": "Dismiss",
+    "@dismiss": "screen-reader name of the × button that closes a message at the bottom of the window"
+  }
+}

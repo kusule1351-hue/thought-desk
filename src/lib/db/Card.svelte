@@ -9,6 +9,7 @@
   import { library } from '../library.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
   import type { DbRow, DbView, Property } from '../types';
 
   let {
@@ -80,10 +81,10 @@
       x: e.clientX,
       y: e.clientY,
       items: [
-        { label: 'Open', icon: 'expand', action: () => store.open(row.id) },
-        { label: 'Duplicate', icon: 'copy', action: () => void databases.duplicateRows([row.id]) },
+        { label: t('common.actions.open'), icon: 'expand', action: () => store.open(row.id) },
+        { label: t('common.actions.duplicate'), icon: 'copy', action: () => void databases.duplicateRows([row.id]) },
         { separator: true },
-        { label: 'Delete', icon: 'trash', danger: true, action: () => void databases.deleteRows([row.id]) },
+        { label: t('common.actions.delete'), icon: 'trash', danger: true, action: () => void databases.deleteRows([row.id]) },
       ],
     });
   }
@@ -100,19 +101,19 @@
         class="title-input"
         bind:this={input}
         bind:value={title}
-        placeholder="Name it"
+        placeholder={t('dbViews.nameIt')}
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => {
           e.stopPropagation();
           if (e.key === 'Enter' || e.key === 'Escape') commit();
         }}
         onblur={commit}
-        aria-label="Title"
+        aria-label={t('dbViews.titleField')}
       />
     {:else}
       <div class="title">
         {#if page?.icon}<span class="emoji"><PageIcon icon={page.icon} /></span>{/if}
-        <span class:untitled={!page?.title}>{page?.title || 'Untitled'}</span>
+        <span class:untitled={!page?.title}>{page?.title || t('common.untitled')}</span>
       </div>
     {/if}
     {#each shown as p (p.id)}
@@ -128,7 +129,7 @@
       e.stopPropagation();
       menu(e);
     }}
-    aria-label="More"><Icon name="more" size={14} /></button
+    aria-label={t('common.actions.more')}><Icon name="more" size={14} /></button
   >
 </div>
 

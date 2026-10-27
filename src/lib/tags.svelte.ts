@@ -6,6 +6,8 @@ import { library } from './library.svelte';
 import { planner } from './planner.svelte';
 import { store } from './store.svelte';
 import { ui } from './ui.svelte';
+import { t } from './i18n';
+import { fmt } from './i18n/format';
 import type { Assignment, CalEvent, FileMeta, PageMeta, Tag, TrashTable } from './types';
 
 /** Mirrors the backend's cleaning: "#Final Exam" → "final-exam". */
@@ -35,7 +37,7 @@ class Tags {
   counts = $derived.by(() => {
     const counts = new Map<string, number>();
     const add = (tags: string[]) => {
-      for (const t of tags) counts.set(t, (counts.get(t) ?? 0) + 1);
+      for (const tag of tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
     };
     // Tags and the trash are place fields: typing a title doesn't redo this.
     for (const p of store.placed.values()) if (!p.deletedAt) add(p.tags);
@@ -46,14 +48,14 @@ class Tags {
   });
 
   /** Tags that are in use, alphabetically. */
-  used = $derived([...this.counts.keys()].sort((a, b) => a.localeCompare(b)));
+  used = $derived([...this.counts.keys()].sort(fmt.collator({}).compare));
 
   async load() {
     this.list = await api.listTags();
   }
 
   colorKey(name: string): string {
-    return this.list.find((t) => t.name === name)?.color ?? '';
+    return this.list.find((tag) => tag.name === name)?.color ?? '';
   }
 
   /** CSS colour of a tag; untagged-colour tags use the tint. */
@@ -88,7 +90,7 @@ class Tags {
     try {
       const saved = await api.setItemTags(table, id, clean);
       put(saved);
-      for (const t of saved) if (!this.list.some((x) => x.name === t)) this.list.push({ name: t, color: '' });
+      for (const tag of saved) if (!this.list.some((x) => x.name === tag)) this.list.push({ name: tag, color: '' });
     } catch (e) {
       ui.error(e);
     }
@@ -104,8 +106,8 @@ class Tags {
   }
 
   async recolor(name: string, color: string) {
-    const t = this.list.find((x) => x.name === name);
-    if (t) t.color = color;
+    const tag = this.list.find((x) => x.name === name);
+    if (tag) tag.color = color;
     else this.list.push({ name, color });
     try {
       await api.setTagColor(name, color);
@@ -117,9 +119,9 @@ class Tags {
   #replaceEverywhere(from: string, to: string | null) {
     const swap = (item: { tags: string[] }) => {
       if (!item.tags.includes(from)) return;
-      item.tags = [...new Set(item.tags.flatMap((t) => (t === from ? (to ? [to] : []) : [t])))];
+      item.tags = [...new Set(item.tags.flatMap((tag) => (tag === from ? (to ? [to] : []) : [tag])))];
     };
-    const renamed = (tags: string[]) => [...new Set(tags.flatMap((t) => (t === from ? (to ? [to] : []) : [t])))];
+    const renamed = (tags: string[]) => [...new Set(tags.flatMap((tag) => (tag === from ? (to ? [to] : []) : [tag])))];
     store.edit(new Map(store.pages.filter((p) => p.tags.includes(from)).map((p) => [p.id, { tags: renamed(p.tags) }])));
     planner.assignments.forEach(swap);
     planner.events.forEach(swap);
@@ -127,7 +129,7 @@ class Tags {
   }
 
   async rename(from: string) {
-    const res = await ui.prompt({ title: 'Rename Tag', value: from, confirmLabel: 'Rename', icon: 'tag' });
+    const res = await ui.prompt({ title: t('pages.tag.renameTitle'), value: from, confirmLabel: t('common.actions.rename'), icon: 'tag' });
     if (!res) return;
     const to = cleanTag(res.value);
     if (!to || to === from) return;
@@ -144,18 +146,16 @@ class Tags {
   async remove(name: string) {
     const n = this.counts.get(name) ?? 0;
     const ok = await ui.confirm({
-      title: 'Delete Tag?',
-      message: n
-        ? `“#${name}” will be removed from ${n} item${n === 1 ? '' : 's'}. The items stay.`
-        : `“#${name}” will be deleted.`,
-      confirmLabel: 'Delete',
+      title: t('pages.tag.deleteTitle'),
+      message: t('pages.tag.deleteMessage', { count: n, name }),
+      confirmLabel: t('common.actions.delete'),
       danger: true,
     });
     if (!ok) return;
     try {
       await api.renameTag(name, null);
       this.#replaceEverywhere(name, null);
-      this.list = this.list.filter((t) => t.name !== name);
+      this.list = this.list.filter((tag) => tag.name !== name);
       if (store.view === 'tag' && store.tag === name) store.go('home');
     } catch (e) {
       ui.error(e);

@@ -5,6 +5,7 @@
  */
 
 import { cloud, type CloudUser, type Profile, type Provider } from './cloud';
+import { t } from './i18n';
 
 class Account {
   user = $state<CloudUser | null>(null);
@@ -27,7 +28,7 @@ class Account {
 
   /** How the app shows you: your name, else your @username. */
   get name(): string {
-    return this.profile?.displayName || (this.profile?.username ? `@${this.profile.username}` : this.user?.email || 'You');
+    return this.profile?.displayName || (this.profile?.username ? `@${this.profile.username}` : this.user?.email || t('social.account.you'));
   }
 
   async init() {

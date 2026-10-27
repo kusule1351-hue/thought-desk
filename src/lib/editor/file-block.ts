@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { mount, unmount } from 'svelte';
 import FileCard from './FileCard.svelte';
+import { t } from '../i18n';
 import { library } from '../library.svelte';
 
 /** A library file shown as a card inside a page. */
@@ -22,7 +23,7 @@ export const FileBlock = Node.create({
   renderHTML({ HTMLAttributes }) {
     return ['div', mergeAttributes(HTMLAttributes, { 'data-file-block': '' })];
   },
-  renderText: ({ node }) => library.byId.get(node.attrs.id)?.name ?? 'File',
+  renderText: ({ node }) => library.byId.get(node.attrs.id)?.name ?? t('blocks.file.fallbackName'),
 
   addNodeView() {
     return ({ node }) => {

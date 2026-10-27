@@ -8,13 +8,19 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { api } from './api';
 import { databases } from './databases.svelte';
+import { t } from './i18n';
+import { fmt } from './i18n/format';
 import { planner } from './planner.svelte';
 import { store } from './store.svelte';
 import { ui } from './ui.svelte';
 
+/** The folder older notes are put aside in when notes move back. The Rust
+ *  side makes it ("Replaced <date>", location.rs), always in English. */
+const REPLACED_FOLDER = 'Replaced';
+
 /** Saves everything waiting, then has the Rust side switch folders, then restarts. */
 async function switchFolder(change: () => Promise<void>) {
-  const toast = ui.toast('Moving your notes…', undefined, 120_000);
+  const toast = ui.toast(t('app.dataFolder.moving'), undefined, 120_000);
   try {
     window.dispatchEvent(new Event('td:flush'));
     await Promise.all([store.flush(), planner.flush(), databases.flush()]);
@@ -29,7 +35,7 @@ async function switchFolder(change: () => Promise<void>) {
 export async function chooseDataFolder() {
   let dir: string | string[] | null;
   try {
-    dir = await open({ directory: true, title: 'Choose a folder for your notes' });
+    dir = await open({ directory: true, title: t('app.dataFolder.chooseTitle') });
   } catch (e) {
     ui.error(e);
     return;
@@ -38,18 +44,19 @@ export async function chooseDataFolder() {
   try {
     const { hasNotes, modified } = await api.dataFolderCheck(dir);
     if (hasNotes) {
-      const when = modified ? `, last changed ${new Date(modified).toLocaleString()}` : '';
+      // The date and time as toLocaleString() writes them, in the interface's locale.
+      const date = modified ? fmt.dateTime(modified, { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }) : '';
       const ok = await ui.confirm({
-        title: 'Open the notes in that folder?',
-        message: `${dir} already has Thought Desk notes${when}. Thought Desk will restart with those instead of the notes you have open, which stay where they are. To move the notes you have open, choose an empty folder.`,
-        confirmLabel: 'Open Those Notes',
+        title: t('app.dataFolder.openExisting.title'),
+        message: date ? t('app.dataFolder.openExisting.messageChanged', { folder: dir, date }) : t('app.dataFolder.openExisting.message', { folder: dir }),
+        confirmLabel: t('app.dataFolder.openExisting.confirm'),
       });
       if (ok) await switchFolder(() => api.dataFolderMove(dir, true));
     } else {
       const ok = await ui.confirm({
-        title: 'Keep your notes in this folder?',
-        message: `Your notes and files are copied to ${dir}, and Thought Desk restarts using them. The folder they're in now keeps its copy as a backup. Don't open the same folder from two computers at once.`,
-        confirmLabel: 'Move Notes',
+        title: t('app.dataFolder.move.title'),
+        message: t('app.dataFolder.move.message', { folder: dir }),
+        confirmLabel: t('app.dataFolder.move.confirm'),
       });
       if (ok) await switchFolder(() => api.dataFolderMove(dir, false));
     }
@@ -62,13 +69,13 @@ export async function chooseDataFolder() {
  *  there, so the notes open now are in Thought Desk's folder already. */
 export async function useDefaultDataFolder(missing = false) {
   const ok = await ui.confirm(missing ? {
-    title: 'Keep using this folder?',
-    message: "Thought Desk stops looking for the folder you chose and keeps using the notes in its own folder, the ones open now. Nothing in the folder you chose is touched.",
-    confirmLabel: 'Use This Folder',
+    title: t('app.dataFolder.keepDefault.title'),
+    message: t('app.dataFolder.keepDefault.message'),
+    confirmLabel: t('app.dataFolder.keepDefault.confirm'),
   } : {
-    title: "Go back to Thought Desk's own folder?",
-    message: "Your notes and files are copied back to Thought Desk's own folder, and it restarts using them. The folder you chose keeps its copy, and any older notes in Thought Desk's folder are put aside in a \"Replaced\" folder, not deleted.",
-    confirmLabel: 'Move Notes Back',
+    title: t('app.dataFolder.moveBack.title'),
+    message: t('app.dataFolder.moveBack.message', { replaced: REPLACED_FOLDER }),
+    confirmLabel: t('app.dataFolder.moveBack.confirm'),
   });
   if (ok) await switchFolder(() => api.dataFolderReset());
 }
@@ -78,8 +85,8 @@ export async function warnIfFolderMissing() {
   const info = await api.dataInfo().catch(() => null);
   if (!info?.missingDir) return;
   ui.toast(
-    `Your notes folder (${info.missingDir}) isn't there, so Thought Desk opened its own folder. Connect the drive and restart.`,
-    { label: 'Restart', run: () => void relaunch() },
+    t('app.dataFolder.missing', { folder: info.missingDir }),
+    { label: t('app.dataFolder.restart'), run: () => void relaunch() },
     30_000,
   );
 }

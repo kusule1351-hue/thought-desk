@@ -3,6 +3,7 @@
   import PageIcon from '../components/PageIcon.svelte';
   import Icon from '../components/Icon.svelte';
   import { api } from '../api';
+  import { t } from '../i18n';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
   import type { PageMeta } from '../types';
@@ -35,7 +36,7 @@
   function pathOf(pid: string) {
     return store
       .ancestors(pid)
-      .map((a) => a.title || 'Untitled')
+      .map((a) => a.title || t('common.untitled'))
       .join(' / ');
   }
 </script>
@@ -43,14 +44,14 @@
 {#if pages.length}
   <section class="backlinks" class:in-sheet={inSheet}>
     <h3 class="group-title">
-      <span class="head"><Icon name="backlink" size={14} stroke={2} /> Linked from {pages.length} page{pages.length === 1 ? '' : 's'}</span>
+      <span class="head"><Icon name="backlink" size={14} stroke={2} /> {t('sheets.backlinks.linkedFrom', { count: pages.length })}</span>
     </h3>
     <div class="group">
       {#each pages as p (p.id)}
         <button class="group-row link" onclick={() => open(p.id)}>
           <span class="icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={16} />{/if}</span>
           <span class="text">
-            <span class="title">{p.title || 'Untitled'}</span>
+            <span class="title">{p.title || t('common.untitled')}</span>
             {#if pathOf(p.id)}<span class="path">{pathOf(p.id)}</span>{/if}
           </span>
           <Icon name="chevron-right" size={14} stroke={2} />

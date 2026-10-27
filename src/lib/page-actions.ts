@@ -16,13 +16,15 @@ import { databases } from './databases.svelte';
 import { split } from './split.svelte';
 import { tabs } from './tabs.svelte';
 import { cowork } from './cowork.svelte';
+import { t } from './i18n';
+import { fmt } from './i18n/format';
 
 /** Saves the open editor and returns the page's document. */
 async function pageDoc(id: string): Promise<{ title: string; doc: JNode }> {
   window.dispatchEvent(new Event('td:flush'));
   await store.flush();
   const page = await api.getPage(id);
-  return { title: page.title || 'Untitled', doc: expandDatabases(docOf(page.content)) };
+  return { title: page.title || t('common.untitled'), doc: expandDatabases(docOf(page.content)) };
 }
 
 let extensions: AnyExtension[] | null = null;
@@ -56,13 +58,19 @@ async function pageMarkdown(id: string): Promise<{ title: string; markdown: stri
   return { title, markdown: toMarkdown(doc, title, titleOf) };
 }
 
+/** The message after a file was saved to Downloads, naming it. */
+const savedMessage = (path: string) => t('pages.savedToDownloads', { file: path.split(/[\\/]/).pop()! });
+
+/** The day a page was made, for the line at the foot of its menu. */
+const createdOn = (ms: number) => fmt.date(ms, { year: 'numeric', month: 'numeric', day: 'numeric' });
+
 /** Writes the page as a Word document in Downloads. */
 export async function exportWord(id: string) {
   try {
     const { title, doc } = await pageDoc(id);
     const bytes = await toDocx(doc, title, { titleOf, image: exportImage });
     const path = await api.exportDocument(title, 'docx', bytes);
-    ui.toast(`Saved ${path.split(/[\\/]/).pop()} to Downloads`);
+    ui.toast(savedMessage(path));
   } catch (e) {
     ui.error(e);
   }
@@ -91,8 +99,8 @@ export async function exportPdf(id: string) {
   root.style.colorScheme = 'light';
   root.classList.add('printing');
   try {
-    const path = await api.exportPdf(page.title || 'Untitled');
-    ui.toast(`Saved ${path.split(/[\\/]/).pop()} to Downloads`);
+    const path = await api.exportPdf(page.title || t('common.untitled'));
+    ui.toast(savedMessage(path));
   } catch (e) {
     ui.error(e);
   } finally {
@@ -108,13 +116,13 @@ function databaseMenuItems(id: string, sidebar: boolean): MenuItem[] {
   const page = store.byId.get(id)!;
   const view = databases.view(id, prefs.dbViews[id]);
   return [
-    { label: page.favorite ? 'Remove from Favorites' : 'Add to Favorites', icon: 'star', action: () => store.toggleFavorite(id) },
-    { label: 'Open in New Tab', icon: 'plus', hint: `${MOD}+click`, action: () => void tabs.openPage(id) },
-    { label: 'Open to the Side', icon: 'split', hint: 'Alt+click', action: () => split.show(id) },
+    { label: page.favorite ? t('pages.menu.removeFromFavorites') : t('pages.menu.addToFavorites'), icon: 'star', action: () => store.toggleFavorite(id) },
+    { label: t('pages.menu.openInNewTab'), icon: 'plus', hint: t('pages.menu.modClick', { mod: MOD }), action: () => void tabs.openPage(id) },
+    { label: t('common.actions.openToTheSide'), icon: 'split', hint: t('pages.menu.altClick'), action: () => split.show(id) },
     ...(sidebar
       ? [
           {
-            label: 'Rename',
+            label: t('common.actions.rename'),
             icon: 'pencil',
             action: () => {
               store.open(id);
@@ -123,13 +131,13 @@ function databaseMenuItems(id: string, sidebar: boolean): MenuItem[] {
           },
         ]
       : []),
-    { label: 'Duplicate', icon: 'copy', hint: 'with its rows', action: () => void store.duplicate(id) },
+    { label: t('common.actions.duplicate'), icon: 'copy', hint: t('pages.menu.duplicateWithRows'), action: () => void store.duplicate(id) },
     { separator: true },
-    { label: 'Export as CSV', icon: 'download', hint: view?.name, action: () => view && void databases.exportCsv(id, view.id) },
+    { label: t('pages.menu.exportCsv'), icon: 'download', hint: view?.name, action: () => view && void databases.exportCsv(id, view.id) },
     { separator: true },
-    { label: 'Move to Trash', icon: 'trash', danger: true, action: () => void store.trashPage(id) },
+    { label: t('common.actions.moveToTrash'), icon: 'trash', danger: true, action: () => void store.trashPage(id) },
     { separator: true },
-    { header: `${databases.rowCount(id).toLocaleString()} rows · created ${new Date(page.createdAt).toLocaleDateString()}` },
+    { header: t('pages.menu.databaseInfo', { count: databases.rowCount(id), date: createdOn(page.createdAt) }) },
   ];
 }
 
@@ -139,21 +147,21 @@ export function pageMenuItems(id: string, opts: { words?: number; sidebar?: bool
   if (page.kind === 'database') return databaseMenuItems(id, !!opts.sidebar);
   const items: MenuItem[] = [
     {
-      label: page.favorite ? 'Remove from Favorites' : 'Add to Favorites',
+      label: page.favorite ? t('pages.menu.removeFromFavorites') : t('pages.menu.addToFavorites'),
       icon: 'star',
       action: () => store.toggleFavorite(id),
     },
-    { label: 'Open in New Tab', icon: 'plus', hint: `${MOD}+click`, action: () => void tabs.openPage(id) },
-    { label: 'Open to the Side', icon: 'split', hint: 'Alt+click', action: () => split.show(id) },
+    { label: t('pages.menu.openInNewTab'), icon: 'plus', hint: t('pages.menu.modClick', { mod: MOD }), action: () => void tabs.openPage(id) },
+    { label: t('common.actions.openToTheSide'), icon: 'split', hint: t('pages.menu.altClick'), action: () => split.show(id) },
     cowork.isLive(id)
-      ? { label: 'Live Session…', icon: 'user', hint: 'writing together', action: () => (ui.liveSheet = id) }
-      : { label: 'Invite a Friend…', icon: 'user', action: () => (ui.inviteSheet = id) },
+      ? { label: t('pages.menu.liveSession'), icon: 'user', hint: t('pages.menu.liveSessionHint'), action: () => (ui.liveSheet = id) }
+      : { label: t('pages.menu.inviteFriend'), icon: 'user', action: () => (ui.inviteSheet = id) },
   ];
   if (opts.sidebar) {
     items.push(
-      { label: 'Add Subpage', icon: 'page-plus', action: () => void store.create(id) },
+      { label: t('pages.menu.addSubpage'), icon: 'page-plus', action: () => void store.create(id) },
       {
-        label: 'Rename',
+        label: t('common.actions.rename'),
         icon: 'pencil',
         action: () => {
           store.open(id);
@@ -162,13 +170,13 @@ export function pageMenuItems(id: string, opts: { words?: number; sidebar?: bool
       },
     );
   }
-  items.push({ label: 'Duplicate', icon: 'copy', action: () => void store.duplicate(id) });
+  items.push({ label: t('common.actions.duplicate'), icon: 'copy', action: () => void store.duplicate(id) });
   // A database row can become a template; a template makes rows.
   const row = databases.rows[id];
-  if (row && !row.template) items.push({ label: 'Save as Template', icon: 'template', action: () => void databases.newTemplate(row.dbId, row) });
+  if (row && !row.template) items.push({ label: t('pages.menu.saveAsTemplate'), icon: 'template', action: () => void databases.newTemplate(row.dbId, row) });
   if (row?.template) {
     items.push({
-      label: 'New Row from Template',
+      label: t('pages.menu.newRowFromTemplate'),
       icon: 'plus',
       action: async () => {
         const made = await databases.addRow(row.dbId, { template: row.id });
@@ -181,11 +189,11 @@ export function pageMenuItems(id: string, opts: { words?: number; sidebar?: bool
   }
   const deck = cards.deck(id);
   if (deck) {
-    items.push({ label: `Study ${deck.count} Flashcard${deck.count === 1 ? '' : 's'}`, icon: 'cards', action: () => void cards.study([id], page.title || 'Untitled', { all: !(deck.due + deck.fresh) }) });
+    items.push({ label: t('pages.menu.studyFlashcards', { count: deck.count }), icon: 'cards', action: () => void cards.study([id], page.title || t('common.untitled'), { all: !(deck.due + deck.fresh) }) });
   }
   if (!opts.sidebar) {
     items.push({
-      label: 'Full Width',
+      label: t('pages.menu.fullWidth'),
       icon: 'width',
       checked: page.fullWidth,
       action: () => store.update(id, { fullWidth: !page.fullWidth }, { immediate: true }),
@@ -194,38 +202,38 @@ export function pageMenuItems(id: string, opts: { words?: number; sidebar?: bool
   items.push(
     { separator: true },
     {
-      label: 'Copy as Markdown',
+      label: t('pages.menu.copyAsMarkdown'),
       icon: 'clipboard',
       action: async () => {
         try {
           const { markdown } = await pageMarkdown(id);
           await navigator.clipboard.writeText(markdown);
-          ui.toast('Copied as Markdown');
+          ui.toast(t('pages.copiedAsMarkdown'));
         } catch (e) {
           ui.error(e);
         }
       },
     },
-    { label: 'Export as PDF', icon: 'file-text', action: () => void exportPdf(id) },
-    { label: 'Export as Word', icon: 'file', action: () => void exportWord(id) },
+    { label: t('pages.menu.exportPdf'), icon: 'file-text', action: () => void exportPdf(id) },
+    { label: t('pages.menu.exportWord'), icon: 'file', action: () => void exportWord(id) },
     {
-      label: 'Export as Markdown',
+      label: t('pages.menu.exportMarkdown'),
       icon: 'download',
       action: async () => {
         try {
           const { title, markdown } = await pageMarkdown(id);
           const path = await api.exportMarkdown(title, markdown);
-          ui.toast(`Saved ${path.split(/[\\/]/).pop()} to Downloads`);
+          ui.toast(savedMessage(path));
         } catch (e) {
           ui.error(e);
         }
       },
     },
     { separator: true },
-    { label: 'Move to Trash', icon: 'trash', danger: true, action: () => void store.trashPage(id) },
+    { label: t('common.actions.moveToTrash'), icon: 'trash', danger: true, action: () => void store.trashPage(id) },
   );
   if (opts.words !== undefined) {
-    items.push({ separator: true }, { header: `${opts.words.toLocaleString()} words · created ${new Date(page.createdAt).toLocaleDateString()}` });
+    items.push({ separator: true }, { header: t('pages.menu.pageInfo', { count: opts.words, date: createdOn(page.createdAt) }) });
   }
   return items;
 }

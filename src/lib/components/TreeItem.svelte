@@ -1,6 +1,7 @@
 <script lang="ts" module>
   import { tabs } from '../tabs.svelte';
   import { renderIcon } from '../page-icon';
+  import { t } from '../i18n';
   /**
    * The page being dragged (shared by every row): from the sidebar, or from
    * the title bar or the side pane's header (`from`), which only split view
@@ -36,7 +37,7 @@
     if (icon) renderIcon(ico, icon);
     else ico.innerHTML = PAGE_GLYPH;
     const name = document.createElement('span');
-    name.textContent = title || 'Untitled';
+    name.textContent = title || t('common.untitled');
     chip.append(ico, name);
     document.body.appendChild(chip);
     e.dataTransfer.setDragImage(chip, 16, 16);
@@ -101,7 +102,7 @@
     drag.id = page.id;
     drag.from = undefined;
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', page.title || 'Untitled');
+    e.dataTransfer.setData('text/plain', page.title || t('common.untitled'));
     pageDragImage(e, page.title, page.icon);
   }
 
@@ -180,14 +181,14 @@
       {#if page.icon}<span class="emoji"><PageIcon icon={page.icon} /></span>{:else}<Icon name={page.kind === 'database' ? 'database' : 'page'} />{/if}
     </span>
     {#if kids.length}
-      <button class="chev" class:open={expanded} onclick={toggle} tabindex="-1" aria-label={expanded ? 'Collapse' : 'Expand'}>
+      <button class="chev" class:open={expanded} onclick={toggle} tabindex="-1" aria-label={expanded ? t('shell.tree.collapse') : t('shell.tree.expand')}>
         <Icon name="chevron-right" size={13} stroke={2.2} />
       </button>
     {/if}
   </span>
-  <span class="title">{page.title || 'Untitled'}</span>
+  <span class="title">{page.title || t('common.untitled')}</span>
   <span class="actions">
-    <button class="act" tabindex="-1" onclick={(e) => menu(e, e.currentTarget as Element)} data-tip="More"><Icon name="more" size={15} /></button>
+    <button class="act" tabindex="-1" onclick={(e) => menu(e, e.currentTarget as Element)} data-tip={t('common.actions.more')}><Icon name="more" size={15} /></button>
     {#if !favorite}
       <button
         class="act"
@@ -196,7 +197,7 @@
           e.stopPropagation();
           void store.create(page.id);
         }}
-        data-tip="Add a page inside"><Icon name="plus" size={15} stroke={2} /></button
+        data-tip={t('shell.tree.addInside')}><Icon name="plus" size={15} stroke={2} /></button
       >
     {/if}
   </span>

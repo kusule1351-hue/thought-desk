@@ -13,6 +13,8 @@
   import { store } from '../store.svelte';
   import { formatBytes, relativeTime } from '../time';
   import { courseGrade, formatPercent } from '../grades';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
   import { cards } from '../cards.svelte';
   import { ui } from '../ui.svelte';
   import type { CoursePatch, FileMeta } from '../types';
@@ -63,7 +65,12 @@
 
   async function addCategory() {
     if (!course) return;
-    const res = await ui.prompt({ title: 'New Grade Category', placeholder: 'Homework, Exams, Labs…', confirmLabel: 'Add', icon: 'assignment' });
+    const res = await ui.prompt({
+      title: t('sheets.courseView.newCategoryTitle'),
+      placeholder: t('sheets.categoryPlaceholder'),
+      confirmLabel: t('common.actions.add'),
+      icon: 'assignment',
+    });
     const name = res?.value.trim();
     if (!name || name in course.weights) return;
     planner.updateCourse(id, { weights: { ...course.weights, [name]: Math.max(0, 100 - weightSum) } });
@@ -86,17 +93,17 @@
   const summary = $derived.by(() => {
     const parts: string[] = [];
     if (course?.teacher) parts.push(course.teacher);
-    parts.push(thisWeek ? `${thisWeek} class${thisWeek === 1 ? '' : 'es'} this week` : 'No classes this week');
-    parts.push(open.length ? `${open.length} open assignment${open.length === 1 ? '' : 's'}` : 'All caught up');
+    parts.push(t('sheets.courseView.classesThisWeek', { count: thisWeek }));
+    parts.push(t('sheets.courseView.openAssignments', { count: open.length }));
     if (grade?.percent != null) parts.push(`${formatPercent(grade.percent)} ${grade.letter}`);
     return parts.join(' · ');
   });
 
   const details: { key: keyof CoursePatch & ('teacher' | 'email' | 'officeHours' | 'room'); label: string; icon: string; placeholder: string }[] = [
-    { key: 'teacher', label: 'Teacher', icon: 'user', placeholder: 'Add name' },
-    { key: 'email', label: 'Email', icon: 'mail', placeholder: 'Add email' },
-    { key: 'officeHours', label: 'Office hours', icon: 'clock', placeholder: 'Add hours' },
-    { key: 'room', label: 'Room', icon: 'map-pin', placeholder: 'Add room' },
+    { key: 'teacher', label: t('sheets.courseView.teacher'), icon: 'user', placeholder: t('sheets.courseView.teacherPlaceholder') },
+    { key: 'email', label: t('sheets.courseView.email'), icon: 'mail', placeholder: t('sheets.courseView.emailPlaceholder') },
+    { key: 'officeHours', label: t('sheets.courseView.officeHours'), icon: 'clock', placeholder: t('sheets.courseView.officeHoursPlaceholder') },
+    { key: 'room', label: t('sheets.courseView.room'), icon: 'map-pin', placeholder: t('sheets.courseView.roomPlaceholder') },
   ];
 
   function menu(e: MouseEvent) {
@@ -106,16 +113,16 @@
       e.currentTarget as Element,
       [
         {
-          label: 'Rename…',
+          label: t('sheets.renameMenu'),
           icon: 'pencil',
           action: async () => {
-            const res = await ui.prompt({ title: 'Rename Course', value: c.name, confirmLabel: 'Rename', icon: 'book' });
+            const res = await ui.prompt({ title: t('sheets.courseView.renameTitle'), value: c.name, confirmLabel: t('common.actions.rename'), icon: 'book' });
             if (res) planner.updateCourse(c.id, { name: res.value });
           },
         },
-        { label: folder ? 'Open Notes Folder' : 'Create Notes Folder', icon: 'folder', action: () => void openFolder() },
+        { label: folder ? t('sheets.courseView.openFolder') : t('sheets.courseView.createFolder'), icon: 'folder', action: () => void openFolder() },
         { separator: true },
-        { header: 'Color' },
+        { header: t('sheets.color') },
         ...PALETTE.map((p) => ({
           label: p.label,
           dot: colorVar(p.key),
@@ -123,7 +130,7 @@
           action: () => planner.updateCourse(c.id, { color: p.key }),
         })),
         { separator: true },
-        { label: 'Delete Course', icon: 'trash', danger: true, action: () => void planner.deleteCourse(c.id) },
+        { label: t('sheets.courseView.delete'), icon: 'trash', danger: true, action: () => void planner.deleteCourse(c.id) },
       ],
       { alignRight: true },
     );
@@ -139,19 +146,23 @@
   <div class="view course" style:--course={colorVar(course.color)}>
     <header class="view-head">
       <div>
-        <div class="eyebrow">Course</div>
-        <h1 class="view-title"><span class="course-dot" style:--c={colorVar(course.color)}></span>{course.name || 'Untitled'}</h1>
+        <div class="eyebrow">{t('common.course')}</div>
+        <h1 class="view-title"><span class="course-dot" style:--c={colorVar(course.color)}></span>{course.name || t('common.untitled')}</h1>
         <p class="view-sub">{summary}</p>
       </div>
       <div class="view-actions">
-        <button class="icon-btn" onclick={menu} data-tip="Course options" aria-label="Course options"><Icon name="more" /></button>
-        <button class="btn" onclick={() => planner.newAssignment({ courseId: id })}><Icon name="plus" size={15} stroke={2.2} /> Assignment</button>
+        <button class="icon-btn" onclick={menu} data-tip={t('sheets.courseView.options')} aria-label={t('sheets.courseView.options')}><Icon name="more" /></button>
+        <button class="btn" onclick={() => planner.newAssignment({ courseId: id })}><Icon name="plus" size={15} stroke={2.2} /> {t('sheets.courseView.newAssignment')}</button>
         {#if decks.length}
-          <button class="btn" onclick={() => cards.study(decks.map((d) => d.pageId), course.name || 'Course', { all: !studyCount })} data-tip="{deckCards} flashcard{deckCards === 1 ? '' : 's'} in this course’s notes">
-            <Icon name="cards" size={15} stroke={2} /> Study{studyCount ? ` ${studyCount}` : ''}
+          <button
+            class="btn"
+            onclick={() => cards.study(decks.map((d) => d.pageId), course.name || t('common.course'), { all: !studyCount })}
+            data-tip={t('sheets.courseView.flashcards', { count: deckCards })}
+          >
+            <Icon name="cards" size={15} stroke={2} /> {t('sheets.courseView.study', { count: studyCount })}
           </button>
         {/if}
-        <button class="btn primary" onclick={() => void planner.courseNotes(id)}><Icon name="note" size={15} stroke={2} /> Take Notes</button>
+        <button class="btn primary" onclick={() => void planner.courseNotes(id)}><Icon name="note" size={15} stroke={2} /> {t('sheets.takeNotes')}</button>
       </div>
     </header>
 
@@ -159,8 +170,8 @@
       <div class="col">
         <section>
           <h2 class="group-title">
-            <span>Up Next</span>
-            <button class="see-all" onclick={() => planner.newEvent({ courseId: id })}>Add Class <Icon name="plus" size={12} stroke={2.2} /></button>
+            <span>{t('sheets.courseView.upNext')}</span>
+            <button class="see-all" onclick={() => planner.newEvent({ courseId: id })}>{t('sheets.courseView.addClass')} <Icon name="plus" size={12} stroke={2.2} /></button>
           </h2>
           {#if upcoming.length}
             <div class="group">
@@ -170,15 +181,15 @@
             </div>
           {:else}
             <div class="group">
-              <EmptyState compact icon="calendar" title="No classes in the next two weeks" text="Add the class schedule, or import it from your school's calendar." />
+              <EmptyState compact icon="calendar" title={t('sheets.courseView.noClasses')} text={t('sheets.courseView.noClassesText')} />
             </div>
           {/if}
         </section>
 
         <section>
           <h2 class="group-title">
-            <span>Assignments</span>
-            <span class="count">{done ? `${done} done` : ''}</span>
+            <span>{t('sheets.section.assignments')}</span>
+            <span class="count">{done ? t('sheets.courseView.doneCount', { count: done }) : ''}</span>
           </h2>
           {#if open.length}
             <div class="group">
@@ -188,7 +199,7 @@
             </div>
           {:else}
             <div class="group">
-              <EmptyState compact icon="assignment" title="Nothing open" text="Assignments for this course show up here." />
+              <EmptyState compact icon="assignment" title={t('sheets.courseView.nothingOpen')} text={t('sheets.courseView.nothingOpenText')} />
             </div>
           {/if}
         </section>
@@ -198,15 +209,15 @@
         {#if grade}
           <section>
             <h2 class="group-title">
-              <span>Grades</span>
-              <button class="see-all" onclick={addCategory}>Add Category <Icon name="plus" size={12} stroke={2.2} /></button>
+              <span>{t('sheets.courseView.grades')}</span>
+              <button class="see-all" onclick={addCategory}>{t('sheets.courseView.addCategory')} <Icon name="plus" size={12} stroke={2.2} /></button>
             </h2>
             <div class="group">
               <div class="group-row grade-row">
                 <div class="row-label">
-                  Current grade
+                  {t('sheets.courseView.currentGrade')}
                   <small>
-                    {#if grade.graded}{grade.graded} graded · {grade.weighted ? 'weighted' : 'by points'}{:else}Add scores to assignments{/if}
+                    {#if grade.graded}{t(grade.weighted ? 'sheets.courseView.gradedWeighted' : 'sheets.courseView.gradedByPoints', { count: grade.graded })}{:else}{t('sheets.courseView.noScores')}{/if}
                   </small>
                 </div>
                 <span class="grade-value">{formatPercent(grade.percent)}</span>
@@ -215,11 +226,11 @@
               {#each grade.categories as c (c.name)}
                 <div class="group-row compact cat-row">
                   <span class="cat-name">
-                    {c.name || 'Uncategorized'}
-                    {#if c.uncounted}<small>Not counted: give it a weight</small>{/if}
+                    {c.name || t('sheets.courseView.uncategorized')}
+                    {#if c.uncounted}<small>{t('sheets.courseView.notCounted')}</small>{/if}
                   </span>
                   {#if c.name}
-                    <label class="field weight" data-tip="Share of the course grade">
+                    <label class="field weight" data-tip={t('sheets.courseView.weightTip')}>
                       <input
                         type="number"
                         inputmode="decimal"
@@ -228,7 +239,7 @@
                         step="any"
                         value={course.weights[c.name] ?? ''}
                         placeholder="—"
-                        aria-label="{c.name} weight"
+                        aria-label={t('sheets.courseView.weightLabel', { category: c.name })}
                         oninput={(e) => setWeight(c.name, e.currentTarget.value)}
                       />
                       <span class="unit">%</span>
@@ -236,7 +247,12 @@
                   {/if}
                   <span class="cat-grade">{formatPercent(c.percent)}</span>
                   {#if c.name in course.weights}
-                    <button class="icon-btn remove" onclick={() => removeCategory(c.name)} data-tip="Remove weight" aria-label="Remove {c.name}">
+                    <button
+                      class="icon-btn remove"
+                      onclick={() => removeCategory(c.name)}
+                      data-tip={t('sheets.courseView.removeWeight')}
+                      aria-label={t('sheets.courseView.removeCategory', { category: c.name })}
+                    >
                       <Icon name="x" size={13} />
                     </button>
                   {:else}
@@ -246,7 +262,7 @@
               {/each}
               {#if grade.weighted && Math.round(weightSum) !== 100}
                 <div class="group-row compact">
-                  <small class="weight-note">Weights add up to {Math.round(weightSum * 10) / 10}%; the grade is scaled to fit.</small>
+                  <small class="weight-note">{t('sheets.courseView.weightsSum', { total: formatPercent(weightSum) })}</small>
                 </div>
               {/if}
             </div>
@@ -254,7 +270,7 @@
         {/if}
 
         <section>
-          <h2 class="group-title"><span>Details</span></h2>
+          <h2 class="group-title"><span>{t('sheets.details')}</span></h2>
           <div class="group">
             {#each details as d (d.key)}
               <div class="group-row compact detail">
@@ -276,23 +292,23 @@
 
         <section>
           <h2 class="group-title">
-            <span>Notes</span>
-            <button class="see-all" onclick={() => void planner.newCourseNote(id)}>New Note <Icon name="plus" size={12} stroke={2.2} /></button>
+            <span>{t('sheets.section.notes')}</span>
+            <button class="see-all" onclick={() => void planner.newCourseNote(id)}>{t('sheets.courseView.newNote')} <Icon name="plus" size={12} stroke={2.2} /></button>
           </h2>
           <div class="group">
             {#each notes.slice(0, 8) as p (p.id)}
               <button class="group-row compact link-row" onclick={() => store.open(p.id)}>
                 <span class="page-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={16} />{/if}</span>
-                <span class="page-title">{p.title || 'Untitled'}</span>
+                <span class="page-title">{p.title || t('common.untitled')}</span>
                 <span class="meta">{relativeTime(p.updatedAt)}</span>
               </button>
             {:else}
-              <EmptyState compact icon="note" title="No notes yet" text="Take Notes in class and each lecture lands here, dated." />
+              <EmptyState compact icon="note" title={t('sheets.courseView.noNotes')} text={t('sheets.courseView.noNotesText')} />
             {/each}
             {#if notes.length > 8}
               <button class="group-row compact link-row more" onclick={() => folder && store.open(folder.id)}>
                 <span class="page-icon"><Icon name="folder" size={16} /></span>
-                <span class="page-title">All {notes.length} notes</span>
+                <span class="page-title">{t('sheets.courseView.allNotes', { count: notes.length })}</span>
                 <Icon name="chevron-right" size={12} stroke={2.2} />
               </button>
             {/if}
@@ -301,7 +317,7 @@
 
         {#if files.length}
           <section>
-            <h2 class="group-title"><span>Files</span><span class="count">{files.length}</span></h2>
+            <h2 class="group-title"><span>{t('sheets.section.files')}</span><span class="count">{fmt.number(files.length)}</span></h2>
             <div class="group">
               {#each files.slice(0, 6) as f (f.id)}
                 <button class="group-row compact link-row" onclick={() => library.preview(f.id)}>
@@ -318,7 +334,7 @@
   </div>
 {:else}
   <div class="view">
-    <EmptyState icon="book" title="This course was deleted" text="Its assignments, events and notes are still in their places." />
+    <EmptyState icon="book" title={t('sheets.courseView.deleted')} text={t('sheets.courseView.deletedText')} />
   </div>
 {/if}
 

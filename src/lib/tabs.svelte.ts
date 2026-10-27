@@ -6,9 +6,10 @@
  * memory until it's shown.
  */
 
+import { t, type MessageKey, type PluralKey } from './i18n';
 import { prefs } from './prefs.svelte';
 import { planner } from './planner.svelte';
-import { store, VIEWS, type Entry, type Nav, type View } from './store.svelte';
+import { store, VIEWS, type AppView, type Entry, type Nav, type View } from './store.svelte';
 
 export interface Tab {
   id: string;
@@ -22,13 +23,13 @@ export interface Tab {
   opener?: string;
 }
 
-const VIEW_LABELS: Record<string, { title: string; icon: string }> = {
-  home: { title: 'Home', icon: 'home' },
-  assignments: { title: 'Assignments', icon: 'assignment' },
-  calendar: { title: 'Calendar', icon: 'calendar' },
-  files: { title: 'Files', icon: 'files' },
-  cards: { title: 'Flashcards', icon: 'cards' },
-  friends: { title: 'Friends', icon: 'users' },
+const VIEW_LABELS: Record<AppView, { title: Exclude<MessageKey, PluralKey>; icon: string }> = {
+  home: { title: 'common.views.home', icon: 'home' },
+  assignments: { title: 'common.views.assignments', icon: 'assignment' },
+  calendar: { title: 'common.views.calendar', icon: 'calendar' },
+  files: { title: 'common.views.files', icon: 'files' },
+  cards: { title: 'common.views.flashcards', icon: 'cards' },
+  friends: { title: 'common.views.friends', icon: 'users' },
 };
 
 const KNOWN_VIEWS = new Set<string>(['page', 'tag', 'course', ...VIEWS]);
@@ -42,7 +43,7 @@ class Tabs {
   onClose: ((tab: Tab) => void) | null = null;
 
   get active(): Tab | undefined {
-    return this.list.find((t) => t.id === this.activeId);
+    return this.list.find((tab) => tab.id === this.activeId);
   }
 
   /** Where a tab is now. */
@@ -55,20 +56,21 @@ class Tabs {
     if (place.view === 'page') {
       const p = place.id ? store.byId.get(place.id) : undefined;
       const db = p?.kind === 'database';
-      return { title: p?.title || (db ? 'Untitled database' : 'Untitled'), icon: db ? 'database' : 'page', pageIcon: p?.icon ?? '' };
+      return { title: p?.title || (db ? t('common.untitledDatabase') : t('common.untitled')), icon: db ? 'database' : 'page', pageIcon: p?.icon ?? '' };
     }
     if (place.view === 'tag') return { title: `#${place.id ?? ''}`, icon: 'tag', pageIcon: '' };
-    if (place.view === 'course') return { title: planner.courseById.get(place.id ?? '')?.name || 'Course', icon: 'book', pageIcon: '' };
-    return { ...VIEW_LABELS[place.view], pageIcon: '' };
+    if (place.view === 'course') return { title: planner.courseById.get(place.id ?? '')?.name || t('common.course'), icon: 'book', pageIcon: '' };
+    const view = VIEW_LABELS[place.view];
+    return { title: t(view.title), icon: view.icon, pageIcon: '' };
   }
 
   /** Brings back last run's tabs, once the store has loaded (which already
    *  showed the last place). Then remembers them as they change. */
   init() {
-    const saved = prefs.tabs.filter((t) => KNOWN_VIEWS.has(t.view));
+    const saved = prefs.tabs.filter((entry) => KNOWN_VIEWS.has(entry.view));
     if (saved.length) {
-      this.list = saved.map((t) => ({ ...fresh({ view: t.view as View, id: t.target }, t.live), id: t.id }));
-      this.activeId = (this.list.find((t) => t.id === prefs.activeTab) ?? this.list[this.list.length - 1]).id;
+      this.list = saved.map((entry) => ({ ...fresh({ view: entry.view as View, id: entry.target }, entry.live), id: entry.id }));
+      this.activeId = (this.list.find((tab) => tab.id === prefs.activeTab) ?? this.list[this.list.length - 1]).id;
       const active = this.active!;
       const nav = active.nav!;
       active.nav = null;
@@ -81,9 +83,9 @@ class Tabs {
     }
     $effect.root(() => {
       $effect(() => {
-        prefs.tabs = this.list.map((t) => {
-          const place = this.placeOf(t);
-          return { id: t.id, view: place.view, target: place.id, live: t.live };
+        prefs.tabs = this.list.map((tab) => {
+          const place = this.placeOf(tab);
+          return { id: tab.id, view: place.view, target: place.id, live: tab.live };
         });
         prefs.activeTab = this.activeId;
       });
@@ -94,13 +96,13 @@ class Tabs {
    *  already opened from it, so a run of them keeps its order, as in a browser). */
   open(place: Entry, { focus = true, live = null }: { focus?: boolean; live?: string | null } = {}): Tab {
     const tab: Tab = { ...fresh(place, live), opener: this.activeId };
-    let at = this.list.findIndex((t) => t.id === this.activeId);
+    let at = this.list.findIndex((x) => x.id === this.activeId);
     while (at + 1 < this.list.length && this.list[at + 1].opener === this.activeId) at++;
     const next = this.list.slice();
     next.splice(at + 1, 0, tab);
     this.list = next;
     if (focus) this.activate(tab.id);
-    return this.list.find((t) => t.id === tab.id)!;
+    return this.list.find((x) => x.id === tab.id)!;
   }
 
   openPage(id: string, opts?: { focus?: boolean; live?: string | null }): Tab {
@@ -115,7 +117,7 @@ class Tabs {
   /** Shows a tab: the one being left keeps its history, this one gets its own back. */
   activate(id: string) {
     if (id === this.activeId) return;
-    const to = this.list.find((t) => t.id === id);
+    const to = this.list.find((tab) => tab.id === id);
     if (!to) return;
     const from = this.active;
     if (from) {
@@ -131,18 +133,18 @@ class Tabs {
   /** Closes a tab (never the last one); closing the active tab shows its neighbour. */
   close(id: string) {
     if (this.list.length < 2) return;
-    const i = this.list.findIndex((t) => t.id === id);
+    const i = this.list.findIndex((x) => x.id === id);
     if (i < 0) return;
     const tab = this.list[i];
     if (id === this.activeId) this.activate((this.list[i + 1] ?? this.list[i - 1]).id);
-    this.list = this.list.filter((t) => t.id !== id);
+    this.list = this.list.filter((x) => x.id !== id);
     this.onClose?.(tab);
   }
 
   /** The next (1) or previous (-1) tab, wrapping around. */
   step(dir: 1 | -1) {
     if (this.list.length < 2) return;
-    const i = this.list.findIndex((t) => t.id === this.activeId);
+    const i = this.list.findIndex((x) => x.id === this.activeId);
     this.activate(this.list[(i + dir + this.list.length) % this.list.length].id);
   }
 }

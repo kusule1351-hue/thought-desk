@@ -10,11 +10,12 @@
   import TagRow from '../ui/TagRow.svelte';
   import { clock } from '../clock.svelte';
   import { colorVar, nextColor } from '../colors';
-  import { addDays, diffDays, formatDate, fromMinutes, minutes, REPEAT_LABELS } from '../dates';
+  import { addDays, diffDays, formatDate, fromMinutes, minutes, REPEAT_LABELS, repeatSentence } from '../dates';
+  import { t } from '../i18n';
   import { openNotesPage } from '../item-actions';
   import { planner } from '../planner.svelte';
   import { store } from '../store.svelte';
-  import { relativeTime } from '../time';
+  import { relativeWhen } from '../time';
   import { ui, type SheetState } from '../ui.svelte';
   import type { EventPatch, Repeat } from '../types';
 
@@ -35,8 +36,8 @@
   const split = $derived(targetId !== id);
   const editingSession = $derived(isSession && scope === 'this' && !split);
   const scopes = [
-    { value: 'this' as const, label: 'This Event' },
-    { value: 'all' as const, label: 'All Events' },
+    { value: 'this' as const, label: t('sheets.event.thisEvent') },
+    { value: 'all' as const, label: t('sheets.event.allEvents') },
   ];
   // svelte-ignore state_referenced_locally
   let draft = $state({
@@ -125,7 +126,7 @@
 
   async function add() {
     ui.eventSheet = null;
-    const ev = await planner.addEvent({ ...draft, title: draft.title.trim() || 'New Event' });
+    const ev = await planner.addEvent({ ...draft, title: draft.title.trim() || t('sheets.event.defaultTitle') });
     if (ev) onCreated?.(ev.id);
   }
 
@@ -151,23 +152,23 @@
     ui.openMenuAt(
       e.currentTarget as Element,
       [
-        { label: 'No Course', icon: 'x', checked: !form.courseId, action: () => set({ courseId: null }) },
+        { label: t('sheets.coursePicker.noCourse'), icon: 'x', checked: !form.courseId, action: () => set({ courseId: null }) },
         ...(planner.courses.length ? [{ separator: true } as const] : []),
         ...planner.courses.map((c) => ({
-          label: c.name || 'Untitled',
+          label: c.name || t('common.untitled'),
           dot: colorVar(c.color),
           checked: form.courseId === c.id,
           action: () => set({ courseId: c.id }),
         })),
         { separator: true },
         {
-          label: 'New Course…',
+          label: t('sheets.coursePicker.newCourse'),
           icon: 'plus',
           action: async () => {
             const res = await ui.prompt({
-              title: 'New Course',
-              placeholder: 'Course name',
-              confirmLabel: 'Add Course',
+              title: t('sheets.coursePicker.newCourseTitle'),
+              placeholder: t('sheets.coursePicker.namePlaceholder'),
+              confirmLabel: t('sheets.coursePicker.addCourse'),
               icon: 'book',
               color: nextColor(planner.courses.map((c) => c.color)),
             });
@@ -187,21 +188,29 @@
       return;
     }
     ui.eventSheet = null;
-    const ev = await planner.addEvent({ ...draft, title: draft.title.trim() || 'New Event' });
+    const ev = await planner.addEvent({ ...draft, title: draft.title.trim() || t('sheets.event.defaultTitle') });
     if (!ev) return;
     onCreated?.(ev.id);
     await openNotesPage('event', ev.id);
   }
+
+  /** "Created just now", "Created 3 days ago", "Created Oct 20, 2025". */
+  function createdText(ms: number): string {
+    const when = relativeWhen(ms);
+    if (when.kind === 'now') return t('sheets.created.now');
+    if (when.kind === 'relative') return t('sheets.created.relative', { when: when.text });
+    return t('sheets.created.date', { date: when.text });
+  }
 </script>
 
-<Modal onclose={close} label={existing ? 'Event' : 'New Event'}>
+<Modal onclose={close} label={existing ? t('sheets.event.label') : t('sheets.event.newLabel')}>
   <header class="modal-head">
     <span class="swatch round" style:--c={color}></span>
     <input
       class="title"
       bind:this={titleEl}
       value={form.title}
-      placeholder={existing ? 'Untitled' : 'New event'}
+      placeholder={existing ? t('common.untitled') : t('sheets.event.titlePlaceholder')}
       spellcheck="false"
       oninput={(e) => set({ title: e.currentTarget.value }, { typing: true })}
       onkeydown={(e) => {
@@ -212,7 +221,7 @@
         }
       }}
     />
-    <button class="icon-btn" onclick={close} aria-label="Close"><Icon name="x" /></button>
+    <button class="icon-btn" onclick={close} aria-label={t('common.actions.close')}><Icon name="x" /></button>
   </header>
 
   <div class="modal-body">
@@ -220,40 +229,40 @@
       {#if isSession && !split}
         <div class="group-row">
           <div class="row-label">
-            Edit
-            <small>{scope === 'this' ? `Only ${formatDate(date!, { weekday: 'long', month: 'short', day: 'numeric' })} changes` : 'Changes apply to every repeat'}</small>
+            {t('sheets.event.editScope')}
+            <small>{scope === 'this' ? t('sheets.event.onlyDate', { date: formatDate(date!, { weekday: 'long', month: 'short', day: 'numeric' }) }) : t('sheets.event.everyRepeat')}</small>
           </div>
-          <Segmented options={scopes} value={scope} onchange={(v) => (scope = v)} label="Edit which events" />
+          <Segmented options={scopes} value={scope} onchange={(v) => (scope = v)} label={t('sheets.event.editScopeLabel')} />
         </div>
       {/if}
       <div class="group-row">
-        <div class="row-label">All-day</div>
-        <Switch on={allDay} label="All-day" onchange={toggleAllDay} />
+        <div class="row-label">{t('sheets.event.allDay')}</div>
+        <Switch on={allDay} label={t('sheets.event.allDay')} onchange={toggleAllDay} />
       </div>
       <div class="group-row">
-        <div class="row-label">Starts</div>
+        <div class="row-label">{t('sheets.event.starts')}</div>
         <div class="when">
-          <label class="field date"><input type="date" value={form.startDate} aria-label="Start date" onchange={(e) => setStartDate(e.currentTarget.value)} /></label>
+          <label class="field date"><input type="date" value={form.startDate} aria-label={t('sheets.event.startDate')} onchange={(e) => setStartDate(e.currentTarget.value)} /></label>
           {#if !allDay}
-            <label class="field time"><input type="time" value={form.startTime} aria-label="Start time" onchange={(e) => setStartTime(e.currentTarget.value)} /></label>
+            <label class="field time"><input type="time" value={form.startTime} aria-label={t('sheets.event.startTime')} onchange={(e) => setStartTime(e.currentTarget.value)} /></label>
           {/if}
         </div>
       </div>
       <div class="group-row">
-        <div class="row-label">Ends</div>
+        <div class="row-label">{t('sheets.event.ends')}</div>
         <div class="when">
           <label class="field date">
             <input
               type="date"
               value={form.endDate}
               min={form.startDate}
-              aria-label="End date"
+              aria-label={t('sheets.event.endDate')}
               onchange={(e) => e.currentTarget.value && set({ endDate: e.currentTarget.value })}
             />
           </label>
           {#if !allDay}
             <label class="field time">
-              <input type="time" value={form.endTime} aria-label="End time" onchange={(e) => e.currentTarget.value && set({ endTime: e.currentTarget.value })} />
+              <input type="time" value={form.endTime} aria-label={t('sheets.event.endTime')} onchange={(e) => e.currentTarget.value && set({ endTime: e.currentTarget.value })} />
             </label>
           {/if}
         </div>
@@ -261,17 +270,17 @@
       {#if !editingSession}
         <div class="group-row">
           <div class="row-label">
-            Repeat
-            {#if form.repeat !== 'none' && !isSession}<small>Changes apply to every repeat</small>{/if}
+            {t('sheets.event.repeat')}
+            {#if form.repeat !== 'none' && !isSession}<small>{t('sheets.event.everyRepeat')}</small>{/if}
           </div>
           <div class="when">
             {#if form.repeat !== 'none'}
-              <label class="field date" data-tip="Repeat until (optional)">
+              <label class="field date" data-tip={t('sheets.event.repeatUntilTip')}>
                 <input
                   type="date"
                   value={form.repeatUntil ?? ''}
                   min={form.startDate}
-                  aria-label="Repeat until"
+                  aria-label={t('sheets.event.repeatUntil')}
                   onchange={(e) => set({ repeatUntil: e.currentTarget.value || null })}
                 />
               </label>
@@ -284,24 +293,24 @@
       {/if}
     </div>
 
-    <h3 class="group-title">Details</h3>
+    <h3 class="group-title">{t('sheets.details')}</h3>
     <div class="group">
       <div class="group-row">
-        <div class="row-label">Course</div>
+        <div class="row-label">{t('common.course')}</div>
         <button class="btn small raised picker" onclick={courseMenu}>
-          {#if course}<span class="dot" style:--dot={colorVar(course.color)}></span>{course.name || 'Untitled'}{:else}<span class="muted">None</span>{/if}
+          {#if course}<span class="dot" style:--dot={colorVar(course.color)}></span>{course.name || t('common.untitled')}{:else}<span class="muted">{t('sheets.coursePicker.none')}</span>{/if}
           <Icon name="chevron-down" size={12} stroke={2.2} />
         </button>
       </div>
       <div class="group-row">
-        <div class="row-label">Color</div>
-        <Swatches value={form.color} onchange={(c) => set({ color: c })} auto={course ? 'Course color' : 'Accent color'} />
+        <div class="row-label">{t('sheets.color')}</div>
+        <Swatches value={form.color} onchange={(c) => set({ color: c })} auto={course ? t('sheets.event.courseColor') : t('sheets.event.accentColor')} />
       </div>
       <div class="group-row">
-        <div class="row-label">Location</div>
+        <div class="row-label">{t('sheets.event.location')}</div>
         <label class="field place">
           <Icon name="map-pin" size={14} stroke={2} />
-          <input value={form.location} placeholder="Room, building or link" spellcheck="false" oninput={(e) => set({ location: e.currentTarget.value }, { typing: true })} />
+          <input value={form.location} placeholder={t('sheets.event.locationPlaceholder')} spellcheck="false" oninput={(e) => set({ location: e.currentTarget.value }, { typing: true })} />
         </label>
       </div>
     </div>
@@ -309,48 +318,48 @@
     {#if existing}
       <div class="group tags-group">
         <div class="group-row">
-          <div class="row-label">Tags</div>
+          <div class="row-label">{t('common.tags')}</div>
           <TagRow table="events" id={existing.id} compact />
         </div>
       </div>
     {/if}
 
-    <h3 class="group-title">Notes</h3>
+    <h3 class="group-title">{t('common.notes')}</h3>
     <div class="group">
       <div class="group-row stack">
-        <textarea class="field" value={form.notes} placeholder="Agenda, reading, things to bring…" oninput={(e) => set({ notes: e.currentTarget.value }, { typing: true })}></textarea>
+        <textarea class="field" value={form.notes} placeholder={t('sheets.event.notesPlaceholder')} oninput={(e) => set({ notes: e.currentTarget.value }, { typing: true })}></textarea>
       </div>
       {#if sessionDate}
         <div class="group-row">
           <div class="row-label">
-            Notes for {formatDate(sessionDate, { weekday: 'short', month: 'short', day: 'numeric' })}
-            <small>{sessionNotes ? 'Saved in the course’s notes' : 'A dated page for this class'}</small>
+            {t('sheets.event.notesFor', { date: formatDate(sessionDate, { weekday: 'short', month: 'short', day: 'numeric' }) })}
+            <small>{sessionNotes ? t('sheets.event.sessionNotesSaved') : t('sheets.event.sessionNotesNone')}</small>
           </div>
           {#if sessionNotes}
             <button class="btn small raised" onclick={() => void planner.takeNotes(sessionEvent!, sessionDate)}>
               {#if sessionNotes.icon}<span>{sessionNotes.icon}</span>{:else}<Icon name="page" size={14} />{/if}
-              <span class="page-name">{sessionNotes.title || 'Untitled'}</span>
+              <span class="page-name">{sessionNotes.title || t('common.untitled')}</span>
               <Icon name="arrow-right" size={13} stroke={2} />
             </button>
           {:else}
-            <button class="btn small raised" onclick={() => void planner.takeNotes(sessionEvent!, sessionDate)}><Icon name="note" size={14} /> Take Notes</button>
+            <button class="btn small raised" onclick={() => void planner.takeNotes(sessionEvent!, sessionDate)}><Icon name="note" size={14} /> {t('sheets.takeNotes')}</button>
           {/if}
         </div>
       {/if}
       {#if !sessionDate || (scope === 'all' && !split)}
         <div class="group-row">
           <div class="row-label">
-            {isSession ? 'Series notes page' : 'Notes page'}
-            <small>{page && !page.deletedAt ? 'Meeting or lecture notes' : 'Take notes on a full page'}</small>
+            {isSession ? t('sheets.event.seriesNotesPage') : t('sheets.notesPage')}
+            <small>{page && !page.deletedAt ? t('sheets.event.notesPageLinked') : t('sheets.event.notesPageNone')}</small>
           </div>
           {#if page && !page.deletedAt}
             <button class="btn small raised" onclick={notesPage}>
               {#if page.icon}<span><PageIcon icon={page.icon} /></span>{:else}<Icon name="page" size={14} />{/if}
-              <span class="page-name">{page.title || 'Untitled'}</span>
+              <span class="page-name">{page.title || t('common.untitled')}</span>
               <Icon name="arrow-right" size={13} stroke={2} />
             </button>
           {:else}
-            <button class="btn small raised" onclick={notesPage}><Icon name="page-plus" size={14} /> Create Page</button>
+            <button class="btn small raised" onclick={notesPage}><Icon name="page-plus" size={14} /> {t('sheets.createPage')}</button>
           {/if}
         </div>
       {/if}
@@ -361,25 +370,25 @@
 
   <footer class="modal-foot">
     {#if existing && isSession && !split}
-      <span>{`Repeats ${REPEAT_LABELS[existing.repeat].toLowerCase()}${existing.repeatUntil ? ` until ${formatDate(existing.repeatUntil)}` : ''}`}</span>
+      <span>{repeatSentence(existing.repeat, existing.repeatUntil)}</span>
       <div class="actions">
-        <button class="btn small destructive" onclick={() => planner.skipDate(existing.id, date!)}>Delete This Event</button>
-        <button class="btn small destructive" onclick={() => planner.trash('events', existing.id)}>Delete Series</button>
-        <button class="btn small primary" onclick={close}>Done</button>
+        <button class="btn small destructive" onclick={() => planner.skipDate(existing.id, date!)}>{t('sheets.event.deleteThis')}</button>
+        <button class="btn small destructive" onclick={() => planner.trash('events', existing.id)}>{t('sheets.event.deleteSeries')}</button>
+        <button class="btn small primary" onclick={close}>{t('common.actions.done')}</button>
       </div>
     {:else if existing}
       <span>
-        {#if split}Changed separately from the series{:else if form.repeat !== 'none'}{`Repeats ${REPEAT_LABELS[form.repeat].toLowerCase()}${form.repeatUntil ? ` until ${formatDate(form.repeatUntil)}` : ''}`}{:else}Created {relativeTime(existing.createdAt)}{/if}
+        {#if split}{t('sheets.event.changedSeparately')}{:else if form.repeat !== 'none'}{repeatSentence(form.repeat, form.repeatUntil)}{:else}{createdText(existing.createdAt)}{/if}
       </span>
       <div class="actions">
-        <button class="btn small destructive" onclick={() => planner.trash('events', existing.id)}>Move to Trash</button>
-        <button class="btn small primary" onclick={close}>Done</button>
+        <button class="btn small destructive" onclick={() => planner.trash('events', existing.id)}>{t('common.actions.moveToTrash')}</button>
+        <button class="btn small primary" onclick={close}>{t('common.actions.done')}</button>
       </div>
     {:else}
-      <span>Shows up in your calendar.</span>
+      <span>{t('sheets.event.showsInCalendar')}</span>
       <div class="actions">
-        <button class="btn small" onclick={() => (ui.eventSheet = null)}>Cancel</button>
-        <button class="btn small primary" onclick={add}>Add Event</button>
+        <button class="btn small" onclick={() => (ui.eventSheet = null)}>{t('common.actions.cancel')}</button>
+        <button class="btn small primary" onclick={add}>{t('sheets.event.add')}</button>
       </div>
     {/if}
   </footer>

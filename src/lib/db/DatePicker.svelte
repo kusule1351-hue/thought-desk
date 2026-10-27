@@ -9,6 +9,9 @@
   import { clock } from '../clock.svelte';
   import { prefs } from '../prefs.svelte';
   import { formatDateValue, hasTime, isoDate, parseDate, toDate } from './schema';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
+  import Rich from '../i18n/Rich.svelte';
   import type { DateValue } from '../types';
 
   let {
@@ -89,10 +92,10 @@
     else onchange({ start: `${value.start}T09:00`, ...(value.end ? { end: `${value.end.slice(0, 10)}T10:00` } : {}) });
   }
 
-  function setTime(which: 'start' | 'end', t: string) {
-    if (!value || !t) return;
+  function setTime(which: 'start' | 'end', time: string) {
+    if (!value || !time) return;
     const base = which === 'start' ? value.start : (value.end ?? value.start);
-    const next = `${base.slice(0, 10)}T${t}`;
+    const next = `${base.slice(0, 10)}T${time}`;
     onchange(which === 'start' ? { ...value, start: next } : { ...value, end: next });
   }
 
@@ -102,12 +105,10 @@
     month = isoDate(d).slice(0, 7);
   }
 
-  const monthLabel = $derived(new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(toDate(`${month}-01`)));
+  const monthLabel = $derived(fmt.date(toDate(`${month}-01`), { month: 'long', year: 'numeric' }));
   const weekdays = $derived.by(() => {
-    const out: string[] = [];
-    const fmt = new Intl.DateTimeFormat(undefined, { weekday: 'narrow' });
-    for (let i = 0; i < 7; i++) out.push(fmt.format(new Date(2024, 0, 7 + prefs.weekStart + i)));
-    return out;
+    const names = fmt.weekdayNames('narrow');
+    return Array.from({ length: 7 }, (_, i) => names[(prefs.weekStart + i) % 7]);
   });
   const days = $derived.by(() => {
     const first = toDate(`${month}-01`);
@@ -134,7 +135,7 @@
     class="pop-input"
     bind:this={input}
     bind:value={text}
-    placeholder="Type a date: Friday, Oct 20, tomorrow 3pm…"
+    placeholder={t('dbEdit.date.placeholder')}
     onkeydown={(e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -142,18 +143,18 @@
       }
     }}
     onblur={commitText}
-    aria-label="Date"
+    aria-label={t('dbEdit.date.field')}
   />
   <div class="quick">
-    <button class="chip" onclick={() => quick(0)}>Today</button>
-    <button class="chip" onclick={() => quick(1)}>Tomorrow</button>
-    <button class="chip" onclick={() => quick(7)}>In a week</button>
+    <button class="chip" onclick={() => quick(0)}>{t('common.today')}</button>
+    <button class="chip" onclick={() => quick(1)}>{t('common.tomorrow')}</button>
+    <button class="chip" onclick={() => quick(7)}>{t('dbEdit.date.inAWeek')}</button>
   </div>
   <div class="cal-head">
     <span class="month">{monthLabel}</span>
-    <button class="icon-btn small" onclick={() => shift(-1)} aria-label="Previous month"><Icon name="chevron-left" size={14} /></button>
-    <button class="icon-btn small" onclick={() => (month = clock.today.slice(0, 7))} aria-label="This month"><Icon name="today" size={14} /></button>
-    <button class="icon-btn small" onclick={() => shift(1)} aria-label="Next month"><Icon name="chevron-right" size={14} /></button>
+    <button class="icon-btn small" onclick={() => shift(-1)} aria-label={t('dbEdit.date.previousMonth')}><Icon name="chevron-left" size={14} /></button>
+    <button class="icon-btn small" onclick={() => (month = clock.today.slice(0, 7))} aria-label={t('dbEdit.date.thisMonth')}><Icon name="today" size={14} /></button>
+    <button class="icon-btn small" onclick={() => shift(1)} aria-label={t('dbEdit.date.nextMonth')}><Icon name="chevron-right" size={14} /></button>
   </div>
   <div class="grid" role="grid">
     {#each weekdays as w, i (i)}<span class="wd">{w}</span>{/each}
@@ -167,34 +168,44 @@
         onclick={() => pickDay(day)}
         aria-label={day}
       >
-        {Number(day.slice(8))}
+        {fmt.number(Number(day.slice(8)))}
       </button>
     {/each}
   </div>
   <div class="pop-sep"></div>
   <div class="pop-row">
-    <span class="label">End date</span>
-    <Switch on={value?.end !== undefined} label="End date" onchange={toggleEnd} />
+    <span class="label">{t('dbEdit.date.endDate')}</span>
+    <Switch on={value?.end !== undefined} label={t('dbEdit.date.endDate')} onchange={toggleEnd} />
   </div>
   <div class="pop-row">
-    <span class="label">Time</span>
-    <Switch on={timed} label="Include a time" onchange={toggleTime} />
+    <span class="label">{t('dbEdit.date.time')}</span>
+    <Switch on={timed} label={t('dbEdit.date.includeTime')} onchange={toggleTime} />
   </div>
   {#if timed && value}
+    {@const startTime = value.start.slice(11, 16)}
+    {@const endTime = (value.end ?? '').slice(11, 16)}
     <div class="pop-row times">
-      <input type="time" class="pop-input" value={value.start.slice(11, 16)} onchange={(e) => setTime('start', (e.currentTarget as HTMLInputElement).value)} aria-label="Start time" />
       {#if value.end !== undefined}
-        <span class="to">to</span>
-        <input type="time" class="pop-input" value={(value.end ?? '').slice(11, 16)} onchange={(e) => setTime('end', (e.currentTarget as HTMLInputElement).value)} aria-label="End time" />
+        <Rich key="dbEdit.date.timeRange">
+          {#snippet start()}{@render startInput(startTime)}{/snippet}
+          {#snippet to(text: string)}<span class="to">{text}</span>{/snippet}
+          {#snippet end()}<input type="time" class="pop-input" value={endTime} onchange={(e) => setTime('end', (e.currentTarget as HTMLInputElement).value)} aria-label={t('dbEdit.date.endTime')} />{/snippet}
+        </Rich>
+      {:else}
+        {@render startInput(startTime)}
       {/if}
     </div>
   {/if}
   {#if value?.end !== undefined}
-    <p class="hint">Click a day to set the {picking === 'start' ? 'start' : 'end'}.</p>
+    <p class="hint">{picking === 'start' ? t('dbEdit.date.clickToSetStart') : t('dbEdit.date.clickToSetEnd')}</p>
   {/if}
   <div class="pop-sep"></div>
-  <button class="pop-item" onclick={() => onchange(null)} disabled={!value}><Icon name="x" size={14} /><span class="grow">Clear</span></button>
+  <button class="pop-item" onclick={() => onchange(null)} disabled={!value}><Icon name="x" size={14} /><span class="grow">{t('common.actions.clear')}</span></button>
 </div>
+
+{#snippet startInput(time: string)}
+  <input type="time" class="pop-input" value={time} onchange={(e) => setTime('start', (e.currentTarget as HTMLInputElement).value)} aria-label={t('dbEdit.date.startTime')} />
+{/snippet}
 
 <style>
   .dp {

@@ -8,7 +8,15 @@
  * Properties are written in braces ({Due date}); a one-word name works on
  * its own (Price * 2), and prop("Due date") works too. Empty values count as
  * 0 in arithmetic unless every input is empty (then the result is empty).
+ *
+ * The language itself is English in every interface language, since it's
+ * saved in people's formulas: function names, the words and/or/not/true/false,
+ * units ("weeks"), date patterns ("MMM D") and what formatDate() and toText()
+ * write. What people read about it (the reference's descriptions, errors) is
+ * translated, with any formula code in it passed in as a parameter.
  */
+import { t, type TextKey } from '../i18n';
+import { fmt } from '../i18n/format';
 
 /** A date (or date and time) inside a formula. */
 export class FDate {
@@ -80,14 +88,14 @@ function tokenize(src: string): Token[] {
         } else s += src[i];
         i++;
       }
-      if (i >= src.length) throw new FormulaError('This text is missing its closing quote', at);
+      if (i >= src.length) throw new FormulaError(t('dbAuto.formula.error.unclosedText'), at);
       i++;
       out.push({ t: 'str', v: s, at });
       continue;
     }
     if (c === '{') {
       const end = src.indexOf('}', i + 1);
-      if (end < 0) throw new FormulaError('A property name is missing its closing }', at);
+      if (end < 0) throw new FormulaError(t('dbAuto.formula.error.unclosedProperty', { brace: '}' }), at);
       out.push({ t: 'prop', v: src.slice(i + 1, end).trim(), at });
       i = end + 1;
       continue;
@@ -115,7 +123,7 @@ function tokenize(src: string): Token[] {
       i++;
       continue;
     }
-    throw new FormulaError(`“${c}” isn’t something formulas understand`, at);
+    throw new FormulaError(t('dbAuto.formula.error.unknownChar', { char: c }), at);
   }
   out.push({ t: 'eof', v: '', at: src.length });
   return out;
@@ -172,16 +180,21 @@ class Parser {
     return this.toks[this.i++];
   }
 
-  expect(t: TokenKind, what: string) {
+  /** The next token must be `kind` (":" or ")"), which is also what the error names. */
+  expect(kind: ':' | ')') {
     const tok = this.next();
-    if (tok.t !== t) throw new FormulaError(tok.t === 'eof' ? `Missing ${what} at the end` : `Expected ${what} before “${tok.v}”`, tok.at);
+    if (tok.t !== kind)
+      throw new FormulaError(
+        tok.t === 'eof' ? t('dbAuto.formula.error.missingAtEnd', { char: kind }) : t('dbAuto.formula.error.expectedBefore', { char: kind, token: tok.v }),
+        tok.at,
+      );
   }
 
   parse(): Node {
     if (this.peek().t === 'eof') return { k: 'lit', v: null, at: 0 };
     const node = this.expr(0);
     const tok = this.peek();
-    if (tok.t !== 'eof') throw new FormulaError(tok.t === ')' ? 'There’s a ) without a (' : `Unexpected “${tok.v}”: is an operator missing?`, tok.at);
+    if (tok.t !== 'eof') throw new FormulaError(tok.t === ')' ? t('dbAuto.formula.error.strayClose') : t('dbAuto.formula.error.unexpectedMissingOperator', { token: tok.v }), tok.at);
     return node;
   }
 
@@ -192,7 +205,7 @@ class Parser {
       if (tok.t === '?' && min <= 0) {
         this.next();
         const a = this.expr(0);
-        this.expect(':', 'a “:”');
+        this.expect(':');
         const b = this.expr(0);
         left = { k: 'if', c: left, a, b, at: tok.at };
         continue;
@@ -217,7 +230,7 @@ class Parser {
         return { k: 'prop', name: tok.v, at: tok.at };
       case '(': {
         const inner = this.expr(0);
-        this.expect(')', 'a “)”');
+        this.expect(')');
         return inner;
       }
       case 'op':
@@ -238,18 +251,18 @@ class Parser {
               else break;
             }
           }
-          this.expect(')', 'a “)”');
+          this.expect(')');
           if (word === 'prop') {
             const arg = args[0];
             if (args.length !== 1 || arg.k !== 'lit' || typeof arg.v !== 'string') {
-              throw new FormulaError('prop() takes a property name in quotes', tok.at);
+              throw new FormulaError(t('dbAuto.formula.error.propTakesName', { fn: 'prop()' }), tok.at);
             }
             return { k: 'prop', name: arg.v, at: tok.at };
           }
-          if (!FUNCTIONS[word]) throw new FormulaError(`There’s no function called ${tok.v}()`, tok.at);
+          if (!FUNCTIONS[word]) throw new FormulaError(t('dbAuto.formula.error.noFunction', { fn: `${tok.v}()` }), tok.at);
           const fn = FUNCTIONS[word];
           if (args.length < fn.min || (fn.max !== undefined && args.length > fn.max)) {
-            throw new FormulaError(`${fn.name}() takes ${fn.sig}`, tok.at);
+            throw new FormulaError(t(fn.takes, { fn: `${fn.name}()` }), tok.at);
           }
           return { k: 'call', name: word, args, at: tok.at };
         }
@@ -257,8 +270,8 @@ class Parser {
         return { k: 'prop', name: tok.v, at: tok.at };
       }
     }
-    if (tok.t === 'eof') throw new FormulaError('The formula ends too soon', tok.at);
-    throw new FormulaError(`Unexpected “${tok.v}”`, tok.at);
+    if (tok.t === 'eof') throw new FormulaError(t('dbAuto.formula.error.endsTooSoon'), tok.at);
+    throw new FormulaError(t('dbAuto.formula.error.unexpected', { token: tok.v }), tok.at);
   }
 }
 
@@ -353,7 +366,30 @@ function truthy(v: FValue): boolean {
   return !!v;
 }
 
-function num(v: FValue, what: string): number | null {
+/** An operation that needs numbers (or, comparing, dates), as its errors name it. */
+type Op = 'add' | 'subtract' | 'multiply' | 'divide' | 'remainder' | 'power' | 'compare' | 'minus';
+/** What needed a value, for the error when it can't have it: an operation, or a function by its name ("round()"). */
+type Need = Op | `${string}()`;
+/** A message without plural forms. */
+type Key = TextKey;
+
+/** "Adding needs a number, not a list": one message for each operation and each kind of value it can't use. */
+const NEEDS_NUMBER: Record<Op | 'function', { list: Key; text: Key }> = {
+  add: { list: 'dbAuto.formula.error.needsNumber.addingList', text: 'dbAuto.formula.error.needsNumber.addingText' },
+  subtract: { list: 'dbAuto.formula.error.needsNumber.subtractingList', text: 'dbAuto.formula.error.needsNumber.subtractingText' },
+  multiply: { list: 'dbAuto.formula.error.needsNumber.multiplyingList', text: 'dbAuto.formula.error.needsNumber.multiplyingText' },
+  divide: { list: 'dbAuto.formula.error.needsNumber.dividingList', text: 'dbAuto.formula.error.needsNumber.dividingText' },
+  remainder: { list: 'dbAuto.formula.error.needsNumber.remainderList', text: 'dbAuto.formula.error.needsNumber.remainderText' },
+  power: { list: 'dbAuto.formula.error.needsNumber.powerList', text: 'dbAuto.formula.error.needsNumber.powerText' },
+  compare: { list: 'dbAuto.formula.error.needsNumber.comparingList', text: 'dbAuto.formula.error.needsNumber.comparingText' },
+  minus: { list: 'dbAuto.formula.error.needsNumber.minusList', text: 'dbAuto.formula.error.needsNumber.minusText' },
+  function: { list: 'dbAuto.formula.error.needsNumber.functionList', text: 'dbAuto.formula.error.needsNumber.functionText' },
+};
+
+/** Text quoted in an error: its first 20 characters. */
+const clip = (s: string) => (s.length > 20 ? s.slice(0, 20) + '…' : s);
+
+function num(v: FValue, what: Need): number | null {
   if (v === null || v === '') return null;
   if (typeof v === 'number') return v;
   if (typeof v === 'boolean') return v ? 1 : 0;
@@ -363,15 +399,9 @@ function num(v: FValue, what: string): number | null {
   }
   if (v instanceof FDate) return v.ms;
   if (Array.isArray(v) && v.length === 1) return num(v[0], what);
-  throw new FormulaError(`${what} needs a number, not ${describe(v)}`);
-}
-
-function describe(v: FValue): string {
-  if (v === null) return 'an empty value';
-  if (Array.isArray(v)) return 'a list';
-  if (v instanceof FDate) return 'a date';
-  if (typeof v === 'string') return `the text “${v.length > 20 ? v.slice(0, 20) + '…' : v}”`;
-  return typeof v === 'boolean' ? 'true/false' : 'a number';
+  // What's left is text that isn't a number, or a list of none or several.
+  const keys = NEEDS_NUMBER[what.endsWith('()') ? 'function' : (what as Op)];
+  throw new FormulaError(Array.isArray(v) ? t(keys.list, { fn: what }) : t(keys.text, { fn: what, text: clip(v) }));
 }
 
 /** A number without floating-point noise (0.1 + 0.2 shows as 0.3). */
@@ -379,6 +409,8 @@ export function cleanNumber(n: number): number {
   return Number.isFinite(n) ? Number(n.toPrecision(12)) : n;
 }
 
+// What formatDate() writes is a formula's value (sorted, filtered, compared
+// with text in other formulas, exported), so it's English in every language.
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -439,7 +471,21 @@ export function toText(v: FValue): string {
   return v.map(toText).filter(Boolean).join(', ');
 }
 
-function date(v: FValue, what: string): FDate | null {
+/** "Comparing needs a date, not a list": one message for each kind of value a date can't be read from. */
+const NEEDS_DATE: Record<'compare' | 'function', { list: Key; text: Key; boolean: Key }> = {
+  compare: {
+    list: 'dbAuto.formula.error.needsDate.comparingList',
+    text: 'dbAuto.formula.error.needsDate.comparingText',
+    boolean: 'dbAuto.formula.error.needsDate.comparingBoolean',
+  },
+  function: {
+    list: 'dbAuto.formula.error.needsDate.functionList',
+    text: 'dbAuto.formula.error.needsDate.functionText',
+    boolean: 'dbAuto.formula.error.needsDate.functionBoolean',
+  },
+};
+
+function date(v: FValue, what: 'compare' | `${string}()`): FDate | null {
   if (v === null || v === '') return null;
   if (v instanceof FDate) return v;
   if (Array.isArray(v) && v.length === 1) return date(v[0], what);
@@ -448,7 +494,11 @@ function date(v: FValue, what: string): FDate | null {
     if (d) return d;
   }
   if (typeof v === 'number') return new FDate(v, true);
-  throw new FormulaError(`${what} needs a date, not ${describe(v)}`);
+  // What's left is text that isn't a date, true/false, or a list of none or several.
+  const keys = NEEDS_DATE[what === 'compare' ? 'compare' : 'function'];
+  if (Array.isArray(v)) throw new FormulaError(t(keys.list, { fn: what }));
+  if (typeof v === 'string') throw new FormulaError(t(keys.text, { fn: what, text: clip(v) }));
+  throw new FormulaError(t(keys.boolean, { fn: what }));
 }
 
 /** "2026-10-14", "2026-10-14T09:30" or anything Date.parse reads. */
@@ -458,8 +508,8 @@ export function parseDateText(s: string): FDate | null {
     const [, y, mo, d, h, mi] = m;
     return new FDate(new Date(+y, +mo - 1, +d, h ? +h : 0, mi ? +mi : 0).getTime(), !!h);
   }
-  const t = Date.parse(s);
-  return Number.isNaN(t) ? null : new FDate(t, /\d:\d/.test(s));
+  const ms = Date.parse(s);
+  return Number.isNaN(ms) ? null : new FDate(ms, /\d:\d/.test(s));
 }
 
 function text(v: FValue): string {
@@ -471,7 +521,7 @@ function list(v: FValue): FValue[] {
 }
 
 /** Flattens the arguments of sum(), min() and friends (lists count too). */
-function numbers(args: FValue[], what: string): number[] {
+function numbers(args: FValue[], what: Need): number[] {
   const out: number[] = [];
   for (const a of args.flatMap((x) => (Array.isArray(x) ? x : [x]))) {
     const n = num(a, what);
@@ -492,7 +542,8 @@ const UNITS: Record<string, string> = {
 
 function unit(v: FValue): string {
   const u = UNITS[text(v).trim().toLowerCase()];
-  if (!u) throw new FormulaError(`Units are "years", "months", "weeks", "days", "hours" or "minutes"`);
+  // The unit words are the formula's own (English) ones, quoted as they're typed.
+  if (!u) throw new FormulaError(t('dbAuto.formula.error.units', { units: '"years", "months", "weeks", "days", "hours"', last: '"minutes"' }));
   return u;
 }
 
@@ -579,14 +630,14 @@ function compare(a: FValue, b: FValue, op: string): boolean {
   let x: number | string;
   let y: number | string;
   if (a instanceof FDate || b instanceof FDate) {
-    x = date(a, 'Comparing')!.ms;
-    y = date(b, 'Comparing')!.ms;
+    x = date(a, 'compare')!.ms;
+    y = date(b, 'compare')!.ms;
   } else if (typeof a === 'string' && typeof b === 'string') {
     x = a.toLowerCase();
     y = b.toLowerCase();
   } else {
-    x = num(a, 'Comparing') ?? 0;
-    y = num(b, 'Comparing') ?? 0;
+    x = num(a, 'compare') ?? 0;
+    y = num(b, 'compare') ?? 0;
   }
   switch (op) {
     case '<':
@@ -605,7 +656,7 @@ function arithmetic(op: string, a: FValue, b: FValue): FValue {
   if (op === '+' && Array.isArray(a) && Array.isArray(b)) return [...a, ...b];
   if (op === '-' && a instanceof FDate && b instanceof FDate) return dayDiff(a, b);
   if (isEmpty(a) && isEmpty(b)) return null;
-  const names: Record<string, string> = { '+': 'Adding', '-': 'Subtracting', '*': 'Multiplying', '/': 'Dividing', '%': 'Remainder', '^': 'A power' };
+  const names: Record<string, Op> = { '+': 'add', '-': 'subtract', '*': 'multiply', '/': 'divide', '%': 'remainder', '^': 'power' };
   const x = num(a, names[op]) ?? 0;
   const y = num(b, names[op]) ?? 0;
   switch (op) {
@@ -616,21 +667,75 @@ function arithmetic(op: string, a: FValue, b: FValue): FValue {
     case '*':
       return x * y;
     case '/':
-      if (y === 0) throw new FormulaError('Can’t divide by zero');
+      if (y === 0) throw new FormulaError(t('dbAuto.formula.error.divideByZero'));
       return x / y;
     case '%':
-      if (y === 0) throw new FormulaError('Can’t divide by zero');
+      if (y === 0) throw new FormulaError(t('dbAuto.formula.error.divideByZero'));
       return x % y;
     default:
       return x ** y;
   }
 }
 
+/** The sections of the function reference, in order, and what each is called. */
+export const FN_GROUPS = ['logic', 'math', 'text', 'dates', 'lists'] as const;
+export type FnGroup = (typeof FN_GROUPS)[number];
+export const FN_GROUP_LABELS: Record<FnGroup, string> = {
+  logic: t('dbAuto.formula.group.logic'),
+  math: t('dbAuto.formula.group.math'),
+  text: t('dbAuto.formula.group.text'),
+  dates: t('dbAuto.formula.group.dates'),
+  lists: t('dbAuto.formula.group.lists'),
+};
+
+/**
+ * What a function takes, in words: shown after its name in the reference
+ * ("round() · a number, decimal places"), and as a whole sentence in the
+ * error when it's given too few or too many values ("round() takes a number,
+ * decimal places"). One message for each, so neither is fitted into the other.
+ */
+const ARGS = {
+  if: { sig: 'dbAuto.formula.args.if', takes: 'dbAuto.formula.error.takes.if' },
+  ifs: { sig: 'dbAuto.formula.args.ifs', takes: 'dbAuto.formula.error.takes.ifs' },
+  conditions: { sig: 'dbAuto.formula.args.conditions', takes: 'dbAuto.formula.error.takes.conditions' },
+  condition: { sig: 'dbAuto.formula.args.condition', takes: 'dbAuto.formula.error.takes.condition' },
+  value: { sig: 'dbAuto.formula.args.value', takes: 'dbAuto.formula.error.takes.value' },
+  ifEmpty: { sig: 'dbAuto.formula.args.ifEmpty', takes: 'dbAuto.formula.error.takes.ifEmpty' },
+  round: { sig: 'dbAuto.formula.args.round', takes: 'dbAuto.formula.error.takes.round' },
+  number: { sig: 'dbAuto.formula.args.number', takes: 'dbAuto.formula.error.takes.number' },
+  pow: { sig: 'dbAuto.formula.args.pow', takes: 'dbAuto.formula.error.takes.pow' },
+  mod: { sig: 'dbAuto.formula.args.mod', takes: 'dbAuto.formula.error.takes.mod' },
+  numbers: { sig: 'dbAuto.formula.args.numbers', takes: 'dbAuto.formula.error.takes.numbers' },
+  text: { sig: 'dbAuto.formula.args.text', takes: 'dbAuto.formula.error.takes.text' },
+  texts: { sig: 'dbAuto.formula.args.texts', takes: 'dbAuto.formula.error.takes.texts' },
+  textOrList: { sig: 'dbAuto.formula.args.textOrList', takes: 'dbAuto.formula.error.takes.textOrList' },
+  contains: { sig: 'dbAuto.formula.args.contains', takes: 'dbAuto.formula.error.takes.contains' },
+  startsWith: { sig: 'dbAuto.formula.args.startsWith', takes: 'dbAuto.formula.error.takes.startsWith' },
+  endsWith: { sig: 'dbAuto.formula.args.endsWith', takes: 'dbAuto.formula.error.takes.endsWith' },
+  replace: { sig: 'dbAuto.formula.args.replace', takes: 'dbAuto.formula.error.takes.replace' },
+  slice: { sig: 'dbAuto.formula.args.slice', takes: 'dbAuto.formula.error.takes.slice' },
+  split: { sig: 'dbAuto.formula.args.split', takes: 'dbAuto.formula.error.takes.split' },
+  repeat: { sig: 'dbAuto.formula.args.repeat', takes: 'dbAuto.formula.error.takes.repeat' },
+  date: { sig: 'dbAuto.formula.args.date', takes: 'dbAuto.formula.error.takes.date' },
+  dateAmountUnit: { sig: 'dbAuto.formula.args.dateAmountUnit', takes: 'dbAuto.formula.error.takes.dateAmountUnit' },
+  dateBetween: { sig: 'dbAuto.formula.args.dateBetween', takes: 'dbAuto.formula.error.takes.dateBetween' },
+  formatDate: { sig: 'dbAuto.formula.args.formatDate', takes: 'dbAuto.formula.error.takes.formatDate' },
+  list: { sig: 'dbAuto.formula.args.list', takes: 'dbAuto.formula.error.takes.list' },
+  at: { sig: 'dbAuto.formula.args.at', takes: 'dbAuto.formula.error.takes.at' },
+  join: { sig: 'dbAuto.formula.args.join', takes: 'dbAuto.formula.error.takes.join' },
+} satisfies Record<string, { sig: Key; takes: Key }>;
+type Args = keyof typeof ARGS;
+
 interface FnDef {
+  /** As it's typed in formulas (English in every language). */
   name: string;
+  /** What it takes, in words ("a number, decimal places"); empty for none. */
   sig: string;
+  /** The error when it's given too few or too many values ("{fn} takes a number, decimal places"). */
+  takes: Key;
+  /** What it does, in words, with any example formula as written ("Rounds: round(3.14159, 2) is 3.14"); a few are only an example. */
   doc: string;
-  group: 'Logic' | 'Math' | 'Text' | 'Dates' | 'Lists';
+  group: FnGroup;
   min: number;
   max?: number;
   /** Gets its arguments unevaluated (if, ifs, and, or). */
@@ -638,8 +743,11 @@ interface FnDef {
   run?: (args: FValue[], scope: Scope) => FValue;
 }
 
-function def(group: FnDef['group'], name: string, sig: string, doc: string, min: number, max: number | undefined, run: FnDef['run'], lazy?: FnDef['lazy']): FnDef {
-  return { name, sig, doc, group, min, max, run, lazy };
+/** A function: `args` says what it takes (null for nothing, like now()). */
+function def(group: FnDef['group'], name: string, args: Args | null, doc: string, min: number, max: number | undefined, run: FnDef['run'], lazy?: FnDef['lazy']): FnDef {
+  const sig = args ? t(ARGS[args].sig) : '';
+  const takes = args ? ARGS[args].takes : 'dbAuto.formula.error.takesNothing';
+  return { name, sig, takes, doc, group, min, max, run, lazy };
 }
 
 const round = (n: number, places = 0) => {
@@ -649,131 +757,132 @@ const round = (n: number, places = 0) => {
 
 export const FUNCTIONS: Record<string, FnDef> = Object.fromEntries(
   [
-    def('Logic', 'if', 'a condition, a value if true, a value if false', 'Picks one of two values: if({Done}, "✓", "")', 2, 3, undefined, (args, s) =>
+    def('logic', 'if', 'if', t('dbAuto.formula.doc.if', { example: 'if({Done}, "✓", "")' }), 2, 3, undefined, (args, s) =>
       truthy(evaluate(args[0], s)) ? evaluate(args[1], s) : args[2] ? evaluate(args[2], s) : null,
     ),
-    def('Logic', 'ifs', 'conditions and values, then a fallback', 'The value after the first true condition: ifs({Score} >= 90, "A", {Score} >= 80, "B", "C")', 2, undefined, undefined, (args, s) => {
+    def('logic', 'ifs', 'ifs', t('dbAuto.formula.doc.ifs', { example: 'ifs({Score} >= 90, "A", {Score} >= 80, "B", "C")' }), 2, undefined, undefined, (args, s) => {
       for (let i = 0; i + 1 < args.length; i += 2) if (truthy(evaluate(args[i], s))) return evaluate(args[i + 1], s);
       return args.length % 2 ? evaluate(args[args.length - 1], s) : null;
     }),
-    def('Logic', 'and', 'conditions', 'True when every condition is true', 1, undefined, undefined, (args, s) => args.every((a) => truthy(evaluate(a, s)))),
-    def('Logic', 'or', 'conditions', 'True when any condition is true', 1, undefined, undefined, (args, s) => args.some((a) => truthy(evaluate(a, s)))),
-    def('Logic', 'not', 'a condition', 'True when the condition is false', 1, 1, ([a]) => !truthy(a)),
-    def('Logic', 'empty', 'a value', 'True when the value is empty: empty({Due})', 1, 1, ([a]) => isEmpty(a)),
-    def('Logic', 'ifEmpty', 'a value, a fallback', 'The value, or the fallback when it’s empty', 2, 2, ([a, b]) => (isEmpty(a) ? b : a)),
+    def('logic', 'and', 'conditions', t('dbAuto.formula.doc.and'), 1, undefined, undefined, (args, s) => args.every((a) => truthy(evaluate(a, s)))),
+    def('logic', 'or', 'conditions', t('dbAuto.formula.doc.or'), 1, undefined, undefined, (args, s) => args.some((a) => truthy(evaluate(a, s)))),
+    def('logic', 'not', 'condition', t('dbAuto.formula.doc.not'), 1, 1, ([a]) => !truthy(a)),
+    def('logic', 'empty', 'value', t('dbAuto.formula.doc.empty', { example: 'empty({Due})' }), 1, 1, ([a]) => isEmpty(a)),
+    def('logic', 'ifEmpty', 'ifEmpty', t('dbAuto.formula.doc.ifEmpty'), 2, 2, ([a, b]) => (isEmpty(a) ? b : a)),
 
-    def('Math', 'round', 'a number, decimal places', 'Rounds: round(3.14159, 2) is 3.14', 1, 2, ([a, p]) => {
+    def('math', 'round', 'round', t('dbAuto.formula.doc.round', { example: 'round(3.14159, 2)', result: '3.14' }), 1, 2, ([a, p]) => {
       const n = num(a, 'round()');
       return n === null ? null : round(n, num(p ?? 0, 'round()') ?? 0);
     }),
-    def('Math', 'floor', 'a number', 'Rounds down', 1, 1, ([a]) => (num(a, 'floor()') === null ? null : Math.floor(num(a, 'floor()')!))),
-    def('Math', 'ceil', 'a number', 'Rounds up', 1, 1, ([a]) => (num(a, 'ceil()') === null ? null : Math.ceil(num(a, 'ceil()')!))),
-    def('Math', 'abs', 'a number', 'The number without its sign', 1, 1, ([a]) => (num(a, 'abs()') === null ? null : Math.abs(num(a, 'abs()')!))),
-    def('Math', 'sqrt', 'a number', 'Square root', 1, 1, ([a]) => {
+    def('math', 'floor', 'number', t('dbAuto.formula.doc.floor'), 1, 1, ([a]) => (num(a, 'floor()') === null ? null : Math.floor(num(a, 'floor()')!))),
+    def('math', 'ceil', 'number', t('dbAuto.formula.doc.ceil'), 1, 1, ([a]) => (num(a, 'ceil()') === null ? null : Math.ceil(num(a, 'ceil()')!))),
+    def('math', 'abs', 'number', t('dbAuto.formula.doc.abs'), 1, 1, ([a]) => (num(a, 'abs()') === null ? null : Math.abs(num(a, 'abs()')!))),
+    def('math', 'sqrt', 'number', t('dbAuto.formula.doc.sqrt'), 1, 1, ([a]) => {
       const n = num(a, 'sqrt()');
-      if (n !== null && n < 0) throw new FormulaError('sqrt() needs a number that isn’t negative');
+      if (n !== null && n < 0) throw new FormulaError(t('dbAuto.formula.error.negativeRoot', { fn: 'sqrt()' }));
       return n === null ? null : Math.sqrt(n);
     }),
-    def('Math', 'pow', 'a number, a power', 'pow(2, 10) is 1024', 2, 2, ([a, b]) => arithmetic('^', a, b)),
-    def('Math', 'mod', 'a number, a divisor', 'The remainder: mod(10, 3) is 1', 2, 2, ([a, b]) => arithmetic('%', a, b)),
-    def('Math', 'min', 'numbers or lists', 'The smallest', 1, undefined, (args) => {
+    def('math', 'pow', 'pow', t('dbAuto.formula.doc.pow', { example: 'pow(2, 10)', result: '1024' }), 2, 2, ([a, b]) => arithmetic('^', a, b)),
+    def('math', 'mod', 'mod', t('dbAuto.formula.doc.mod', { example: 'mod(10, 3)', result: '1' }), 2, 2, ([a, b]) => arithmetic('%', a, b)),
+    def('math', 'min', 'numbers', t('dbAuto.formula.doc.min'), 1, undefined, (args) => {
       const ns = numbers(args, 'min()');
       return ns.length ? ns.reduce((a, b) => Math.min(a, b), Infinity) : null;
     }),
-    def('Math', 'max', 'numbers or lists', 'The largest', 1, undefined, (args) => {
+    def('math', 'max', 'numbers', t('dbAuto.formula.doc.max'), 1, undefined, (args) => {
       const ns = numbers(args, 'max()');
       return ns.length ? ns.reduce((a, b) => Math.max(a, b), -Infinity) : null;
     }),
-    def('Math', 'sum', 'numbers or lists', 'Adds them up: sum({Q1}, {Q2}, {Q3})', 1, undefined, (args) => {
+    def('math', 'sum', 'numbers', t('dbAuto.formula.doc.sum', { example: 'sum({Q1}, {Q2}, {Q3})' }), 1, undefined, (args) => {
       const ns = numbers(args, 'sum()');
       return ns.length ? ns.reduce((x, y) => x + y, 0) : null;
     }),
-    def('Math', 'average', 'numbers or lists', 'The mean of the numbers given', 1, undefined, (args) => {
+    def('math', 'average', 'numbers', t('dbAuto.formula.doc.average'), 1, undefined, (args) => {
       const ns = numbers(args, 'average()');
       return ns.length ? ns.reduce((x, y) => x + y, 0) / ns.length : null;
     }),
-    def('Math', 'toNumber', 'text', 'Text as a number: toNumber("42") is 42', 1, 1, ([a]) => {
+    def('math', 'toNumber', 'text', t('dbAuto.formula.doc.toNumber', { example: 'toNumber("42")', result: '42' }), 1, 1, ([a]) => {
       if (a === null || a === '') return null;
       const n = Number(text(a).replace(/[^\d.eE+-]/g, ''));
       return Number.isNaN(n) ? null : n;
     }),
 
-    def('Text', 'concat', 'texts', 'Joins texts end to end', 1, undefined, (args) => args.map(text).join('')),
-    def('Text', 'length', 'text or a list', 'How many characters (or items)', 1, 1, ([a]) => (Array.isArray(a) ? a.length : text(a).length)),
-    def('Text', 'lower', 'text', 'In lowercase', 1, 1, ([a]) => text(a).toLowerCase()),
-    def('Text', 'upper', 'text', 'In uppercase', 1, 1, ([a]) => text(a).toUpperCase()),
-    def('Text', 'trim', 'text', 'Without spaces at either end', 1, 1, ([a]) => text(a).trim()),
-    def('Text', 'contains', 'text or a list, what to find', 'Whether it’s in there: contains({Tags}, "exam")', 2, 2, ([a, b]) =>
+    def('text', 'concat', 'texts', t('dbAuto.formula.doc.concat'), 1, undefined, (args) => args.map(text).join('')),
+    def('text', 'length', 'textOrList', t('dbAuto.formula.doc.length'), 1, 1, ([a]) => (Array.isArray(a) ? a.length : text(a).length)),
+    def('text', 'lower', 'text', t('dbAuto.formula.doc.lower'), 1, 1, ([a]) => text(a).toLowerCase()),
+    def('text', 'upper', 'text', t('dbAuto.formula.doc.upper'), 1, 1, ([a]) => text(a).toUpperCase()),
+    def('text', 'trim', 'text', t('dbAuto.formula.doc.trim'), 1, 1, ([a]) => text(a).trim()),
+    def('text', 'contains', 'contains', t('dbAuto.formula.doc.contains', { example: 'contains({Tags}, "exam")' }), 2, 2, ([a, b]) =>
       Array.isArray(a) ? a.some((x) => equal(x, b)) : text(a).toLowerCase().includes(text(b).toLowerCase()),
     ),
-    def('Text', 'startsWith', 'text, a start', 'Whether the text starts that way', 2, 2, ([a, b]) => text(a).toLowerCase().startsWith(text(b).toLowerCase())),
-    def('Text', 'endsWith', 'text, an end', 'Whether the text ends that way', 2, 2, ([a, b]) => text(a).toLowerCase().endsWith(text(b).toLowerCase())),
-    def('Text', 'replace', 'text, what to find, what to put instead', 'Replaces every match', 3, 3, ([a, b, c]) => text(a).split(text(b)).join(text(c))),
-    def('Text', 'slice', 'text, start, end', 'Part of the text: slice("Thought", 0, 3) is "Tho"', 2, 3, ([a, b, c]) =>
+    def('text', 'startsWith', 'startsWith', t('dbAuto.formula.doc.startsWith'), 2, 2, ([a, b]) => text(a).toLowerCase().startsWith(text(b).toLowerCase())),
+    def('text', 'endsWith', 'endsWith', t('dbAuto.formula.doc.endsWith'), 2, 2, ([a, b]) => text(a).toLowerCase().endsWith(text(b).toLowerCase())),
+    def('text', 'replace', 'replace', t('dbAuto.formula.doc.replace'), 3, 3, ([a, b, c]) => text(a).split(text(b)).join(text(c))),
+    def('text', 'slice', 'slice', t('dbAuto.formula.doc.slice', { example: 'slice("Thought", 0, 3)', result: '"Tho"' }), 2, 3, ([a, b, c]) =>
       text(a).slice(num(b, 'slice()') ?? 0, c === undefined || c === null ? undefined : (num(c, 'slice()') ?? undefined)),
     ),
-    def('Text', 'split', 'text, a separator', 'Text as a list: split("a, b", ", ")', 2, 2, ([a, b]) => text(a).split(text(b)).filter(Boolean)),
-    def('Text', 'format', 'a value', 'Any value as text', 1, 1, ([a]) => text(a)),
-    def('Text', 'repeat', 'text, times', 'repeat("★", {Rating})', 2, 2, ([a, b]) => text(a).repeat(Math.max(0, Math.min(1000, num(b, 'repeat()') ?? 0)))),
+    def('text', 'split', 'split', t('dbAuto.formula.doc.split', { example: 'split("a, b", ", ")' }), 2, 2, ([a, b]) => text(a).split(text(b)).filter(Boolean)),
+    def('text', 'format', 'value', t('dbAuto.formula.doc.format'), 1, 1, ([a]) => text(a)),
+    def('text', 'repeat', 'repeat', 'repeat("★", {Rating})', 2, 2, ([a, b]) => text(a).repeat(Math.max(0, Math.min(1000, num(b, 'repeat()') ?? 0)))),
 
-    def('Dates', 'now', '', 'The current date and time', 0, 0, (_a, s) => new FDate(s.now, true)),
-    def('Dates', 'today', '', 'Today’s date', 0, 0, (_a, s) => startOfToday(s.now)),
-    def('Dates', 'date', 'text', 'Text as a date: date("2026-10-14")', 1, 1, ([a]) => date(a, 'date()')),
-    def('Dates', 'dateAdd', 'a date, an amount, a unit', 'dateAdd({Due}, 2, "weeks")', 3, 3, ([a, n, u]) => {
+    def('dates', 'now', null, t('dbAuto.formula.doc.now'), 0, 0, (_a, s) => new FDate(s.now, true)),
+    def('dates', 'today', null, t('dbAuto.formula.doc.today'), 0, 0, (_a, s) => startOfToday(s.now)),
+    def('dates', 'date', 'text', t('dbAuto.formula.doc.date', { example: 'date("2026-10-14")' }), 1, 1, ([a]) => date(a, 'date()')),
+    def('dates', 'dateAdd', 'dateAmountUnit', 'dateAdd({Due}, 2, "weeks")', 3, 3, ([a, n, u]) => {
       const d = date(a, 'dateAdd()');
       return d ? addTo(d, num(n, 'dateAdd()') ?? 0, unit(u)) : null;
     }),
-    def('Dates', 'dateSubtract', 'a date, an amount, a unit', 'dateSubtract({Due}, 3, "days")', 3, 3, ([a, n, u]) => {
+    def('dates', 'dateSubtract', 'dateAmountUnit', 'dateSubtract({Due}, 3, "days")', 3, 3, ([a, n, u]) => {
       const d = date(a, 'dateSubtract()');
       return d ? addTo(d, -(num(n, 'dateSubtract()') ?? 0), unit(u)) : null;
     }),
-    def('Dates', 'dateBetween', 'a date, another date, a unit', 'How long from the second to the first: dateBetween({End}, {Start}, "days")', 3, 3, ([a, b, u]) => {
+    def('dates', 'dateBetween', 'dateBetween', t('dbAuto.formula.doc.dateBetween', { example: 'dateBetween({End}, {Start}, "days")' }), 3, 3, ([a, b, u]) => {
       const x = date(a, 'dateBetween()');
       const y = date(b, 'dateBetween()');
       return x && y ? between(x, y, unit(u)) : null;
     }),
-    def('Dates', 'daysUntil', 'a date', 'Days from today until the date (negative once it’s past)', 1, 1, ([a], s) => {
+    def('dates', 'daysUntil', 'date', t('dbAuto.formula.doc.daysUntil'), 1, 1, ([a], s) => {
       const d = date(a, 'daysUntil()');
       return d ? dayDiff(d, startOfToday(s.now)) : null;
     }),
-    def('Dates', 'formatDate', 'a date, a pattern', 'formatDate({Due}, "dddd, MMM D") — YYYY, MMM, MM, D, dddd, h:mm A…', 1, 2, ([a, p]) => {
+    def('dates', 'formatDate', 'formatDate', 'formatDate({Due}, "dddd, MMM D") — YYYY, MMM, MM, D, dddd, h:mm A…', 1, 2, ([a, p]) => {
       const d = date(a, 'formatDate()');
       return d ? formatDateValue(d, p === undefined || p === null ? undefined : text(p)) : null;
     }),
-    def('Dates', 'year', 'a date', 'The year', 1, 1, ([a]) => {
+    def('dates', 'year', 'date', t('dbAuto.formula.doc.year'), 1, 1, ([a]) => {
       const d = date(a, 'year()');
       return d ? new Date(d.ms).getFullYear() : null;
     }),
-    def('Dates', 'month', 'a date', 'The month, 1 to 12', 1, 1, ([a]) => {
+    def('dates', 'month', 'date', t('dbAuto.formula.doc.month'), 1, 1, ([a]) => {
       const d = date(a, 'month()');
       return d ? new Date(d.ms).getMonth() + 1 : null;
     }),
-    def('Dates', 'day', 'a date', 'The day of the month', 1, 1, ([a]) => {
+    def('dates', 'day', 'date', t('dbAuto.formula.doc.day'), 1, 1, ([a]) => {
       const d = date(a, 'day()');
       return d ? new Date(d.ms).getDate() : null;
     }),
-    def('Dates', 'weekday', 'a date', 'The day of the week, 1 (Monday) to 7 (Sunday)', 1, 1, ([a]) => {
+    def('dates', 'weekday', 'date', t('dbAuto.formula.doc.weekday'), 1, 1, ([a]) => {
       const d = date(a, 'weekday()');
       return d ? new Date(d.ms).getDay() || 7 : null;
     }),
-    def('Dates', 'hour', 'a date', 'The hour, 0 to 23', 1, 1, ([a]) => {
+    def('dates', 'hour', 'date', t('dbAuto.formula.doc.hour'), 1, 1, ([a]) => {
       const d = date(a, 'hour()');
       return d ? new Date(d.ms).getHours() : null;
     }),
-    def('Dates', 'minute', 'a date', 'The minute, 0 to 59', 1, 1, ([a]) => {
+    def('dates', 'minute', 'date', t('dbAuto.formula.doc.minute'), 1, 1, ([a]) => {
       const d = date(a, 'minute()');
       return d ? new Date(d.ms).getMinutes() : null;
     }),
 
-    def('Lists', 'count', 'a list', 'How many items', 1, 1, ([a]) => list(a).filter((x) => !isEmpty(x)).length),
-    def('Lists', 'first', 'a list', 'The first item', 1, 1, ([a]) => list(a)[0] ?? null),
-    def('Lists', 'last', 'a list', 'The last item', 1, 1, ([a]) => list(a).at(-1) ?? null),
-    def('Lists', 'at', 'a list, a position', 'The item at a position, from 0', 2, 2, ([a, i]) => list(a)[num(i, 'at()') ?? 0] ?? null),
-    def('Lists', 'join', 'a list, a separator', 'The items as text: join({Tags}, " · ")', 1, 2, ([a, sep]) => list(a).map(text).join(sep === undefined ? ', ' : text(sep))),
-    def('Lists', 'unique', 'a list', 'Without repeats', 1, 1, ([a]) => list(a).filter((x, i, all) => all.findIndex((y) => equal(x, y)) === i)),
-    def('Lists', 'sort', 'a list', 'In order', 1, 1, ([a]) =>
-      [...list(a)].sort((x, y) => (typeof x === 'number' && typeof y === 'number' ? x - y : text(x).localeCompare(text(y), undefined, { numeric: true }))),
-    ),
+    def('lists', 'count', 'list', t('dbAuto.formula.doc.count'), 1, 1, ([a]) => list(a).filter((x) => !isEmpty(x)).length),
+    def('lists', 'first', 'list', t('dbAuto.formula.doc.first'), 1, 1, ([a]) => list(a)[0] ?? null),
+    def('lists', 'last', 'list', t('dbAuto.formula.doc.last'), 1, 1, ([a]) => list(a).at(-1) ?? null),
+    def('lists', 'at', 'at', t('dbAuto.formula.doc.at'), 2, 2, ([a, i]) => list(a)[num(i, 'at()') ?? 0] ?? null),
+    def('lists', 'join', 'join', t('dbAuto.formula.doc.join', { example: 'join({Tags}, " · ")' }), 1, 2, ([a, sep]) => list(a).map(text).join(sep === undefined ? ', ' : text(sep))),
+    def('lists', 'unique', 'list', t('dbAuto.formula.doc.unique'), 1, 1, ([a]) => list(a).filter((x, i, all) => all.findIndex((y) => equal(x, y)) === i)),
+    def('lists', 'sort', 'list', t('dbAuto.formula.doc.sort'), 1, 1, ([a]) => {
+      const order = fmt.collator({ numeric: true });
+      return [...list(a)].sort((x, y) => (typeof x === 'number' && typeof y === 'number' ? x - y : order.compare(text(x), text(y))));
+    }),
   ].map((f) => [f.name.toLowerCase(), f]),
 );
 
@@ -783,7 +892,7 @@ export function evaluate(node: Node, scope: Scope): FValue {
       return node.v;
     case 'prop': {
       const v = scope.prop(node.name);
-      if (v === undefined) throw new FormulaError(`There’s no property called “${node.name}”`, node.at);
+      if (v === undefined) throw new FormulaError(t('dbAuto.formula.error.noProperty', { name: node.name }), node.at);
       return v;
     }
     case 'if':
@@ -791,7 +900,7 @@ export function evaluate(node: Node, scope: Scope): FValue {
     case 'un': {
       const a = evaluate(node.a, scope);
       if (node.op === 'not') return !truthy(a);
-      const n = num(a, 'A minus sign');
+      const n = num(a, 'minus');
       return n === null ? null : node.op === '-' ? -n : n;
     }
     case 'bin': {

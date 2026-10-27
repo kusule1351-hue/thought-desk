@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { t } from '../i18n';
 import { ui } from '../ui.svelte';
 import { renderIcon } from '../page-icon';
 
@@ -46,7 +47,7 @@ export const Callout = Node.create({
       icon.contentEditable = 'false';
       icon.tabIndex = -1;
       renderIcon(icon, node.attrs.icon);
-      icon.dataset.tip = 'Change icon';
+      icon.dataset.tip = t('blocks.callout.changeIcon');
 
       const content = document.createElement('div');
       content.className = 'callout-content';

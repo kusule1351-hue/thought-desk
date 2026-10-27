@@ -1,28 +1,43 @@
 /** The file library: imports, previews, renames and trash for files. */
 
 import { api, fileUrl } from './api';
+import { t, type TextKey } from './i18n';
 import { planner } from './planner.svelte';
 import { store } from './store.svelte';
 import { ui } from './ui.svelte';
 import type { Assignment, FileMeta, PageMeta } from './types';
 
 /** Big enough for lecture recordings, small enough to read into memory. */
-const MAX_BYTES = 250 * 1024 * 1024;
+const MAX_MB = 250;
+const MAX_BYTES = MAX_MB * 1024 * 1024;
 
 export type FileKind = 'image' | 'pdf' | 'doc' | 'sheet' | 'slides' | 'audio' | 'video' | 'archive' | 'code' | 'text' | 'other';
 
-export const KINDS: Record<FileKind, { label: string; icon: string; color: string }> = {
-  image: { label: 'Image', icon: 'image', color: 'var(--c-blue)' },
-  pdf: { label: 'PDF', icon: 'file-text', color: 'var(--c-red)' },
-  doc: { label: 'Document', icon: 'file-text', color: 'var(--c-indigo)' },
-  sheet: { label: 'Spreadsheet', icon: 'sheet', color: 'var(--c-green)' },
-  slides: { label: 'Presentation', icon: 'presentation', color: 'var(--c-orange)' },
-  audio: { label: 'Audio', icon: 'music', color: 'var(--c-pink)' },
-  video: { label: 'Video', icon: 'film', color: 'var(--c-purple)' },
-  archive: { label: 'Archive', icon: 'archive', color: 'var(--c-gray)' },
-  code: { label: 'Code', icon: 'code', color: 'var(--c-teal)' },
-  text: { label: 'Text', icon: 'file-text', color: 'var(--c-gray)' },
-  other: { label: 'File', icon: 'file', color: 'var(--c-gray)' },
+/**
+ * How each kind looks. `label` is in the interface's language; `labelKey` is
+ * its message, for search that should also match the English word
+ * (`searchText(KINDS[kind].labelKey)`).
+ */
+export interface KindInfo {
+  label: string;
+  labelKey: TextKey;
+  icon: string;
+  color: string;
+}
+const kind = (labelKey: KindInfo['labelKey'], icon: string, color: string): KindInfo => ({ label: t(labelKey), labelKey, icon, color });
+
+export const KINDS: Record<FileKind, KindInfo> = {
+  image: kind('library.kinds.image', 'image', 'var(--c-blue)'),
+  pdf: kind('library.kinds.pdf', 'file-text', 'var(--c-red)'),
+  doc: kind('library.kinds.document', 'file-text', 'var(--c-indigo)'),
+  sheet: kind('library.kinds.spreadsheet', 'sheet', 'var(--c-green)'),
+  slides: kind('library.kinds.presentation', 'presentation', 'var(--c-orange)'),
+  audio: kind('library.kinds.audio', 'music', 'var(--c-pink)'),
+  video: kind('library.kinds.video', 'film', 'var(--c-purple)'),
+  archive: kind('library.kinds.archive', 'archive', 'var(--c-gray)'),
+  code: kind('library.kinds.code', 'code', 'var(--c-teal)'),
+  text: kind('library.kinds.text', 'file-text', 'var(--c-gray)'),
+  other: kind('library.kinds.file', 'file', 'var(--c-gray)'),
 };
 
 const EXT_KIND: Record<string, FileKind> = {
@@ -128,11 +143,11 @@ class Library {
     const added: FileMeta[] = [];
     for (const file of files) {
       if (file.size > MAX_BYTES) {
-        ui.toast(`“${file.name}” is larger than 250 MB`);
+        ui.toast(t('library.files.tooLarge', { name: file.name, limit: t('common.units.megabytes', { size: MAX_MB }) }));
         continue;
       }
       try {
-        const meta = await api.saveFile(file, file.name || 'Untitled');
+        const meta = await api.saveFile(file, file.name || t('common.untitled'));
         this.files.push(meta);
         added.push(meta);
       } catch (e) {
@@ -168,9 +183,9 @@ class Library {
     const uses = pages.length + assignments.length;
     if (uses) {
       const ok = await ui.confirm({
-        title: 'Move to Trash?',
-        message: `“${f.name}” is used in ${uses} place${uses === 1 ? '' : 's'}. It keeps working there until you empty the Trash.`,
-        confirmLabel: 'Move to Trash',
+        title: t('library.files.trashTitle'),
+        message: t('library.files.trashInUse', { name: f.name, count: uses }),
+        confirmLabel: t('common.actions.moveToTrash'),
         danger: true,
       });
       if (!ok) return;
@@ -178,7 +193,7 @@ class Library {
     try {
       f.deletedAt = await api.trashItem('files', id);
       if (ui.filePreview === id) ui.filePreview = null;
-      ui.toast(`Moved “${f.name}” to Trash`, { label: 'Undo', run: () => void this.restore(id) });
+      ui.toast(t('library.files.movedToTrash', { name: f.name }), { label: t('common.actions.undo'), run: () => void this.restore(id) });
     } catch (e) {
       ui.error(e);
     }
@@ -228,7 +243,7 @@ class Library {
   async saveCopy(id: string) {
     try {
       const path = await api.exportFile(id);
-      ui.toast(`Saved ${path.split(/[\\/]/).pop()} to Downloads`);
+      ui.toast(t('library.files.savedToDownloads', { name: path.split(/[\\/]/).pop() ?? path }));
     } catch (e) {
       ui.error(e);
     }

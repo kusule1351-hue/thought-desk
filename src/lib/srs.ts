@@ -5,15 +5,17 @@
  */
 
 import { addDays } from './dates';
+import { t } from './i18n';
 import type { Card, CardReview } from './types';
 
 export type Grade = 1 | 2 | 3 | 4;
 
+/** The answers, by grade: `label` is in the interface's language, `key` the key that gives it. */
 export const GRADES: { grade: Grade; label: string; key: string }[] = [
-  { grade: 1, label: 'Again', key: '1' },
-  { grade: 2, label: 'Hard', key: '2' },
-  { grade: 3, label: 'Good', key: '3' },
-  { grade: 4, label: 'Easy', key: '4' },
+  { grade: 1, label: t('library.grades.again'), key: '1' },
+  { grade: 2, label: t('library.grades.hard'), key: '2' },
+  { grade: 3, label: t('library.grades.good'), key: '3' },
+  { grade: 4, label: t('library.grades.easy'), key: '4' },
 ];
 
 const START_EASE = 2.5;
@@ -51,10 +53,9 @@ export const isDue = (c: Card, today: string) => !c.review || c.review.due <= to
 
 /** "Now", "1 day", "3 days", "2 wk", "4 mo", "1.5 yr": shown under each answer. */
 export function gapLabel(days: number): string {
-  if (days <= 0) return 'Now';
-  if (days === 1) return '1 day';
-  if (days < 14) return `${days} days`;
-  if (days < 60) return `${Math.round(days / 7)} wk`;
-  if (days < 365) return `${Math.round(days / 30)} mo`;
-  return `${Math.round((days / 365) * 10) / 10} yr`;
+  if (days <= 0) return t('library.gaps.now');
+  if (days < 14) return t('library.gaps.days', { count: days });
+  if (days < 60) return t('library.gaps.weeks', { count: Math.round(days / 7) });
+  if (days < 365) return t('library.gaps.months', { count: Math.round(days / 30) });
+  return t('library.gaps.years', { count: Math.round((days / 365) * 10) / 10 });
 }

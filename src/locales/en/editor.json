@@ -1,0 +1,391 @@
+{
+  "pageContent": "Page content",
+  "@pageContent": "accessible name of a page's text area, for screen readers",
+  "blockType": {
+    "paragraph": "Text",
+    "@paragraph": "a kind of block: a plain paragraph of text. Shown in the / menu (the menu that inserts blocks) and the “Turn into” menu",
+    "h1": "Heading 1",
+    "@h1": "a kind of block: the biggest heading (in the / menu and the “Turn into” menu)",
+    "h2": "Heading 2",
+    "@h2": "a kind of block: a medium heading (in the / menu and the “Turn into” menu)",
+    "h3": "Heading 3",
+    "@h3": "a kind of block: the smallest heading (in the / menu and the “Turn into” menu)",
+    "bulletList": "Bulleted List",
+    "@bulletList": "a kind of block: a list with a bullet before each item (in the / menu and the “Turn into” menu)",
+    "orderedList": "Numbered List",
+    "@orderedList": "a kind of block: a list with 1, 2, 3 before the items (in the / menu and the “Turn into” menu)",
+    "taskList": "To-do List",
+    "@taskList": "a kind of block: a list of tasks, each with a checkbox",
+    "blockquote": "Quote",
+    "@blockquote": "a kind of block: a quotation set off from the text (a noun, not a verb)",
+    "codeBlock": "Code",
+    "@codeBlock": "a kind of block: a block of program code (a noun)",
+    "callout": "Callout",
+    "@callout": "a kind of block: a tinted box with an icon that makes a note stand out (a noun)"
+  },
+  "slash": {
+    "group": {
+      "basic": "Basic Blocks",
+      "@basic": "heading of a section of the / menu (the menu that inserts blocks): ordinary blocks of text, lists, headings",
+      "media": "Media",
+      "@media": "heading of a section of the / menu: pictures and files",
+      "planner": "Planner",
+      "@planner": "heading of a section of the / menu: assignments and events from the school planner",
+      "pages": "Pages",
+      "@pages": "heading of a section of the / menu: sub-pages, databases and links to pages",
+      "study": "Study",
+      "@study": "heading of a section of the / menu: flashcards to study (a noun)",
+      "inline": "Inline",
+      "@inline": "heading of a section of the / menu: things inserted within a line of text (today's date)"
+    },
+    "empty": "No matching blocks",
+    "@empty": "shown in the / menu when nothing matches what was typed after the /",
+    "text": {
+      "description": "Plain paragraph",
+      "keywords": "paragraph plain",
+      "@keywords": "words that also find “Text” in the / menu, separated by spaces (never shown; the English ones keep working too)"
+    },
+    "h1": {
+      "description": "Big section heading",
+      "glyph": "H1",
+      "@glyph": "short label drawn in the / menu's icon box for Heading 1 (H for heading)",
+      "keywords": "title h1 big",
+      "@keywords": "words that also find “Heading 1” in the / menu, separated by spaces (never shown). Keep h1"
+    },
+    "h2": {
+      "description": "Medium section heading",
+      "glyph": "H2",
+      "@glyph": "short label drawn in the / menu's icon box for Heading 2 (H for heading)",
+      "keywords": "subtitle h2",
+      "@keywords": "words that also find “Heading 2” in the / menu, separated by spaces (never shown). Keep h2"
+    },
+    "h3": {
+      "description": "Small section heading",
+      "glyph": "H3",
+      "@glyph": "short label drawn in the / menu's icon box for Heading 3 (H for heading)",
+      "keywords": "h3",
+      "@keywords": "words that also find “Heading 3” in the / menu, separated by spaces (never shown). Keep h3"
+    },
+    "todo": {
+      "description": "Track tasks with checkboxes",
+      "keywords": "todo task checkbox check checklist",
+      "@keywords": "words that also find “To-do List” in the / menu, separated by spaces (never shown)"
+    },
+    "bullet": {
+      "description": "A simple bulleted list",
+      "keywords": "unordered ul bullets",
+      "@keywords": "words that also find “Bulleted List” in the / menu, separated by spaces (never shown). Keep ul (the HTML name)"
+    },
+    "numbered": {
+      "description": "A list with numbering",
+      "keywords": "ordered ol numbers",
+      "@keywords": "words that also find “Numbered List” in the / menu, separated by spaces (never shown). Keep ol (the HTML name)"
+    },
+    "toggle": {
+      "title": "Toggle",
+      "@title": "a kind of block in the / menu: a line that opens and closes to show or hide what's under it (a noun)",
+      "description": "Hide content inside a toggle",
+      "keywords": "collapse details expand fold",
+      "@keywords": "words that also find “Toggle” in the / menu, separated by spaces (never shown)"
+    },
+    "quote": {
+      "description": "Capture a quotation",
+      "keywords": "blockquote citation",
+      "@keywords": "words that also find “Quote” in the / menu, separated by spaces (never shown)"
+    },
+    "callout": {
+      "description": "Make a note stand out",
+      "keywords": "note info tip warning box",
+      "@keywords": "words that also find “Callout” in the / menu, separated by spaces (never shown)"
+    },
+    "divider": {
+      "title": "Divider",
+      "@title": "a kind of block in the / menu: a horizontal line between sections (a noun)",
+      "description": "Separate sections",
+      "keywords": "hr rule line separator",
+      "@keywords": "words that also find “Divider” in the / menu, separated by spaces (never shown). Keep hr (the HTML name)"
+    },
+    "code": {
+      "description": "A block of code",
+      "keywords": "snippet pre programming",
+      "@keywords": "words that also find “Code” in the / menu, separated by spaces (never shown). Keep pre (the HTML name)"
+    },
+    "math": {
+      "title": "Math Equation",
+      "description": "A formula on its own line, in LaTeX",
+      "keywords": "equation latex tex formula katex block display physics chemistry",
+      "@keywords": "words that also find “Math Equation” in the / menu, separated by spaces (never shown). Keep latex, tex and katex (names)"
+    },
+    "inlineMath": {
+      "title": "Inline Math",
+      "description": "A formula within the sentence",
+      "keywords": "equation latex tex formula katex inline",
+      "@keywords": "words that also find “Inline Math” in the / menu, separated by spaces (never shown). Keep latex, tex and katex (names)"
+    },
+    "table": {
+      "title": "Table",
+      "@title": "a kind of block in the / menu: a simple table of rows and columns (a noun)",
+      "description": "Rows and columns",
+      "keywords": "grid spreadsheet",
+      "@keywords": "words that also find “Table” in the / menu, separated by spaces (never shown)"
+    },
+    "image": {
+      "title": "Image",
+      "@title": "a kind of block in the / menu: a picture from the computer (a noun)",
+      "description": "Upload from your computer",
+      "keywords": "picture photo upload png jpg",
+      "@keywords": "words that also find “Image” in the / menu, separated by spaces (never shown). Keep png and jpg (file types)"
+    },
+    "file": {
+      "title": "File",
+      "@title": "a kind of block in the / menu: a file attached from the file library (a noun)",
+      "description": "Attach a file from your library",
+      "keywords": "attachment upload pdf document library",
+      "@keywords": "words that also find “File” in the / menu, separated by spaces (never shown). Keep pdf (a file type)"
+    },
+    "assignment": {
+      "title": "Assignment",
+      "@title": "an entry in the / menu that adds a school assignment (homework) and links it in the page (a noun)",
+      "description": "Add one and link it here",
+      "keywords": "homework task due deadline todo course",
+      "@keywords": "words that also find “Assignment” in the / menu, separated by spaces (never shown)"
+    },
+    "event": {
+      "title": "Event",
+      "@title": "an entry in the / menu that adds a calendar event and links it in the page (a noun)",
+      "description": "Add to your calendar and link it here",
+      "keywords": "meeting lecture class exam schedule calendar",
+      "@keywords": "words that also find “Event” in the / menu, separated by spaces (never shown)"
+    },
+    "page": {
+      "title": "Page",
+      "@title": "an entry in the / menu that makes a new page inside this one (a noun)",
+      "description": "Embed a sub-page inside this page",
+      "keywords": "subpage new child nested",
+      "@keywords": "words that also find “Page” in the / menu, separated by spaces (never shown)"
+    },
+    "database": {
+      "title": "Database",
+      "@title": "an entry in the / menu that makes a new database (a table, board or tracker) inside the page (a noun)",
+      "description": "A table, board or tracker right here",
+      "keywords": "table board kanban tracker list gallery spreadsheet template notion inline",
+      "@keywords": "words that also find “Database” in the / menu, separated by spaces (never shown). Keep kanban and notion (names)"
+    },
+    "linkedDatabase": {
+      "title": "Linked Database",
+      "description": "Show a database you already have",
+      "keywords": "existing embed view linked table board",
+      "@keywords": "words that also find “Linked Database” in the / menu, separated by spaces (never shown)",
+      "menuHeader": "Show a database",
+      "@menuHeader": "heading of the menu that lists the databases to show in the page, after choosing “Linked Database”",
+      "none": "No databases yet: make one",
+      "@none": "the only entry of that menu when there are no databases yet; choosing it starts a new one"
+    },
+    "link": {
+      "title": "Link",
+      "@title": "an entry in the / menu that links to a page, assignment or file (a noun; it types @, which opens the list of them)",
+      "description": "Mention a page, assignment or file",
+      "keywords": "mention reference wiki",
+      "@keywords": "words that also find “Link” in the / menu, separated by spaces (never shown)"
+    },
+    "flashcard": {
+      "title": "Flashcard",
+      "@title": "a kind of block in the / menu: a card with a term on the front and its answer on the back, to study (a noun)",
+      "description": "A term and its answer, to study later",
+      "keywords": "card study term definition question answer quiz memorize anki vocabulary",
+      "@keywords": "words that also find “Flashcard” in the / menu, separated by spaces (never shown). Keep anki (a name)"
+    },
+    "date": {
+      "title": "Today’s Date",
+      "@title": "an entry in the / menu that types today's date into the page (its description is the date itself)",
+      "keywords": "today now time day",
+      "@keywords": "words that also find “Today’s Date” in the / menu, separated by spaces (never shown)"
+    }
+  },
+  "blockMenu": {
+    "turnInto": "Turn into",
+    "@turnInto": "heading of the part of a block's menu that changes the block into another kind (heading, list, quote…)",
+    "moveUp": "Move Up",
+    "@moveUp": "block menu command: moves the block above the one before it",
+    "moveDown": "Move Down",
+    "@moveDown": "block menu command: moves the block below the one after it"
+  },
+  "blockHandle": {
+    "add": "Add a block below",
+    "@add": "tooltip of the + button beside a block",
+    "drag": "Drag to move",
+    "@drag": "tooltip of the grip (⋮⋮) beside a block: dragging it moves the block",
+    "options": "Click for options",
+    "@options": "second, dimmed part of the same tooltip, after “Drag to move”: clicking the grip opens the block's menu"
+  },
+  "bubble": {
+    "bold": "Bold",
+    "@bold": "tooltip of the button that makes the selected text bold",
+    "italic": "Italic",
+    "@italic": "tooltip of the button that makes the selected text italic",
+    "underline": "Underline",
+    "@underline": "tooltip of the button that underlines the selected text",
+    "strikethrough": "Strikethrough",
+    "@strikethrough": "tooltip of the button that strikes a line through the selected text",
+    "inlineCode": "Inline code",
+    "@inlineCode": "tooltip of the button that marks the selected text as code (in a monospace font)",
+    "math": "Math",
+    "@math": "tooltip of the button that turns the selected text into a math formula",
+    "highlight": "Highlight",
+    "@highlight": "tooltip of the button that highlights the selected text (a background tint, like a highlighter pen)",
+    "color": "Color",
+    "@color": "tooltip and name of the button that opens the text and highlight colors",
+    "link": "Link",
+    "@link": "label and tooltip of the button that adds a link (a web address) to the selected text",
+    "sample": "A",
+    "@sample": "the sample letter drawn in each color swatch, in that color, to show what text in it looks like: one letter of your script",
+    "textColor": {
+      "group": "Text color",
+      "@group": "accessible name of the row of colors for the selected text's letters",
+      "row": "Text",
+      "@row": "small label at the start of that row: the colors for the text itself",
+      "defaultTip": "Default",
+      "@defaultTip": "tooltip of the first swatch in that row: the text's usual color",
+      "default": "Default text color",
+      "@default": "accessible name of the first swatch in that row: removes the text's color",
+      "red": "Red text",
+      "@red": "accessible name of the swatch that makes the selected text red; the others in this group are the same for their colors",
+      "orange": "Orange text",
+      "yellow": "Yellow text",
+      "green": "Green text",
+      "teal": "Teal text",
+      "blue": "Blue text",
+      "indigo": "Indigo text",
+      "purple": "Purple text",
+      "pink": "Pink text",
+      "gray": "Gray text"
+    },
+    "highlightColor": {
+      "group": "Highlight color",
+      "@group": "accessible name of the row of highlight colors (the tint behind the selected text)",
+      "row": "Highlight",
+      "@row": "small label at the start of that row: the colors of the highlight behind the text (a noun)",
+      "noneTip": "None",
+      "@noneTip": "tooltip of the first swatch in that row: no highlight",
+      "none": "No highlight",
+      "@none": "accessible name of the first swatch in that row: removes the highlight",
+      "red": "Red highlight",
+      "@red": "accessible name of the swatch that gives the selected text a red highlight (a red tint behind it); the others in this group are the same for their colors",
+      "orange": "Orange highlight",
+      "yellow": "Yellow highlight",
+      "green": "Green highlight",
+      "teal": "Teal highlight",
+      "blue": "Blue highlight",
+      "indigo": "Indigo highlight",
+      "purple": "Purple highlight",
+      "pink": "Pink highlight",
+      "gray": "Gray highlight"
+    },
+    "linkForm": {
+      "placeholder": "Paste or type a link",
+      "open": "Open in browser",
+      "remove": "Remove link",
+      "apply": "Apply",
+      "@apply": "tooltip of the button that sets the link typed in the field (pressing Enter does the same)"
+    }
+  },
+  "table": {
+    "addRow": "Add row below",
+    "addColumn": "Add column to the right",
+    "deleteRow": "Delete row",
+    "deleteColumn": "Delete column",
+    "toggleHeader": "Toggle header row",
+    "@toggleHeader": "tooltip: turns the table's first row into a header row, or back",
+    "delete": "Delete table"
+  },
+  "placeholder": {
+    "paragraph": "Write something, or type / for commands",
+    "@paragraph": "grey hint in an empty line of a page; keep the / (typing it opens the menu of blocks)",
+    "heading": "Heading {level}",
+    "@heading": "grey hint in an empty heading; {level} is 1, 2 or 3 (1 the biggest)",
+    "toggle": "Toggle",
+    "@toggle": "grey hint in the empty first line of a toggle block (the line that opens and closes it)",
+    "flashcardFront": "Term or question",
+    "@flashcardFront": "grey hint on the empty front of a flashcard",
+    "flashcardBack": "Definition or answer",
+    "@flashcardBack": "grey hint on the empty back of a flashcard",
+    "listItem": "List",
+    "@listItem": "grey hint in an empty item of a bulleted or numbered list (a noun); keep it short"
+  },
+  "remoteImage": {
+    "label": "Picture from {host}",
+    "@label": "in a page shared with a friend, stands in for a picture from the web until Show is clicked; {host} is the website, e.g. example.com"
+  },
+  "starters": {
+    "lecture": {
+      "label": "Lecture notes",
+      "@label": "button on an empty page that fills it with a template for notes taken in a lecture",
+      "hint": "Key ideas, questions and a summary",
+      "@hint": "tooltip of that button",
+      "title": "Lecture notes · {date}",
+      "@title": "written into the new page as its title; {date} is today's date, e.g. Oct 14",
+      "keyIdeas": "Key ideas",
+      "@keyIdeas": "a heading written into the new page",
+      "questions": "Questions to ask",
+      "@questions": "a heading written into the new page",
+      "summary": "Summary",
+      "@summary": "a heading written into the new page",
+      "followUp": "Follow up",
+      "@followUp": "a heading written into the new page, above a to-do",
+      "review": "Review these notes before the next class",
+      "@review": "a to-do written into the new page (it also shows on Home)"
+    },
+    "study": {
+      "label": "Study guide",
+      "@label": "button on an empty page that fills it with a template for studying for a test",
+      "hint": "Topics to cover, key terms as flashcards, practice questions",
+      "@hint": "tooltip of that button",
+      "title": "Study guide",
+      "@title": "written into the new page as its title",
+      "topics": "Topics",
+      "@topics": "a heading written into the new page, above a checklist of topics to cover",
+      "keyTerms": "Key terms",
+      "@keyTerms": "a heading written into the new page, above flashcards",
+      "cardsIntro": "Each card is a term on the front and its meaning on the back. Study them from Flashcards.",
+      "@cardsIntro": "a paragraph written into the new page; “Flashcards” is the name of the Flashcards view in the sidebar: use the same word",
+      "practice": "Practice questions",
+      "@practice": "a heading written into the new page"
+    },
+    "formulas": {
+      "label": "Formula sheet",
+      "@label": "button on an empty page that fills it with a template for math or science formulas",
+      "hint": "Equations to know, what each symbol means, and a worked example",
+      "@hint": "tooltip of that button",
+      "title": "Formula sheet",
+      "@title": "written into the new page as its title",
+      "keyFormulas": "Key formulas",
+      "@keyFormulas": "a heading written into the new page",
+      "where": "where …",
+      "@where": "written into the new page under an empty formula: the start of a sentence explaining its symbols (“where v is the speed”), for the person to finish",
+      "workedExample": "Worked example",
+      "@workedExample": "a heading written into the new page: an example problem solved step by step",
+      "remember": "Remember",
+      "@remember": "a heading written into the new page, above a flashcard (things to remember)"
+    },
+    "cards": {
+      "label": "Flashcards",
+      "@label": "button on an empty page that starts a deck of flashcards in it",
+      "hint": "Type a question, Enter for the answer, Enter again for the next card",
+      "@hint": "tooltip of that button; Enter is the key",
+      "title": "Flashcards",
+      "@title": "written into the new page (a deck of flashcards) as its title"
+    },
+    "checklist": {
+      "label": "Checklist",
+      "@label": "button on an empty page that starts a to-do list in it",
+      "hint": "A list of things to do (they show on Home too)",
+      "@hint": "tooltip of that button; Home is the start screen of the app: use the name it has in the sidebar",
+      "title": "To do",
+      "@title": "written into the new page (a to-do list) as its title"
+    }
+  },
+  "taskCheckbox": "Task item checkbox for {text}",
+  "@taskCheckbox": "accessible name of a to-do's checkbox in a page, read by screen readers; {text} is the to-do's text",
+  "taskCheckboxEmpty": "Task item checkbox for empty task item",
+  "@taskCheckboxEmpty": "accessible name of the checkbox of a to-do that has no text yet, read by screen readers"
+}

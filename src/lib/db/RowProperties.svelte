@@ -12,7 +12,9 @@
   import { databases } from '../databases.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
-  import { EDITABLE, TYPES, typeInfo } from './schema';
+  import { t } from '../i18n';
+  import Rich from '../i18n/Rich.svelte';
+  import { EDITABLE, TYPES, TYPE_GROUPS, TYPE_GROUP_LABELS, typeInfo } from './schema';
   import type { Property, PropertyType } from '../types';
 
   let { rowId }: { rowId: string } = $props();
@@ -43,20 +45,20 @@
     if (el) menuFor = { prop: p, el };
   }
 
-  const groupedTypes = (['Basic', 'Thought Desk', 'Advanced', 'Automatic'] as const).map((g) => ({ g, items: TYPES.filter((t) => t.group === g && t.type !== 'title') }));
+  const groupedTypes = TYPE_GROUPS.map((g) => ({ g, items: TYPES.filter((info) => info.group === g && info.type !== 'title') }));
 </script>
 
 {#if row}
-  <div class="props" aria-label="Properties">
+  <div class="props" aria-label={t('dbEdit.row.properties')}>
     <button class="db-link" onclick={() => store.open(dbId)}>
       <Icon name="database" size={13} />
       <PageIcon icon={store.byId.get(dbId)?.icon} />
-      {store.byId.get(dbId)?.title || 'Untitled database'}
+      {store.byId.get(dbId)?.title || t('common.untitledDatabase')}
     </button>
     {#if row.template}
       <div class="tpl-banner">
         <Icon name="template" size={15} />
-        <span class="grow">This is a <strong>template</strong>. New rows made from it start with these values, this icon and everything written on this page.</span>
+        <span class="grow"><Rich key="dbEdit.row.templateBanner" /></span>
         <button
           class="btn small raised"
           onclick={async () => {
@@ -65,7 +67,7 @@
               store.open(made.id);
               ui.focusTitle = made.id;
             }
-          }}>Use it</button
+          }}>{t('dbEdit.row.useTemplate')}</button
         >
       </div>
     {/if}
@@ -85,7 +87,7 @@
           }}
         >
           {#if empty(p) && p.type !== 'checkbox'}
-            <span class="placeholder">{EDITABLE.has(p.type) ? 'Empty' : '—'}</span>
+            <span class="placeholder">{EDITABLE.has(p.type) ? t('dbEdit.row.empty') : '—'}</span>
           {:else}
             <Value {dbId} {row} prop={p} wrap oncheck={p.type === 'checkbox' ? () => databases.setOne(row, p, !databases.get(row, p)) : undefined} />
           {/if}
@@ -93,11 +95,11 @@
       </div>
     {/each}
     <div class="foot">
-      <button class="add" onclick={(e) => (adding = e.currentTarget as Element)}><Icon name="plus" size={14} /> Add a property</button>
+      <button class="add" onclick={(e) => (adding = e.currentTarget as Element)}><Icon name="plus" size={14} /> {t('dbEdit.row.addProperty')}</button>
       {#if rowProps.some((p) => empty(p) && p.type !== 'checkbox')}
         <button class="add" onclick={() => (showEmpty = !showEmpty)}>
           <Icon name={showEmpty ? 'eye-off' : 'eye'} size={14} />
-          {showEmpty ? 'Hide empty' : `Show ${hiddenCount} empty`}
+          {showEmpty ? t('dbEdit.row.hideEmpty') : t('dbEdit.row.showEmpty', { count: hiddenCount })}
         </button>
       {/if}
     </div>
@@ -114,11 +116,11 @@
     {/key}
   {/if}
   {#if adding}
-    <Popover anchor={adding} width={260} onclose={() => (adding = null)} label="Add a property">
+    <Popover anchor={adding} width={260} onclose={() => (adding = null)} label={t('dbEdit.row.addProperty')}>
       {#each groupedTypes as group (group.g)}
-        <div class="pop-head">{group.g}</div>
-        {#each group.items as t (t.type)}
-          <button class="pop-item" onclick={() => add(t.type)}><Icon name={t.icon} size={15} /><span class="grow">{t.label}</span></button>
+        <div class="pop-head">{TYPE_GROUP_LABELS[group.g]}</div>
+        {#each group.items as info (info.type)}
+          <button class="pop-item" onclick={() => add(info.type)}><Icon name={info.icon} size={15} /><span class="grow">{info.label}</span></button>
         {/each}
       {/each}
     </Popover>

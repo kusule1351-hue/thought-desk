@@ -3,6 +3,7 @@
   import PageIcon from './PageIcon.svelte';
   import { shortcuts } from '../shortcuts.svelte';
   import { tabs } from '../tabs.svelte';
+  import { t } from '../i18n';
 
   let strip: HTMLDivElement;
 
@@ -24,7 +25,7 @@
 <!-- The title bar's tabs (when there are two or more), then New Tab. The
      empty space after them drags the window. -->
 <div class="strip" data-tauri-drag-region>
-<div class="tabs" role="tablist" aria-label="Tabs" style:--n={tabs.list.length} bind:this={strip} onwheel={onWheel}>
+<div class="tabs" role="tablist" aria-label={t('shell.tabs.label')} style:--n={tabs.list.length} bind:this={strip} onwheel={onWheel}>
   {#each tabs.list as tab (tab.id)}
     {@const label = tabs.label(tabs.placeOf(tab))}
     {@const active = tab.id === tabs.activeId}
@@ -48,12 +49,12 @@
         {#if label.pageIcon}<PageIcon icon={label.pageIcon} />{:else}<Icon name={label.icon} size={14} />{/if}
       </span>
       <span class="tab-title">{label.title}</span>
-      {#if tab.live}<span class="tab-live" aria-label="Live session"></span>{/if}
+      {#if tab.live}<span class="tab-live" aria-label={t('shell.tabs.liveSession')}></span>{/if}
       <button
         class="tab-close"
         tabindex="-1"
-        aria-label="Close tab"
-        data-tip="Close tab"
+        aria-label={t('shell.tabs.close')}
+        data-tip={t('shell.tabs.close')}
         data-tip-key={shortcuts.label('closeTab')}
         onclick={(e) => {
           e.stopPropagation();
@@ -65,7 +66,7 @@
     </div>
   {/each}
 </div>
-<button class="icon-btn new-tab" onclick={() => tabs.newTab()} aria-label="New tab" data-tip="New tab" data-tip-key={shortcuts.label('newTab')}>
+<button class="icon-btn new-tab" onclick={() => tabs.newTab()} aria-label={t('shell.newTab')} data-tip={t('shell.newTab')} data-tip-key={shortcuts.label('newTab')}>
   <Icon name="plus" size={15} />
 </button>
 </div>

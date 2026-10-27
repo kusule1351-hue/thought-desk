@@ -3,45 +3,63 @@
   import { planner } from '../planner.svelte';
   import { store } from '../store.svelte';
   import { option } from './schema';
-  import type { ActionValue, DbAction } from '../types';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
+  import type { ActionValue, DbAction, Property } from '../types';
 
-  /** An action in words: "set Status to Done", "add a row to Reading list". */
+  /**
+   * An action in words, for an automation's sentence ("When …, set Status
+   * to Done, then add a row to Reading list"): one whole message for each
+   * kind of action and value.
+   */
   export function describeAction(dbId: string, a: DbAction): string {
     switch (a.type) {
       case 'set': {
         const p = databases.prop(dbId, a.prop);
-        if (!p) return 'set a property';
-        return `set ${p.name} to ${describeValue(dbId, a.prop, a.value)}`;
+        if (!p) return t('dbAuto.actions.describe.setProperty');
+        return describeSet(p, a.value);
       }
-      case 'add':
-        return `add a row to ${a.db === dbId ? 'this database' : store.byId.get(a.db)?.title || 'a database'}`;
+      case 'add': {
+        if (a.db === dbId) return t('dbAuto.actions.describe.addRowHere');
+        const title = store.byId.get(a.db)?.title;
+        return title ? t('dbAuto.actions.describe.addRowTo', { database: title }) : t('dbAuto.actions.describe.addRowSomewhere');
+      }
       case 'open':
-        return 'open the page';
+        return t('dbAuto.actions.describe.openPage');
       case 'url':
-        return a.url ? `open ${a.url}` : 'open a link';
+        return a.url ? t('dbAuto.actions.describe.openUrl', { url: a.url }) : t('dbAuto.actions.describe.openLink');
     }
   }
 
-  export function describeValue(dbId: string, propId: string, v: ActionValue): string {
-    const p = databases.prop(dbId, propId);
+  /** A "set" action in words: "set Status to Done". */
+  function describeSet(p: Property, v: ActionValue): string {
+    const property = p.name;
     switch (v.mode) {
       case 'clear':
-        return p?.type === 'checkbox' ? 'unchecked' : 'empty';
+        return p.type === 'checkbox' ? t('dbAuto.actions.describe.setUnchecked', { property }) : t('dbAuto.actions.describe.setEmpty', { property });
       case 'today':
-        return v.days ? (v.days === 1 ? 'tomorrow' : `today + ${v.days} days`) : 'today';
+        if (!v.days) return t('dbAuto.actions.describe.setToday', { property });
+        if (v.days === 1) return t('dbAuto.actions.describe.setTomorrow', { property });
+        return t('dbAuto.actions.describe.setDaysFromToday', { property, count: v.days });
       case 'now':
-        return 'now';
+        return t('dbAuto.actions.describe.setNow', { property });
       case 'toggle':
-        return 'the opposite';
-      case 'add':
-        return v.by < 0 ? `itself − ${-v.by}` : `itself + ${v.by}`;
+        return t('dbAuto.actions.describe.setOpposite', { property });
+      case 'add': {
+        // Every decimal the amount has, as it was typed (a plain number parameter would keep three).
+        const amount = fmt.number(Math.abs(v.by), { maximumFractionDigits: 20 });
+        return v.by < 0 ? t('dbAuto.actions.describe.setMinus', { property, amount }) : t('dbAuto.actions.describe.setPlus', { property, amount });
+      }
       case 'value': {
         const x = v.value;
-        if (p?.type === 'checkbox') return x ? 'checked' : 'unchecked';
-        if (p && (p.type === 'select' || p.type === 'status')) return option(p, x)?.name ?? '?';
-        if (p?.type === 'multiSelect') return (Array.isArray(x) ? x : []).map((id) => option(p, id)?.name ?? '?').join(', ');
-        if (p?.type === 'course') return planner.courseById.get(String(x))?.name ?? '?';
-        return `“${String(x ?? '')}”`;
+        if (p.type === 'checkbox') return x ? t('dbAuto.actions.describe.setChecked', { property }) : t('dbAuto.actions.describe.setUnchecked', { property });
+        const missing = t('dbAuto.missingOption');
+        if (p.type === 'select' || p.type === 'status') return t('dbAuto.actions.describe.setTo', { property, value: option(p, x)?.name ?? missing });
+        // Several choices, listed the locale's short way ("A, B" in English, as before).
+        if (p.type === 'multiSelect')
+          return t('dbAuto.actions.describe.setTo', { property, value: fmt.list((Array.isArray(x) ? x : []).map((id) => option(p, id)?.name ?? missing), 'conjunction', 'narrow') });
+        if (p.type === 'course') return t('dbAuto.actions.describe.setTo', { property, value: planner.courseById.get(String(x))?.name ?? missing });
+        return t('dbAuto.actions.describe.setText', { property, text: String(x ?? '') });
       }
     }
   }
@@ -53,8 +71,8 @@
    * property, add a row somewhere, open the page, open a link.
    */
   import Icon from '../components/Icon.svelte';
+  import Rich from '../i18n/Rich.svelte';
   import { options } from './schema';
-  import type { Property } from '../types';
 
   let {
     dbId,
@@ -140,6 +158,9 @@
   const linksIn = (db: string) => databases.props(db).filter((p) => p.type === 'relation' && p.config.database === dbId);
 </script>
 
+<!-- A word between a line's menus ("to", "in"), drawn quieter than they are. -->
+{#snippet muted(text: string)}<span class="to">{text}</span>{/snippet}
+
 <div class="actions">
   {#each actions as a, i (i)}
     <div class="action">
@@ -148,58 +169,67 @@
           class="pop-input small kind"
           value={a.type}
           onchange={(e) => update(i, newAction((e.currentTarget as HTMLSelectElement).value as DbAction['type']))}
-          aria-label="Action"
+          aria-label={t('dbAuto.actions.action')}
         >
-          <option value="set">Set a property</option>
-          <option value="add">Add a row</option>
-          {#if button || a.type === 'open'}<option value="open">Open the page</option>{/if}
-          {#if button || a.type === 'url'}<option value="url">Open a link</option>{/if}
+          <option value="set">{t('dbAuto.actions.type.set')}</option>
+          <option value="add">{t('dbAuto.actions.type.add')}</option>
+          {#if button || a.type === 'open'}<option value="open">{t('dbAuto.actions.type.open')}</option>{/if}
+          {#if button || a.type === 'url'}<option value="url">{t('dbAuto.actions.type.url')}</option>{/if}
         </select>
-        <button class="icon-btn" onclick={() => onchange(actions.filter((_, j) => j !== i))} aria-label="Remove action" data-tip="Remove"><Icon name="x" size={13} /></button>
+        <button class="icon-btn" onclick={() => onchange(actions.filter((_, j) => j !== i))} aria-label={t('dbAuto.actions.remove')} data-tip={t('common.actions.remove')}
+          ><Icon name="x" size={13} /></button
+        >
       </div>
 
       {#if a.type === 'set'}
         {@const p = databases.prop(dbId, a.prop)}
         <div class="line">
-          <select
-            class="pop-input small"
-            value={a.prop}
-            onchange={(e) => {
-              const id = (e.currentTarget as HTMLSelectElement).value;
-              update(i, { type: 'set', prop: id, value: firstValue(databases.prop(dbId, id)) });
-            }}
-            aria-label="Property"
-          >
-            {#each settable as q (q.id)}<option value={q.id}>{q.name}</option>{/each}
-          </select>
-          {#if p}
-            <span class="to">to</span>
-            <select class="pop-input small" value={valueKey(p, a.value)} onchange={(e) => update(i, { ...a, value: fromKey(p, (e.currentTarget as HTMLSelectElement).value, a.value) })} aria-label="Value">
-              {#if p.type === 'checkbox'}
-                <option value="on">Checked</option>
-                <option value="off">Unchecked</option>
-                <option value="toggle">The opposite</option>
-              {:else if p.type === 'date'}
-                <option value="today:0">Today</option>
-                <option value="today:1">Tomorrow</option>
-                <option value="today:7">In a week</option>
-                <option value="now">Now (with the time)</option>
-                <option value="clear">Empty</option>
-              {:else if p.type === 'select' || p.type === 'status' || p.type === 'multiSelect'}
-                {#each options(p) as o (o.id)}<option value="o:{o.id}">{o.name}</option>{/each}
-                <option value="clear">Empty</option>
-              {:else if p.type === 'course'}
-                {#each planner.courses as course (course.id)}<option value="o:{course.id}">{course.name || 'Untitled'}</option>{/each}
-                <option value="clear">Empty</option>
-              {:else if p.type === 'number'}
-                <option value="add">Itself plus…</option>
-                <option value="set">A number…</option>
-                <option value="clear">Empty</option>
-              {:else}
-                <option value="set">Text…</option>
-                <option value="clear">Empty</option>
-              {/if}
+          {#snippet propertyMenu()}
+            <select
+              class="pop-input small"
+              value={a.prop}
+              onchange={(e) => {
+                const id = (e.currentTarget as HTMLSelectElement).value;
+                update(i, { type: 'set', prop: id, value: firstValue(databases.prop(dbId, id)) });
+              }}
+              aria-label={t('dbAuto.actions.property')}
+            >
+              {#each settable as q (q.id)}<option value={q.id}>{q.name}</option>{/each}
             </select>
+          {/snippet}
+          {#if p}
+            <Rich key="dbAuto.actions.setLine" property={propertyMenu} to={muted}>
+              {#snippet value()}
+                <select class="pop-input small" value={valueKey(p, a.value)} onchange={(e) => update(i, { ...a, value: fromKey(p, (e.currentTarget as HTMLSelectElement).value, a.value) })} aria-label={t('dbAuto.actions.value')}>
+                  {#if p.type === 'checkbox'}
+                    <option value="on">{t('dbAuto.actions.checked')}</option>
+                    <option value="off">{t('dbAuto.actions.unchecked')}</option>
+                    <option value="toggle">{t('dbAuto.actions.opposite')}</option>
+                  {:else if p.type === 'date'}
+                    <option value="today:0">{t('common.today')}</option>
+                    <option value="today:1">{t('common.tomorrow')}</option>
+                    <option value="today:7">{t('dbAuto.actions.inAWeek')}</option>
+                    <option value="now">{t('dbAuto.actions.nowWithTime')}</option>
+                    <option value="clear">{t('dbAuto.actions.empty')}</option>
+                  {:else if p.type === 'select' || p.type === 'status' || p.type === 'multiSelect'}
+                    {#each options(p) as o (o.id)}<option value="o:{o.id}">{o.name}</option>{/each}
+                    <option value="clear">{t('dbAuto.actions.empty')}</option>
+                  {:else if p.type === 'course'}
+                    {#each planner.courses as course (course.id)}<option value="o:{course.id}">{course.name || t('common.untitled')}</option>{/each}
+                    <option value="clear">{t('dbAuto.actions.empty')}</option>
+                  {:else if p.type === 'number'}
+                    <option value="add">{t('dbAuto.actions.itselfPlus')}</option>
+                    <option value="set">{t('dbAuto.actions.aNumber')}</option>
+                    <option value="clear">{t('dbAuto.actions.empty')}</option>
+                  {:else}
+                    <option value="set">{t('dbAuto.actions.textValue')}</option>
+                    <option value="clear">{t('dbAuto.actions.empty')}</option>
+                  {/if}
+                </select>
+              {/snippet}
+            </Rich>
+          {:else}
+            {@render propertyMenu()}
           {/if}
         </div>
         {#if p && p.type === 'number' && (a.value.mode === 'add' || a.value.mode === 'value')}
@@ -211,43 +241,61 @@
               const n = Number((e.currentTarget as HTMLInputElement).value) || 0;
               update(i, { ...a, value: a.value.mode === 'add' ? { mode: 'add', by: n } : { mode: 'value', value: n } });
             }}
-            aria-label="Number"
+            aria-label={t('dbAuto.actions.number')}
           />
         {:else if p && !['checkbox', 'date', 'select', 'status', 'multiSelect', 'course', 'number'].includes(p.type) && a.value.mode === 'value'}
           <input
             class="pop-input small"
             value={String(a.value.value ?? '')}
-            placeholder="Text (use {'{'}Name{'}'} for this row's values)"
+            placeholder={t('dbAuto.actions.textPlaceholder', { example: '{Name}' })}
             oninput={(e) => update(i, { ...a, value: { mode: 'value', value: (e.currentTarget as HTMLInputElement).value } })}
-            aria-label="Text"
+            aria-label={t('dbAuto.actions.text')}
           />
         {/if}
       {:else if a.type === 'add'}
         <div class="line">
-          <span class="to">in</span>
-          <select class="pop-input small" value={a.db} onchange={(e) => update(i, { ...a, db: (e.currentTarget as HTMLSelectElement).value, link: null })} aria-label="Database">
-            {#each otherDbs as d (d.id)}<option value={d.id}>{d.id === dbId ? `${d.title || 'Untitled'} (this one)` : d.title || 'Untitled'}</option>{/each}
-          </select>
+          <Rich key="dbAuto.actions.addIn" to={muted}>
+            {#snippet database()}
+              <select class="pop-input small" value={a.db} onchange={(e) => update(i, { ...a, db: (e.currentTarget as HTMLSelectElement).value, link: null })} aria-label={t('dbAuto.actions.database')}>
+                {#each otherDbs as d (d.id)}<option value={d.id}>{d.id === dbId ? t('dbAuto.actions.thisDatabase', { title: d.title || t('common.untitled') }) : d.title || t('common.untitled')}</option>{/each}
+              </select>
+            {/snippet}
+          </Rich>
         </div>
-        <input class="pop-input small" value={a.title ?? ''} placeholder="Its title, e.g. Review of {'{'}Name{'}'}" oninput={(e) => update(i, { ...a, title: (e.currentTarget as HTMLInputElement).value })} aria-label="Title" />
+        <input
+          class="pop-input small"
+          value={a.title ?? ''}
+          placeholder={t('dbAuto.actions.titlePlaceholder', { name: '{Name}' })}
+          oninput={(e) => update(i, { ...a, title: (e.currentTarget as HTMLInputElement).value })}
+          aria-label={t('dbAuto.actions.title')}
+        />
         {#if linksIn(a.db).length}
           <div class="line">
-            <span class="to">link</span>
-            <select class="pop-input small" value={a.link ?? ''} onchange={(e) => update(i, { ...a, link: (e.currentTarget as HTMLSelectElement).value || null })} aria-label="Link back">
-              <option value="">Don’t link it</option>
-              {#each linksIn(a.db) as q (q.id)}<option value={q.id}>{q.config.parent ? 'As a sub-item of this row' : `To this row, through ${q.name}`}</option>{/each}
-            </select>
+            <Rich key="dbAuto.actions.linkLine" to={muted}>
+              {#snippet how()}
+                <select class="pop-input small" value={a.link ?? ''} onchange={(e) => update(i, { ...a, link: (e.currentTarget as HTMLSelectElement).value || null })} aria-label={t('dbAuto.actions.linkBack')}>
+                  <option value="">{t('dbAuto.actions.dontLink')}</option>
+                  {#each linksIn(a.db) as q (q.id)}<option value={q.id}>{q.config.parent ? t('dbAuto.actions.asSubItem') : t('dbAuto.actions.throughRelation', { relation: q.name })}</option>{/each}
+                </select>
+              {/snippet}
+            </Rich>
           </div>
         {/if}
         {#if button}
-          <label class="check"><input type="checkbox" checked={!!a.open} onchange={(e) => update(i, { ...a, open: (e.currentTarget as HTMLInputElement).checked })} /> Open it</label>
+          <label class="check"><input type="checkbox" checked={!!a.open} onchange={(e) => update(i, { ...a, open: (e.currentTarget as HTMLInputElement).checked })} /> {t('dbAuto.actions.openIt')}</label>
         {/if}
       {:else if a.type === 'url'}
-        <input class="pop-input small" value={a.url} placeholder="https://… (use {'{'}URL{'}'} for a property)" oninput={(e) => update(i, { ...a, url: (e.currentTarget as HTMLInputElement).value })} aria-label="Link" />
+        <input
+          class="pop-input small"
+          value={a.url}
+          placeholder={t('dbAuto.actions.urlPlaceholder', { example: '{URL}' })}
+          oninput={(e) => update(i, { ...a, url: (e.currentTarget as HTMLInputElement).value })}
+          aria-label={t('dbAuto.actions.link')}
+        />
       {/if}
     </div>
   {/each}
-  <button class="pop-item add" onclick={() => onchange([...actions, newAction('set')])}><Icon name="plus" size={14} /><span class="grow">Add an action</span></button>
+  <button class="pop-item add" onclick={() => onchange([...actions, newAction('set')])}><Icon name="plus" size={14} /><span class="grow">{t('dbAuto.actions.add')}</span></button>
 </div>
 
 <style>

@@ -11,6 +11,7 @@
   import { drag, endDrag } from './TreeItem.svelte';
   import { split } from '../split.svelte';
   import { store } from '../store.svelte';
+  import { t } from '../i18n';
 
   let { tiled, narrow }: { tiled: boolean; narrow: boolean } = $props();
 
@@ -23,11 +24,11 @@
   const label = $derived(
     target === 'main'
       ? drag.from === 'side'
-        ? 'Move here'
-        : 'Open here'
+        ? t('shell.splitDrop.moveHere')
+        : t('shell.splitDrop.openHere')
       : drag.from === 'main' || (drag.id === store.currentId && store.view === 'page')
-        ? 'Move to the side'
-        : 'Open beside',
+        ? t('shell.splitDrop.moveToSide')
+        : t('shell.splitDrop.openBeside'),
   );
 
   /** Where the pointer is, which side that means, and the outline of where the page would go. */
@@ -89,7 +90,7 @@
     class="layer"
     bind:this={layer}
     role="region"
-    aria-label="Drop to open {page.title || 'Untitled'}"
+    aria-label={t('shell.splitDrop.label', { title: page.title || t('common.untitled') })}
     {ondragover}
     ondragleave={(e) => {
       if (layer?.contains(e.relatedTarget as Node)) return;
@@ -109,7 +110,7 @@
       <div class="pill">
         <Icon name={target === 'side' ? 'split' : 'page'} size={14} />
         <span class="verb">{label}</span>
-        <span class="name">{page.title || 'Untitled'}</span>
+        <span class="name">{page.title || t('common.untitled')}</span>
       </div>
     </div>
   </div>

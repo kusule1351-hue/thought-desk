@@ -12,11 +12,12 @@
   import { colorVar, nextColor } from '../colors';
   import { addDays, dueState, formatDue, startOfWeek } from '../dates';
   import { openNotesPage } from '../item-actions';
-  import { courseCategories, formatPercent, letterGrade, scorePercent } from '../grades';
+  import { courseCategories, formatPercent, formatWeight, letterGrade, scorePercent } from '../grades';
+  import { t } from '../i18n';
   import { library } from '../library.svelte';
   import { planner } from '../planner.svelte';
   import { store } from '../store.svelte';
-  import { relativeTime, formatBytes } from '../time';
+  import { relativeWhen, formatBytes } from '../time';
   import { ui, type SheetState } from '../ui.svelte';
   import type { AssignmentPatch, AssignmentStatus, FileMeta } from '../types';
 
@@ -58,19 +59,24 @@
     ui.openMenuAt(
       e.currentTarget as Element,
       [
-        { label: 'No Category', icon: 'x', checked: !current, action: () => set({ category: '' }) },
+        { label: t('sheets.assignment.noCategoryItem'), icon: 'x', checked: !current, action: () => set({ category: '' }) },
         ...courseCategories(course, planner.assignments).map((name) => ({
           label: name,
-          hint: name in weights ? `${weights[name]}%` : undefined,
+          hint: name in weights ? formatWeight(weights[name]) : undefined,
           checked: current === name,
           action: () => set({ category: name }),
         })),
         { separator: true },
         {
-          label: 'New Category…',
+          label: t('sheets.assignment.newCategory'),
           icon: 'plus',
           action: async () => {
-            const res = await ui.prompt({ title: 'New Category', placeholder: 'Homework, Exams, Labs…', confirmLabel: 'Add', icon: 'assignment' });
+            const res = await ui.prompt({
+              title: t('sheets.assignment.newCategoryTitle'),
+              placeholder: t('sheets.categoryPlaceholder'),
+              confirmLabel: t('common.actions.add'),
+              icon: 'assignment',
+            });
             if (res) set({ category: res.value.trim() });
           },
         },
@@ -116,23 +122,23 @@
     ui.openMenuAt(
       e.currentTarget as Element,
       [
-        { label: 'No Course', icon: 'x', checked: !form.courseId, action: () => set({ courseId: null }) },
+        { label: t('sheets.coursePicker.noCourse'), icon: 'x', checked: !form.courseId, action: () => set({ courseId: null }) },
         ...(planner.courses.length ? [{ separator: true } as const] : []),
         ...planner.courses.map((c) => ({
-          label: c.name || 'Untitled',
+          label: c.name || t('common.untitled'),
           dot: colorVar(c.color),
           checked: form.courseId === c.id,
           action: () => set({ courseId: c.id }),
         })),
         { separator: true },
         {
-          label: 'New Course…',
+          label: t('sheets.coursePicker.newCourse'),
           icon: 'plus',
           action: async () => {
             const res = await ui.prompt({
-              title: 'New Course',
-              placeholder: 'Course name',
-              confirmLabel: 'Add Course',
+              title: t('sheets.coursePicker.newCourseTitle'),
+              placeholder: t('sheets.coursePicker.namePlaceholder'),
+              confirmLabel: t('sheets.coursePicker.addCourse'),
               icon: 'book',
               color: nextColor(planner.courses.map((c) => c.color)),
             });
@@ -147,10 +153,18 @@
   }
 
   const quickDates = $derived([
-    { label: 'Today', date: clock.today },
-    { label: 'Tomorrow', date: addDays(clock.today, 1) },
-    { label: 'Next Week', date: addDays(startOfWeek(clock.today, 1), 7) },
+    { label: t('common.today'), date: clock.today },
+    { label: t('common.tomorrow'), date: addDays(clock.today, 1) },
+    { label: t('sheets.assignment.nextWeek'), date: addDays(startOfWeek(clock.today, 1), 7) },
   ]);
+
+  /** "Created just now", "Created 3 days ago", "Created Oct 20, 2025". */
+  function createdText(ms: number): string {
+    const when = relativeWhen(ms);
+    if (when.kind === 'now') return t('sheets.created.now');
+    if (when.kind === 'relative') return t('sheets.created.relative', { when: when.text });
+    return t('sheets.created.date', { date: when.text });
+  }
 
   function attach(list: FileMeta[]) {
     const ids = [...form.fileIds];
@@ -194,7 +208,7 @@
   }
 </script>
 
-<Modal onclose={close} label={existing ? 'Assignment' : 'New Assignment'}>
+<Modal onclose={close} label={existing ? t('sheets.assignment.label') : t('sheets.assignment.newLabel')}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="sheet" class:dropping ondragover={onDragOver} ondragleave={(e) => e.currentTarget === e.target && (dropping = false)} ondrop={onDrop}>
     <header class="modal-head">
@@ -202,7 +216,7 @@
         done={form.status === 'done'}
         color={planner.courseColor(form.courseId)}
         size={20}
-        label={form.status === 'done' ? 'Mark as not done' : 'Mark as done'}
+        label={form.status === 'done' ? t('sheets.assignment.markNotDone') : t('sheets.assignment.markDone')}
         ontoggle={() => set({ status: form.status === 'done' ? 'todo' : 'done' })}
       />
       <input
@@ -210,7 +224,7 @@
         class:done={form.status === 'done'}
         bind:this={titleEl}
         value={form.title}
-        placeholder={existing ? 'Untitled' : 'New assignment'}
+        placeholder={existing ? t('common.untitled') : t('sheets.assignment.titlePlaceholder')}
         spellcheck="false"
         oninput={(e) => set({ title: e.currentTarget.value }, { typing: true })}
         onkeydown={(e) => {
@@ -221,22 +235,22 @@
           }
         }}
       />
-      <button class="icon-btn" onclick={close} aria-label="Close"><Icon name="x" /></button>
+      <button class="icon-btn" onclick={close} aria-label={t('common.actions.close')}><Icon name="x" /></button>
     </header>
 
     <div class="modal-body">
       <div class="group">
         <div class="group-row">
-          <div class="row-label">Course</div>
+          <div class="row-label">{t('common.course')}</div>
           <button class="btn small raised picker" onclick={courseMenu}>
-            {#if course}<span class="dot" style:--dot={colorVar(course.color)}></span>{course.name || 'Untitled'}{:else}<span class="muted">None</span>{/if}
+            {#if course}<span class="dot" style:--dot={colorVar(course.color)}></span>{course.name || t('common.untitled')}{:else}<span class="muted">{t('sheets.coursePicker.none')}</span>{/if}
             <Icon name="chevron-down" size={12} stroke={2.2} />
           </button>
         </div>
         <div class="group-row due-row">
           <div class="row-label">
-            Due
-            <small class="due-state {urgency}">{form.dueDate ? formatDue(form.dueDate, form.dueTime, clock.today) : 'No due date'}</small>
+            {t('sheets.assignment.due')}
+            <small class="due-state {urgency}">{form.dueDate ? formatDue(form.dueDate, form.dueTime, clock.today) : t('sheets.assignment.noDueDate')}</small>
           </div>
           <div class="due">
             <div class="due-fields">
@@ -244,53 +258,53 @@
                 <input
                   type="date"
                   value={form.dueDate ?? ''}
-                  aria-label="Due date"
+                  aria-label={t('sheets.assignment.dueDate')}
                   onchange={(e) => set({ dueDate: e.currentTarget.value || null })}
                 />
               </label>
               {#if form.dueDate}
                 {#if form.dueTime !== null}
                   <label class="field time">
-                    <input type="time" value={form.dueTime} aria-label="Due time" onchange={(e) => set({ dueTime: e.currentTarget.value || null })} />
+                    <input type="time" value={form.dueTime} aria-label={t('sheets.assignment.dueTime')} onchange={(e) => set({ dueTime: e.currentTarget.value || null })} />
                   </label>
-                  <button class="icon-btn" onclick={() => set({ dueTime: null })} data-tip="Remove time"><Icon name="x" size={14} /></button>
+                  <button class="icon-btn" onclick={() => set({ dueTime: null })} data-tip={t('sheets.assignment.removeTime')}><Icon name="x" size={14} /></button>
                 {:else}
-                  <button class="btn small raised" onclick={() => set({ dueTime: '23:59' })}><Icon name="clock" size={13} stroke={2} /> Add Time</button>
+                  <button class="btn small raised" onclick={() => set({ dueTime: '23:59' })}><Icon name="clock" size={13} stroke={2} /> {t('sheets.assignment.addTime')}</button>
                 {/if}
               {/if}
             </div>
             <div class="quick">
-              {#each quickDates as q (q.label)}
+              {#each quickDates as q, i (i)}
                 <button class="chip" class:on={form.dueDate === q.date} onclick={() => set({ dueDate: q.date })}>{q.label}</button>
               {/each}
-              {#if form.dueDate}<button class="chip" onclick={() => set({ dueDate: null })}>None</button>{/if}
+              {#if form.dueDate}<button class="chip" onclick={() => set({ dueDate: null })}>{t('sheets.assignment.noDue')}</button>{/if}
             </div>
           </div>
         </div>
         <div class="group-row">
-          <div class="row-label">Status</div>
+          <div class="row-label">{t('sheets.assignment.status')}</div>
           <Segmented
-            label="Status"
+            label={t('sheets.assignment.status')}
             value={form.status}
             onchange={(v) => set({ status: v })}
             options={[
-              { value: 'todo', label: 'To Do' },
-              { value: 'doing', label: 'In Progress' },
-              { value: 'done', label: 'Done' },
+              { value: 'todo', label: t('sheets.assignment.statusTodo') },
+              { value: 'doing', label: t('sheets.assignment.statusDoing') },
+              { value: 'done', label: t('sheets.assignment.statusDone') },
             ]}
           />
         </div>
         <div class="group-row">
-          <div class="row-label">Priority</div>
+          <div class="row-label">{t('sheets.assignment.priority')}</div>
           <Segmented
-            label="Priority"
+            label={t('sheets.assignment.priority')}
             value={form.priority}
             onchange={(v) => set({ priority: v })}
             options={[
-              { value: 0, label: 'None' },
-              { value: 1, label: 'Low' },
-              { value: 2, label: 'Medium' },
-              { value: 3, label: 'High' },
+              { value: 0, label: t('sheets.assignment.priorityNone') },
+              { value: 1, label: t('sheets.assignment.priorityLow') },
+              { value: 2, label: t('sheets.assignment.priorityMedium') },
+              { value: 3, label: t('sheets.assignment.priorityHigh') },
             ]}
           />
         </div>
@@ -299,19 +313,19 @@
       {#if existing}
         <div class="group tags-group">
         <div class="group-row tags-row">
-          <div class="row-label">Tags</div>
+          <div class="row-label">{t('common.tags')}</div>
           <TagRow table="assignments" id={existing.id} compact />
         </div>
         </div>
       {/if}
 
       {#if existing}
-        <h3 class="group-title">Grade</h3>
+        <h3 class="group-title">{t('sheets.assignment.grade')}</h3>
         <div class="group">
           <div class="group-row">
             <div class="row-label">
-              Score
-              <small>{percent !== null ? `${formatPercent(percent)} · ${letterGrade(percent)}` : 'Points earned out of points possible'}</small>
+              {t('sheets.assignment.score')}
+              <small>{percent !== null ? `${formatPercent(percent)} · ${letterGrade(percent)}` : t('sheets.assignment.scoreHint')}</small>
             </div>
             <div class="score">
               <label class="field num">
@@ -322,7 +336,7 @@
                   step="any"
                   value={existing.score ?? ''}
                   placeholder="—"
-                  aria-label="Points earned"
+                  aria-label={t('sheets.assignment.pointsEarned')}
                   oninput={(e) => set({ score: points(e.currentTarget.value) }, { typing: true })}
                 />
               </label>
@@ -335,7 +349,7 @@
                   step="any"
                   value={existing.maxScore ?? ''}
                   placeholder="—"
-                  aria-label="Points possible"
+                  aria-label={t('sheets.assignment.pointsPossible')}
                   oninput={(e) => set({ maxScore: points(e.currentTarget.value) }, { typing: true })}
                 />
               </label>
@@ -343,50 +357,50 @@
           </div>
           <div class="group-row">
             <div class="row-label">
-              Category
-              {#if course && Object.keys(course.weights).length}<small>Weighted in {course.name || 'the course'}’s grade</small>{/if}
+              {t('sheets.assignment.category')}
+              {#if course && Object.keys(course.weights).length}<small>{course.name ? t('sheets.assignment.weightedIn', { course: course.name }) : t('sheets.assignment.weightedInCourse')}</small>{/if}
             </div>
             <button class="btn small raised picker" onclick={categoryMenu}>
-              {#if existing.category}{existing.category}{:else}<span class="muted">None</span>{/if}
+              {#if existing.category}{existing.category}{:else}<span class="muted">{t('sheets.assignment.noCategory')}</span>{/if}
               <Icon name="chevron-down" size={12} stroke={2.2} />
             </button>
           </div>
         </div>
       {/if}
 
-      <h3 class="group-title">Notes</h3>
+      <h3 class="group-title">{t('common.notes')}</h3>
       <div class="group">
         <div class="group-row stack">
           <textarea
             class="field notes"
             value={form.notes}
-            placeholder="Instructions, requirements, links…"
+            placeholder={t('sheets.assignment.notesPlaceholder')}
             oninput={(e) => set({ notes: e.currentTarget.value }, { typing: true })}
           ></textarea>
         </div>
         <div class="group-row">
           <div class="row-label">
-            Notes page
-            <small>{page && !page.deletedAt ? 'Long-form notes in your pages' : 'Write it up as a full page'}</small>
+            {t('sheets.notesPage')}
+            <small>{page && !page.deletedAt ? t('sheets.assignment.notesPageLinked') : t('sheets.assignment.notesPageNone')}</small>
           </div>
           {#if page && !page.deletedAt}
             <button class="btn small raised" onclick={notesPage}>
               {#if page.icon}<span><PageIcon icon={page.icon} /></span>{:else}<Icon name="page" size={14} />{/if}
-              <span class="page-name">{page.title || 'Untitled'}</span>
+              <span class="page-name">{page.title || t('common.untitled')}</span>
               <Icon name="arrow-right" size={13} stroke={2} />
             </button>
           {:else}
-            <button class="btn small raised" onclick={notesPage}><Icon name="page-plus" size={14} /> Create Page</button>
+            <button class="btn small raised" onclick={notesPage}><Icon name="page-plus" size={14} /> {t('sheets.createPage')}</button>
           {/if}
         </div>
       </div>
 
       <h3 class="group-title">
-        <span>Attachments</span>
+        <span>{t('sheets.assignment.attachments')}</span>
         <button
           class="btn small raised"
           onclick={(e) => ui.pickFile(e.currentTarget as Element, attach, { exclude: form.fileIds })}
-        ><Icon name="paperclip" size={13} stroke={2} /> Attach</button>
+        ><Icon name="paperclip" size={13} stroke={2} /> {t('sheets.assignment.attach')}</button>
       </h3>
       <div class="group">
         {#each files as f (f.id)}
@@ -395,16 +409,16 @@
               <FileTile file={f} size={30} />
               <span class="file-text">
                 <span class="file-name">{f.name}</span>
-                <span class="file-meta">{f.missing ? 'Missing' : formatBytes(f.size)}</span>
+                <span class="file-meta">{f.missing ? t('sheets.assignment.missing') : formatBytes(f.size)}</span>
               </span>
             </button>
-            <button class="icon-btn" onclick={() => library.open(f.id)} data-tip="Open"><Icon name="external" size={15} /></button>
-            <button class="icon-btn" onclick={() => detach(f.id)} data-tip="Remove"><Icon name="x" size={15} /></button>
+            <button class="icon-btn" onclick={() => library.open(f.id)} data-tip={t('common.actions.open')}><Icon name="external" size={15} /></button>
+            <button class="icon-btn" onclick={() => detach(f.id)} data-tip={t('common.actions.remove')}><Icon name="x" size={15} /></button>
           </div>
         {:else}
           <div class="group-row empty-files">
             <Icon name="upload" size={15} stroke={2} />
-            Drop files here, or attach from your Files library.
+            {t('sheets.assignment.dropFiles')}
           </div>
         {/each}
       </div>
@@ -414,22 +428,22 @@
 
     <footer class="modal-foot">
       {#if existing}
-        <span>Created {relativeTime(existing.createdAt)}</span>
+        <span>{createdText(existing.createdAt)}</span>
         <div class="actions">
-          <button class="btn small destructive" onclick={() => planner.trash('assignments', existing.id)}>Move to Trash</button>
-          <button class="btn small primary" onclick={close}>Done</button>
+          <button class="btn small destructive" onclick={() => planner.trash('assignments', existing.id)}>{t('common.actions.moveToTrash')}</button>
+          <button class="btn small primary" onclick={close}>{t('common.actions.done')}</button>
         </div>
       {:else}
-        <span>Changes are saved automatically.</span>
+        <span>{t('sheets.assignment.autosave')}</span>
         <div class="actions">
-          <button class="btn small" onclick={cancel}>Cancel</button>
-          <button class="btn small primary" onclick={add} disabled={!draft.title.trim()}>Add Assignment</button>
+          <button class="btn small" onclick={cancel}>{t('common.actions.cancel')}</button>
+          <button class="btn small primary" onclick={add} disabled={!draft.title.trim()}>{t('sheets.assignment.add')}</button>
         </div>
       {/if}
     </footer>
 
     {#if dropping}
-      <div class="drop-hint"><Icon name="paperclip" size={18} stroke={2} /> Drop to attach</div>
+      <div class="drop-hint"><Icon name="paperclip" size={18} stroke={2} /> {t('sheets.assignment.dropToAttach')}</div>
     {/if}
   </div>
 </Modal>

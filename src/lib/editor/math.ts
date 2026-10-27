@@ -11,6 +11,7 @@
 import { InputRule, Node, mergeAttributes, type Editor } from '@tiptap/core';
 import { NodeSelection, Selection, TextSelection } from '@tiptap/pm/state';
 import type { Node as PMNode } from '@tiptap/pm/model';
+import { t } from '../i18n';
 import { renderMath } from '../math/katex';
 import { openMath, type MathDone, type MathSession } from '../math/session';
 
@@ -80,7 +81,7 @@ function mathView(node: PMNode, editor: Editor, getPos: () => number | undefined
     } else {
       delete out.dataset.pending;
       out.classList.add('math-empty');
-      out.textContent = block ? 'Add an equation' : 'New equation';
+      out.textContent = block ? t('blocks.math.emptyBlock') : t('blocks.math.emptyInline');
     }
   };
   draw(node.attrs.latex);

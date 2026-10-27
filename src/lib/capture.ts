@@ -8,6 +8,7 @@ import { prefs } from './prefs.svelte';
 import { store } from './store.svelte';
 import { ui } from './ui.svelte';
 import { lineIcon } from './page-icon';
+import { t, tAll } from './i18n';
 
 export type CaptureKind = 'todo' | 'note' | 'assignment' | 'event';
 
@@ -27,16 +28,20 @@ function plainText(node: JNode): string {
 
 const paragraph = (text: string): JNode => ({ type: 'paragraph', content: text ? [{ type: 'text', text }] : [] });
 
+/** Whether a page's title is one the Inbox could have been created with, in any language (for finding it again). */
+const isInboxTitle = (title: string) => tAll('planner.inboxTitle').includes(title);
+
 /** The Inbox page, created at the top of the sidebar the first time. */
 async function inbox(): Promise<string | null> {
   const known = prefs.inboxId ? store.byId.get(prefs.inboxId) : undefined;
   if (known && !known.deletedAt) return known.id;
-  const byName = store.roots.find((p) => p.title === 'Inbox');
+  const byName = store.roots.find((p) => isInboxTitle(p.title));
   if (byName) {
     prefs.inboxId = byName.id;
     return byName.id;
   }
-  const meta = await store.create(null, { open: false, title: 'Inbox', icon: lineIcon('inbox', 'blue'), index: 0 });
+  // Created in the language of the day; found again in any (isInboxTitle).
+  const meta = await store.create(null, { open: false, title: t('planner.inboxTitle'), icon: lineIcon('inbox', 'blue'), index: 0 });
   if (!meta) return null;
   prefs.inboxId = meta.id;
   return meta.id;
@@ -73,7 +78,7 @@ async function addTodo(text: string): Promise<string | null> {
 async function addNote(text: string): Promise<string | null> {
   const parent = await inbox();
   const [first, ...rest] = text.split('\n');
-  const title = first.trim().slice(0, 120) || 'Untitled';
+  const title = first.trim().slice(0, 120) || t('common.untitled');
   const meta = await store.create(parent, { open: false, title });
   if (!meta) return null;
   const body = rest.join('\n').trim();
@@ -91,24 +96,24 @@ export async function capture(kind: CaptureKind, text: string, opts: { date?: st
   try {
     if (kind === 'todo') {
       const id = await addTodo(value);
-      if (id) ui.toast('Added to Inbox', { label: 'Open', run: () => store.open(id) });
+      if (id) ui.toast(t('planner.capture.addedToInbox'), { label: t('common.actions.open'), run: () => store.open(id) });
       return !!id;
     }
     if (kind === 'note') {
       const id = await addNote(value);
-      if (id) ui.toast('Note saved to Inbox', { label: 'Open', run: () => store.open(id) });
+      if (id) ui.toast(t('planner.capture.noteSaved'), { label: t('common.actions.open'), run: () => store.open(id) });
       return !!id;
     }
     if (kind === 'assignment') {
       const a = await planner.addAssignment({ title: value, dueDate: opts.date || null, dueTime: opts.date && opts.time ? opts.time : null });
-      if (a) ui.toast('Assignment added', { label: 'Open', run: () => planner.openAssignment(a.id) });
+      if (a) ui.toast(t('planner.capture.assignmentAdded'), { label: t('common.actions.open'), run: () => planner.openAssignment(a.id) });
       return !!a;
     }
     const date = opts.date || todayISO();
     const ev = await planner.addEvent({ title: value, startDate: date, endDate: date, startTime: opts.time || null, endTime: opts.time || null });
     if (ev) {
-      ui.toast('Event added', {
-        label: 'Show',
+      ui.toast(t('planner.capture.eventAdded'), {
+        label: t('common.actions.show'),
         run: () => {
           calendar.show(ev.startDate);
           planner.openEvent(ev.id);

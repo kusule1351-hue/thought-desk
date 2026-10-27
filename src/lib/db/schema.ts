@@ -4,41 +4,59 @@
  */
 
 import { nextColor } from '../colors';
+import { i18n, t, tAll } from '../i18n';
+import { fmt } from '../i18n/format';
 import type { CalcFn, DateValue, NumberFormat, Property, PropertyConfig, PropertyType, RollupFn, SelectOption } from '../types';
+
+// The labels here are worked out once, when the app starts: changing the
+// interface's language restarts the window. A label that is also a default
+// written into a database (a new property's name, a status option) is
+// written in the language of the day.
+
+/** The sections of the type picker, in order, and what each is called. */
+export const TYPE_GROUPS = ['basic', 'app', 'advanced', 'automatic'] as const;
+export type TypeGroup = (typeof TYPE_GROUPS)[number];
+export const TYPE_GROUP_LABELS: Record<TypeGroup, string> = {
+  basic: t('database.typeGroups.basic'),
+  app: t('database.typeGroups.app'),
+  advanced: t('database.typeGroups.advanced'),
+  automatic: t('database.typeGroups.automatic'),
+};
 
 export interface TypeInfo {
   type: PropertyType;
+  /** What the type is called; also the name a new property of it gets. */
   label: string;
   icon: string;
   hint: string;
-  group: 'Basic' | 'Thought Desk' | 'Advanced' | 'Automatic';
+  group: TypeGroup;
 }
 
 export const TYPES: TypeInfo[] = [
-  { type: 'title', label: 'Title', icon: 'text', hint: 'The row’s name', group: 'Basic' },
-  { type: 'text', label: 'Text', icon: 'text', hint: 'Notes, names, anything', group: 'Basic' },
-  { type: 'number', label: 'Number', icon: 'hash', hint: 'Amounts, prices, scores', group: 'Basic' },
-  { type: 'select', label: 'Select', icon: 'select', hint: 'One choice from a list', group: 'Basic' },
-  { type: 'multiSelect', label: 'Multi-select', icon: 'list', hint: 'Several choices', group: 'Basic' },
-  { type: 'status', label: 'Status', icon: 'status', hint: 'To do, in progress, done', group: 'Basic' },
-  { type: 'date', label: 'Date', icon: 'calendar', hint: 'A day, with a time if you like', group: 'Basic' },
-  { type: 'checkbox', label: 'Checkbox', icon: 'check-square', hint: 'Yes or no', group: 'Basic' },
-  { type: 'url', label: 'URL', icon: 'link', hint: 'A web address', group: 'Basic' },
-  { type: 'email', label: 'Email', icon: 'mail', hint: 'An email address', group: 'Basic' },
-  { type: 'phone', label: 'Phone', icon: 'phone', hint: 'A phone number', group: 'Basic' },
-  { type: 'course', label: 'Course', icon: 'book', hint: 'One of your courses', group: 'Thought Desk' },
-  { type: 'tags', label: 'Tags', icon: 'tag', hint: 'Your tags, shared with pages', group: 'Thought Desk' },
-  { type: 'files', label: 'Files', icon: 'paperclip', hint: 'Files from your library', group: 'Thought Desk' },
-  { type: 'relation', label: 'Relation', icon: 'relation', hint: 'Links to rows of a database', group: 'Advanced' },
-  { type: 'rollup', label: 'Rollup', icon: 'sigma', hint: 'Totals from related rows', group: 'Advanced' },
-  { type: 'formula', label: 'Formula', icon: 'function', hint: 'Calculated from other properties', group: 'Advanced' },
-  { type: 'button', label: 'Button', icon: 'pointer', hint: 'Does something in one click', group: 'Advanced' },
-  { type: 'id', label: 'ID', icon: 'hash', hint: 'A number for each row (TASK-12)', group: 'Automatic' },
-  { type: 'created', label: 'Created time', icon: 'clock', hint: 'When the row was added', group: 'Automatic' },
-  { type: 'edited', label: 'Last edited', icon: 'clock', hint: 'When the row last changed', group: 'Automatic' },
+  { type: 'title', label: t('database.types.title'), icon: 'text', hint: t('database.typeHints.title'), group: 'basic' },
+  { type: 'text', label: t('database.types.text'), icon: 'text', hint: t('database.typeHints.text'), group: 'basic' },
+  { type: 'number', label: t('database.types.number'), icon: 'hash', hint: t('database.typeHints.number'), group: 'basic' },
+  { type: 'select', label: t('database.types.select'), icon: 'select', hint: t('database.typeHints.select'), group: 'basic' },
+  { type: 'multiSelect', label: t('database.types.multiSelect'), icon: 'list', hint: t('database.typeHints.multiSelect'), group: 'basic' },
+  { type: 'status', label: t('database.types.status'), icon: 'status', hint: t('database.typeHints.status'), group: 'basic' },
+  { type: 'date', label: t('database.types.date'), icon: 'calendar', hint: t('database.typeHints.date'), group: 'basic' },
+  { type: 'checkbox', label: t('database.types.checkbox'), icon: 'check-square', hint: t('database.typeHints.checkbox'), group: 'basic' },
+  { type: 'url', label: t('database.types.url'), icon: 'link', hint: t('database.typeHints.url'), group: 'basic' },
+  { type: 'email', label: t('database.types.email'), icon: 'mail', hint: t('database.typeHints.email'), group: 'basic' },
+  { type: 'phone', label: t('database.types.phone'), icon: 'phone', hint: t('database.typeHints.phone'), group: 'basic' },
+  { type: 'course', label: t('common.course'), icon: 'book', hint: t('database.typeHints.course'), group: 'app' },
+  { type: 'tags', label: t('common.tags'), icon: 'tag', hint: t('database.typeHints.tags'), group: 'app' },
+  { type: 'files', label: t('database.types.files'), icon: 'paperclip', hint: t('database.typeHints.files'), group: 'app' },
+  { type: 'relation', label: t('database.types.relation'), icon: 'relation', hint: t('database.typeHints.relation'), group: 'advanced' },
+  { type: 'rollup', label: t('database.types.rollup'), icon: 'sigma', hint: t('database.typeHints.rollup'), group: 'advanced' },
+  { type: 'formula', label: t('database.types.formula'), icon: 'function', hint: t('database.typeHints.formula'), group: 'advanced' },
+  { type: 'button', label: t('database.types.button'), icon: 'pointer', hint: t('database.typeHints.button'), group: 'advanced' },
+  { type: 'id', label: t('database.types.id'), icon: 'hash', hint: t('database.typeHints.id'), group: 'automatic' },
+  { type: 'created', label: t('database.types.created'), icon: 'clock', hint: t('database.typeHints.created'), group: 'automatic' },
+  { type: 'edited', label: t('database.types.edited'), icon: 'clock', hint: t('database.typeHints.edited'), group: 'automatic' },
 ];
 
-export const typeInfo = (t: PropertyType): TypeInfo => TYPES.find((x) => x.type === t) ?? TYPES[1];
+export const typeInfo = (type: PropertyType): TypeInfo => TYPES.find((x) => x.type === type) ?? TYPES[1];
 
 /** Types whose values are typed in (not calculated or automatic). */
 export const EDITABLE = new Set<PropertyType>(['title', 'text', 'number', 'select', 'multiSelect', 'status', 'date', 'checkbox', 'url', 'email', 'phone', 'files', 'relation', 'tags', 'course']);
@@ -54,16 +72,17 @@ export function shortId(): string {
   return Array.from(bytes, (b) => abc[b % 62]).join('');
 }
 
+/** A new status property's options (their names are written into the database; ids and groups are what code goes by). */
 export const STATUS_OPTIONS: SelectOption[] = [
-  { id: 'todo', name: 'Not started', color: 'gray', group: 'todo' },
-  { id: 'doing', name: 'In progress', color: 'blue', group: 'doing' },
-  { id: 'done', name: 'Done', color: 'green', group: 'done' },
+  { id: 'todo', name: t('database.statusOptions.todo'), color: 'gray', group: 'todo' },
+  { id: 'doing', name: t('database.statusOptions.doing'), color: 'blue', group: 'doing' },
+  { id: 'done', name: t('database.statusOptions.done'), color: 'green', group: 'done' },
 ];
 
 export const STATUS_GROUPS: { key: 'todo' | 'doing' | 'done'; label: string }[] = [
-  { key: 'todo', label: 'To do' },
-  { key: 'doing', label: 'In progress' },
-  { key: 'done', label: 'Complete' },
+  { key: 'todo', label: t('database.statusGroups.todo') },
+  { key: 'doing', label: t('database.statusGroups.doing') },
+  { key: 'done', label: t('database.statusGroups.done') },
 ];
 
 /** Settings a new property of a type starts with. */
@@ -120,41 +139,59 @@ export function optionNamed(p: Property, name: string): SelectOption | undefined
 
 // ------------------------------------------------------------------ numbers
 
-export const NUMBER_FORMATS: { key: NumberFormat; label: string; example: string }[] = [
-  { key: 'number', label: 'Number', example: '1234.5' },
-  { key: 'comma', label: 'With commas', example: '1,234.5' },
-  { key: 'percent', label: 'Percent', example: '45%' },
-  { key: 'dollar', label: 'Dollar', example: '$1,234.50' },
-  { key: 'euro', label: 'Euro', example: '€1,234.50' },
-  { key: 'pound', label: 'Pound', example: '£1,234.50' },
-  { key: 'yen', label: 'Yen', example: '¥1,235' },
-  { key: 'rupee', label: 'Rupee', example: '₹1,234.50' },
-];
-
 const CURRENCY: Partial<Record<NumberFormat, string>> = { dollar: 'USD', euro: 'EUR', pound: 'GBP', yen: 'JPY', rupee: 'INR' };
-const formatters = new Map<string, Intl.NumberFormat>();
+/** Each format's options for fmt.number, by format and decimals. */
+const numberOptions = new Map<string, Intl.NumberFormatOptions>();
 
+/**
+ * How the locale writes a percentage around its number ("{n}%", "{n} %",
+ * "%{n}"). A percent value is stored as written (45 for 45%): the number is
+ * formatted as it is and put in this pattern, rather than divided by 100 for
+ * Intl's percent style, which would round some halves the other way.
+ */
+let percentPattern: string | null = null;
+function asPercent(number: string): string {
+  if (percentPattern === null) {
+    const pattern = fmt.number(0.45, { style: 'percent' }).replace(fmt.number(45), '{n}');
+    percentPattern = pattern.includes('{n}') ? pattern : '{n}%';
+  }
+  return percentPattern.replace('{n}', number);
+}
+
+/** A number property's value as it's shown, the locale's way ("1,234.5", "$12.00", "45%"). */
 export function formatNumber(n: number | null | undefined, config: PropertyConfig = {}): string {
   if (n === null || n === undefined || Number.isNaN(n)) return '';
   if (!Number.isFinite(n)) return n > 0 ? '∞' : '-∞';
   const format = config.format ?? 'number';
   const decimals = config.decimals ?? null;
   const key = `${format}|${decimals}`;
-  let f = formatters.get(key);
-  if (!f) {
+  let opts = numberOptions.get(key);
+  if (!opts) {
     const digits = decimals === null ? undefined : decimals;
     const currency = CURRENCY[format];
-    f = new Intl.NumberFormat(undefined, {
+    opts = {
       style: currency ? 'currency' : 'decimal',
       currency,
       useGrouping: format !== 'number',
       minimumFractionDigits: digits,
       maximumFractionDigits: digits ?? (currency ? undefined : 6),
-    });
-    formatters.set(key, f);
+    };
+    numberOptions.set(key, opts);
   }
-  return f.format(n) + (format === 'percent' ? '%' : '');
+  const text = fmt.number(n, opts);
+  return format === 'percent' ? asPercent(text) : text;
 }
+
+export const NUMBER_FORMATS: { key: NumberFormat; label: string; example: string }[] = [
+  { key: 'number', label: t('database.numberFormats.number'), example: formatNumber(1234.5, { format: 'number' }) },
+  { key: 'comma', label: t('database.numberFormats.comma'), example: formatNumber(1234.5, { format: 'comma' }) },
+  { key: 'percent', label: t('database.numberFormats.percent'), example: formatNumber(45, { format: 'percent' }) },
+  { key: 'dollar', label: t('database.numberFormats.dollar'), example: formatNumber(1234.5, { format: 'dollar' }) },
+  { key: 'euro', label: t('database.numberFormats.euro'), example: formatNumber(1234.5, { format: 'euro' }) },
+  { key: 'pound', label: t('database.numberFormats.pound'), example: formatNumber(1234.5, { format: 'pound' }) },
+  { key: 'yen', label: t('database.numberFormats.yen'), example: formatNumber(1234.5, { format: 'yen' }) },
+  { key: 'rupee', label: t('database.numberFormats.rupee'), example: formatNumber(1234.5, { format: 'rupee' }) },
+];
 
 /** "1,234.5", "$12", "45%", "(30)", "1.5k" → a number; null if it isn't one. */
 export function parseNumber(text: string): number | null {
@@ -190,20 +227,21 @@ export function toDate(s: string): Date {
 
 export const hasTime = (s: string) => s.includes('T');
 
-const dayFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
-const dayYearFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+const DAY: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+const DAY_YEAR: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+const DAY_TIME: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+const DAY_YEAR_TIME: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' };
 
-/** "Oct 14", "Oct 14, 2025" (another year), "Oct 14, 9:30 AM". */
+/** "Oct 14", "Oct 14, 2025" (another year), "Oct 14, 9:30 AM", the locale's way. */
 export function formatDay(s: string): string {
   const d = toDate(s);
-  const day = d.getFullYear() === new Date().getFullYear() ? dayFmt.format(d) : dayYearFmt.format(d);
-  return hasTime(s) ? `${day}, ${timeFmt.format(d)}` : day;
+  const thisYear = d.getFullYear() === new Date().getFullYear();
+  return hasTime(s) ? fmt.dateTime(d, thisYear ? DAY_TIME : DAY_YEAR_TIME) : fmt.date(d, thisYear ? DAY : DAY_YEAR);
 }
 
 export function formatDateValue(v: DateValue | null | undefined): string {
   if (!v?.start) return '';
-  return v.end ? `${formatDay(v.start)} → ${formatDay(v.end)}` : formatDay(v.start);
+  return v.end ? t('database.dateRange', { start: formatDay(v.start), end: formatDay(v.end) }) : formatDay(v.start);
 }
 
 export function formatTimestamp(ms: number): string {
@@ -212,13 +250,67 @@ export function formatTimestamp(ms: number): string {
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
+/**
+ * The words parseDate reads besides the English ones: the interface's
+ * language's month names (long and short, on their own and as written
+ * beside a day: "март", "14 марта"), "today", "tomorrow" and "yesterday" in
+ * every language, and whether the locale writes 10/14 day first. Worked
+ * out on first use.
+ */
+let dateWords: { months: Map<string, number>; relative: Map<string, number>; dayFirst: boolean } | null = null;
+function words() {
+  if (dateWords) return dateWords;
+  const months = new Map<string, number>();
+  for (const style of ['long', 'short'] as const) {
+    fmt.monthNames(style).forEach((name, i) => {
+      const w = name.toLowerCase().replace(/\.$/, '');
+      if (w && !months.has(w)) months.set(w, i);
+    });
+    // The month's word in a date with a day ("15 de marzo" → "marzo"); kept only where each month has its own.
+    const beside = Array.from({ length: 12 }, (_, i) => {
+      const found = fmt.date(new Date(2024, i, 15), { day: 'numeric', month: style }).toLowerCase().match(/\p{L}+/gu) ?? [];
+      return found.sort((a, b) => b.length - a.length)[0] ?? '';
+    });
+    if (beside.every(Boolean) && new Set(beside).size === 12) {
+      beside.forEach((w, i) => {
+        if (!months.has(w)) months.set(w, i);
+      });
+    }
+  }
+  const relative = new Map<string, number>([
+    ['today', 0],
+    ['tomorrow', 1],
+    ['yesterday', -1],
+  ]);
+  for (const w of tAll('common.today')) relative.set(w.trim().toLowerCase(), 0);
+  for (const w of tAll('common.tomorrow')) relative.set(w.trim().toLowerCase(), 1);
+  for (const w of tAll('common.yesterday')) relative.set(w.trim().toLowerCase(), -1);
+  // How the locale writes 22 November 2024 in numbers: "11/22/2024" is month first, "22/11/2024" and "22.11.2024" day first.
+  // A locale that writes the year first ("2024-11-22", "2024/11/22") says nothing about how a day and a month alone are
+  // typed: those keep the rule from before, day first everywhere but the US.
+  const sample = fmt.date(new Date(2024, 10, 22), { day: 'numeric', month: 'numeric', year: 'numeric', numberingSystem: 'latn' });
+  const dayAt = sample.indexOf('22');
+  const monthAt = sample.indexOf('11');
+  const yearAt = sample.indexOf('2024');
+  const told = dayAt >= 0 && monthAt >= 0 && !(yearAt >= 0 && yearAt < dayAt && yearAt < monthAt);
+  return (dateWords = { months, relative, dayFirst: told ? dayAt < monthAt : !/^en-us/i.test(i18n.locale) });
+}
+
+/** The month a word names (0–11): the locale's name for it, or English ("oct", "October"); -1 if none. */
+function monthOf(word: string): number {
+  const own = words().months.get(word);
+  if (own !== undefined) return own;
+  return /^[a-z]{3,}$/.test(word) ? MONTHS.indexOf(word.slice(0, 3)) : -1;
+}
+
 /** Text people type or paste as a date ("2026-10-14", "10/14/2026",
- * "14 Oct 2026", "Oct 14", "today", "tomorrow 3pm"…). */
+ * "14 Oct 2026", "Oct 14", "today", "tomorrow 3pm"…), in English or the
+ * interface's language ("14. Okt.", "mañana"). */
 export function parseDate(text: string, today = new Date()): DateValue | null {
   let s = text.trim().toLowerCase();
   if (!s) return null;
   // A range written "start → end", "start - end" or "start to end".
-  const range = s.split(/\s*(?:→|–|—| to | - )\s*/);
+  const range = s.split(/\s*(?:→|←|–|—| to | - )\s*/);
   if (range.length === 2 && range[0] && range[1]) {
     const a = parseDate(range[0], today);
     const b = parseDate(range[1], today);
@@ -234,30 +326,37 @@ export function parseDate(text: string, today = new Date()): DateValue | null {
     if (ap === 'a' && h === 12) h = 0;
     if (h < 24 && mi < 60) {
       time = `T${pad(h)}:${pad(mi)}`;
-      s = s.slice(0, tm.index).replace(/[,\s]+$/, '').replace(/t$/, '');
+      // The "T" of "2026-10-14T09:30", not the end of a month ("14 Oct, 9:30").
+      s = s.slice(0, tm.index).replace(/[,\s]+$/, '').replace(/(\d)t$/, '$1');
     }
   }
   const y0 = today.getFullYear();
   let day: Date | null = null;
-  const rel: Record<string, number> = { today: 0, tomorrow: 1, yesterday: -1 };
+  const rel = words().relative.get(s);
   let m: RegExpExecArray | null;
+  let mo = -1;
   if (!s && time) day = today;
-  else if (s in rel) day = new Date(y0, today.getMonth(), today.getDate() + rel[s]);
+  else if (rel !== undefined) day = new Date(y0, today.getMonth(), today.getDate() + rel);
   else if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s))) day = new Date(+m[1], +m[2] - 1, +m[3]);
   else if ((m = /^(\d{1,2})[/.](\d{1,2})(?:[/.](\d{2,4}))?$/.exec(s))) {
-    // Month first in the US, day first elsewhere; a value over 12 settles it.
-    const dayFirst = !/^en-us/i.test(navigator.language) || +m[1] > 12;
-    const [d, mo] = dayFirst && +m[2] <= 12 ? [+m[1], +m[2]] : [+m[2], +m[1]];
+    // Month first where the locale writes it so (the US), day first elsewhere; a value over 12 settles it.
+    const dayFirst = words().dayFirst || +m[1] > 12;
+    const [d, month] = dayFirst && +m[2] <= 12 ? [+m[1], +m[2]] : [+m[2], +m[1]];
     const y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : y0;
-    day = new Date(y, mo - 1, d);
-  } else if ((m = /^(?:[a-z]+,?\s+)?([a-z]{3,})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?(?:\s+(\d{4}))?$/.exec(s)) && MONTHS.includes(m[1].slice(0, 3))) {
-    day = new Date(m[3] ? +m[3] : y0, MONTHS.indexOf(m[1].slice(0, 3)), +m[2]);
-  } else if ((m = /^(?:[a-z]+,?\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,})\.?,?(?:\s+(\d{4}))?$/.exec(s)) && MONTHS.includes(m[2].slice(0, 3))) {
-    day = new Date(m[3] ? +m[3] : y0, MONTHS.indexOf(m[2].slice(0, 3)), +m[1]);
+    day = new Date(y, month - 1, d);
+  } else if ((m = /^(?:\p{L}+\.?,?\s+)?(\p{L}{2,})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?(?:\s+(\d{4}))?$/u.exec(s)) && (mo = monthOf(m[1])) >= 0) {
+    // "Oct 14", "Tue, Oct 14, 2026" (a weekday first, in any language, is skipped).
+    day = new Date(m[3] ? +m[3] : y0, mo, +m[2]);
+  } else if (
+    (m = /^(?:\p{L}+\.?,?\s+)?(\d{1,2})(?:st|nd|rd|th|\.)?\s+(?:\p{L}{1,3}\.?\s+)?(\p{L}{2,})\.?,?(?:\s+(?:\p{L}{1,3}\.?\s+)?(\d{4})(?:\s+\p{L}{1,3}\.?)?)?$/u.exec(s)) &&
+    (mo = monthOf(m[2])) >= 0
+  ) {
+    // "14 Oct 2026", "14. Okt.", "mardi 14 octobre", "14 de octubre de 2026", "14 окт. 2026 г.".
+    day = new Date(m[3] ? +m[3] : y0, mo, +m[1]);
   } else {
-    const t = Date.parse(text);
-    if (!Number.isNaN(t) && /\d/.test(text)) {
-      const d = new Date(t);
+    const ms = Date.parse(text);
+    if (!Number.isNaN(ms) && /\d/.test(text)) {
+      const d = new Date(ms);
       day = d;
       if (!time && /\d:\d/.test(text)) time = `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
@@ -268,10 +367,20 @@ export function parseDate(text: string, today = new Date()): DateValue | null {
 
 // ---------------------------------------------------------------- checkboxes
 
+/** A checkbox as text (a copied cell, a text column it's turned into); parseCheckbox reads it back. */
+export const checkboxText = (on: boolean) => t(on ? 'common.yes' : 'common.no');
+
+/** Words read as a ticked or an empty box: English ones, and "Yes" and "No" in every language (worked out on first use). */
+let checkboxWords: { on: Set<string>; off: Set<string> } | null = null;
+
 export function parseCheckbox(text: string): boolean | null {
   const s = text.trim().toLowerCase();
-  if (['true', 'yes', 'y', '1', 'x', '✓', '✔', '☑', 'checked', 'done', 'on'].includes(s)) return true;
-  if (['false', 'no', 'n', '0', '', '☐', 'unchecked', 'off'].includes(s)) return false;
+  checkboxWords ??= {
+    on: new Set(['true', 'yes', 'y', '1', 'x', '✓', '✔', '☑', 'checked', 'done', 'on', ...tAll('common.yes').map((w) => w.trim().toLowerCase())]),
+    off: new Set(['false', 'no', 'n', '0', '', '☐', 'unchecked', 'off', ...tAll('common.no').map((w) => w.trim().toLowerCase())]),
+  };
+  if (checkboxWords.on.has(s)) return true;
+  if (checkboxWords.off.has(s)) return false;
   return null;
 }
 
@@ -335,60 +444,60 @@ function optionsFrom(names: string[]): SelectOption[] {
 // --------------------------------------------------------------- summaries
 
 export const ROLLUP_FNS: { key: RollupFn; label: string }[] = [
-  { key: 'show', label: 'Show values' },
-  { key: 'count', label: 'Count rows' },
-  { key: 'countValues', label: 'Count values' },
-  { key: 'sum', label: 'Sum' },
-  { key: 'average', label: 'Average' },
-  { key: 'min', label: 'Smallest' },
-  { key: 'max', label: 'Largest' },
-  { key: 'percentChecked', label: 'Percent checked' },
-  { key: 'percentDone', label: 'Percent complete (status)' },
-  { key: 'earliest', label: 'Earliest date' },
-  { key: 'latest', label: 'Latest date' },
+  { key: 'show', label: t('database.rollup.show') },
+  { key: 'count', label: t('database.rollup.count') },
+  { key: 'countValues', label: t('database.rollup.countValues') },
+  { key: 'sum', label: t('database.rollup.sum') },
+  { key: 'average', label: t('database.rollup.average') },
+  { key: 'min', label: t('database.rollup.min') },
+  { key: 'max', label: t('database.rollup.max') },
+  { key: 'percentChecked', label: t('database.rollup.percentChecked') },
+  { key: 'percentDone', label: t('database.rollup.percentDone') },
+  { key: 'earliest', label: t('database.rollup.earliest') },
+  { key: 'latest', label: t('database.rollup.latest') },
 ];
 
 export const CALC_LABELS: Record<CalcFn, string> = {
-  none: 'None',
-  count: 'Count all',
-  countValues: 'Count values',
-  countEmpty: 'Count empty',
-  countUnique: 'Count unique',
-  percentFilled: 'Percent filled',
-  percentEmpty: 'Percent empty',
-  sum: 'Sum',
-  average: 'Average',
-  median: 'Median',
-  min: 'Smallest',
-  max: 'Largest',
-  range: 'Range',
-  checked: 'Checked',
-  unchecked: 'Unchecked',
-  percentChecked: 'Percent checked',
-  earliest: 'Earliest',
-  latest: 'Latest',
+  none: t('database.calc.none'),
+  count: t('database.calc.count'),
+  countValues: t('database.calc.countValues'),
+  countEmpty: t('database.calc.countEmpty'),
+  countUnique: t('database.calc.countUnique'),
+  percentFilled: t('database.calc.percentFilled'),
+  percentEmpty: t('database.calc.percentEmpty'),
+  sum: t('database.calc.sum'),
+  average: t('database.calc.average'),
+  median: t('database.calc.median'),
+  min: t('database.calc.min'),
+  max: t('database.calc.max'),
+  range: t('database.calc.range'),
+  checked: t('database.calc.checked'),
+  unchecked: t('database.calc.unchecked'),
+  percentChecked: t('database.calc.percentChecked'),
+  earliest: t('database.calc.earliest'),
+  latest: t('database.calc.latest'),
 };
 
-/** The same, short enough for the line under a narrow column. */
+/** The same, short enough for the line under a narrow column (none: nothing). */
 export const CALC_SHORT: Record<CalcFn, string> = {
   none: '',
-  count: 'Count',
-  countValues: 'Values',
-  countEmpty: 'Empty',
-  countUnique: 'Unique',
-  percentFilled: 'Filled',
-  percentEmpty: 'Empty',
-  sum: 'Sum',
-  average: 'Avg',
-  median: 'Median',
-  min: 'Min',
-  max: 'Max',
-  range: 'Range',
-  checked: 'Checked',
-  unchecked: 'Unchecked',
-  percentChecked: 'Done',
-  earliest: 'From',
-  latest: 'To',
+  count: t('database.calcShort.count'),
+  countValues: t('database.calcShort.countValues'),
+  countEmpty: t('database.calcShort.countEmpty'),
+  countUnique: t('database.calcShort.countUnique'),
+  percentFilled: t('database.calcShort.percentFilled'),
+  percentEmpty: t('database.calcShort.percentEmpty'),
+  sum: t('database.calcShort.sum'),
+  average: t('database.calcShort.average'),
+  median: t('database.calcShort.median'),
+  min: t('database.calcShort.min'),
+  max: t('database.calcShort.max'),
+  range: t('database.calcShort.range'),
+  checked: t('database.calcShort.checked'),
+  unchecked: t('database.calcShort.unchecked'),
+  percentChecked: t('database.calcShort.percentChecked'),
+  earliest: t('database.calcShort.earliest'),
+  latest: t('database.calcShort.latest'),
 };
 
 /** Summaries that make sense for a kind of value. */

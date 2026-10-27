@@ -10,6 +10,8 @@
   import { ui } from '../ui.svelte';
   import type { Occurrence } from '../dates';
   import type { Assignment } from '../types';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
 
   let { weeks, month, onnew }: { weeks: string[][]; month: string; onnew: (day: string) => void } = $props();
 
@@ -51,7 +53,7 @@
   <div class="names">
     {#each names as n}<div class="name">{n}</div>{/each}
   </div>
-  <div class="cells" role="grid" aria-label="Month">
+  <div class="cells" role="grid" aria-label={t('planner.calendar.monthGrid')}>
     {#each weeks as week, w (week[0])}
       {#each week as day, i (day)}
         {@const list = entries(day)}
@@ -83,7 +85,7 @@
             calendar.drop(day);
           }}
         >
-          <span class="num round" class:today={day === clock.today}>{parseDate(day).getDate()}</span>
+          <span class="num round" class:today={day === clock.today}>{fmt.number(parseDate(day).getDate())}</span>
           {#each list.slice(0, list.length > MAX ? MAX - 1 : MAX) as it (it.kind === 'due' ? `a:${it.a.id}` : it.kind === 'row' ? `r:${it.r.key}` : `${it.kind}:${it.occ.key}`)}
             {#if it.kind === 'row'}
               {@const page = store.byId.get(it.r.row.id)}
@@ -100,7 +102,7 @@
                 data-tip={store.byId.get(it.r.dbId)?.title}
               >
                 <span class="square"></span>
-                <span class="label">{#if page?.icon}<PageIcon icon={page.icon} />&nbsp;{/if}{page?.title || 'Untitled'}</span>
+                <span class="label">{#if page?.icon}<PageIcon icon={page.icon} />&nbsp;{/if}{page?.title || t('common.untitled')}</span>
                 {#if it.r.time}<span class="time">{formatTime(it.r.time)}</span>{/if}
               </button>
             {:else if it.kind === 'due'}
@@ -119,7 +121,7 @@
                 oncontextmenu={(e) => menu(e, assignmentMenuItems(it.a.id))}
               >
                 <span class="ring round"></span>
-                <span class="label">{it.a.title || 'Untitled'}</span>
+                <span class="label">{it.a.title || t('common.untitled')}</span>
               </button>
             {:else}
               {@const ev = it.occ.event}
@@ -140,7 +142,7 @@
                 oncontextmenu={(e) => menu(e, eventMenuItems(ev.id, it.occ.start))}
               >
                 {#if it.kind === 'timed'}<span class="dot" style:--dot="var(--c)"></span>{/if}
-                <span class="label">{ev.title || 'New Event'}</span>
+                <span class="label">{ev.title || t('planner.untitledEvent')}</span>
                 {#if it.kind === 'timed'}<span class="time">{formatTime(ev.startTime ?? '00:00')}</span>{/if}
               </button>
             {/if}
@@ -151,7 +153,7 @@
               onclick={(e) => {
                 e.stopPropagation();
                 calendar.selected = day;
-              }}>{list.length - MAX + 1} more</button
+              }}>{t('planner.calendar.more', { count: list.length - MAX + 1 })}</button
             >
           {/if}
         </div>

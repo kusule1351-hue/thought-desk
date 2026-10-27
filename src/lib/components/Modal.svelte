@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte';
   import Icon from './Icon.svelte';
   import { fadeOut, sheet, sheetOut } from '../motion';
+  import { t } from '../i18n';
 
   let {
     onclose,
@@ -58,7 +59,7 @@
     out:sheetOut|global={{ duration: 180 }}
   >
     {@render children()}
-    {#if closeButton}<button class="icon-btn close" onclick={onclose} aria-label="Close" data-tip="Close"><Icon name="x" /></button>{/if}
+    {#if closeButton}<button class="icon-btn close" onclick={onclose} aria-label={t('common.actions.close')} data-tip={t('common.actions.close')}><Icon name="x" /></button>{/if}
   </div>
 </div>
 

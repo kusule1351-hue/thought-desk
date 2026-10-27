@@ -8,13 +8,38 @@
   import Icon from '../components/Icon.svelte';
   import StatusCheck from '../ui/StatusCheck.svelte';
   import { clock } from '../clock.svelte';
-  import { dueState, formatDate, formatDue, formatTime } from '../dates';
+  import { dueState, formatDate, formatDue } from '../dates';
+  import { t, type MessageKey } from '../i18n';
+  import { fmt } from '../i18n/format';
   import { library } from '../library.svelte';
   import { planner } from '../planner.svelte';
   import { store } from '../store.svelte';
   import FileTile from '../ui/FileTile.svelte';
 
   type ChipKind = 'page' | 'assignment' | 'event' | 'file';
+
+  const NOT_HERE = {
+    page: 'blocks.chip.notHere.page',
+    assignment: 'blocks.chip.notHere.assignment',
+    event: 'blocks.chip.notHere.event',
+    file: 'blocks.chip.notHere.file',
+  } satisfies Record<ChipKind, MessageKey>;
+  const DELETED = {
+    page: 'blocks.chip.deleted.page',
+    assignment: 'blocks.chip.deleted.assignment',
+    event: 'blocks.chip.deleted.event',
+    file: 'blocks.chip.deleted.file',
+  } satisfies Record<ChipKind, MessageKey>;
+
+  /** When an event's session is: "Oct 14", or "Oct 14, 3:05 PM" with its time (and the year when it isn't this one). */
+  function when(iso: string, time: string | null): string {
+    if (!time) return formatDate(iso);
+    const [y, mo, day] = iso.split('-').map(Number);
+    const [h, m] = time.split(':').map(Number);
+    const year = y !== new Date().getFullYear() ? ({ year: 'numeric' } as const) : {};
+    // In UTC, so a time a daylight-saving change skips (2:30 on the night clocks go forward) still reads as written.
+    return fmt.dateTime(Date.UTC(y, mo - 1, day, h, m), { month: 'short', day: 'numeric', ...year, hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
+  }
 
   let {
     id,
@@ -33,10 +58,10 @@
   // written together links to the other person's pages) or gone for good.
   const title = $derived(
     !item
-      ? `${kind[0].toUpperCase()}${kind.slice(1)} not here`
+      ? t(NOT_HERE[kind] ?? NOT_HERE.page) // a kind from a newer version reads as a page
       : item.deletedAt
-        ? `Deleted ${kind}`
-        : (page?.title ?? assignment?.title ?? event?.title ?? file?.name) || 'Untitled',
+        ? t(DELETED[kind])
+        : (page?.title ?? assignment?.title ?? event?.title ?? file?.name) || t('common.untitled'),
   );
   const urgency = $derived(assignment ? dueState(assignment, clock.today, clock.time) : 'none');
 
@@ -70,7 +95,7 @@
         done={assignment.status === 'done'}
         color={planner.courseColor(assignment.courseId)}
         size={14}
-        label={assignment.status === 'done' ? 'Mark as not done' : 'Mark as done'}
+        label={assignment.status === 'done' ? t('blocks.chip.markNotDone') : t('blocks.chip.markDone')}
         ontoggle={() => planner.toggleDone(id)}
       />
     </span>
@@ -86,7 +111,7 @@
   {#if assignment && !missing && assignment.dueDate}
     <span class="chip-meta {urgency}">{formatDue(assignment.dueDate, assignment.dueTime, clock.today)}</span>
   {:else if event && !missing}
-    <span class="chip-meta">{formatDate(date ?? event.startDate)}{event.startTime ? `, ${formatTime(event.startTime)}` : ''}</span>
+    <span class="chip-meta">{when(date ?? event.startDate, event.startTime)}</span>
   {/if}
 </span>
 

@@ -5,15 +5,29 @@
 
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
-  import { ALL_EMOJI, EMOJI_GROUPS, randomEmoji } from '../emoji';
-  import { ICON_COLORS, PAGE_ICONS, lineIcon, parseIcon } from '../page-icon';
+  import { ALL_EMOJI, EMOJI_GROUPS, EMOJI_GROUP_LABELS, randomEmoji } from '../emoji';
+  import { ICON_COLORS, PAGE_ICONS, PAGE_ICON_GROUPS, PAGE_ICON_GROUP_LABELS, lineIcon, parseIcon, type IconColor } from '../page-icon';
   import { colorVar } from '../colors';
   import PageIcon from './PageIcon.svelte';
   import { ui, type IconPickerState } from '../ui.svelte';
   import Icon from './Icon.svelte';
   import { fadeOut, pop } from '../motion';
+  import { searchText, t, type MessageKey } from '../i18n';
 
   let { picker }: { picker: IconPickerState } = $props();
+
+  /** What a screen reader calls each colour swatch. */
+  const COLOR_NAMES = {
+    red: 'onboarding.iconPicker.colors.red',
+    orange: 'onboarding.iconPicker.colors.orange',
+    yellow: 'onboarding.iconPicker.colors.yellow',
+    green: 'onboarding.iconPicker.colors.green',
+    teal: 'onboarding.iconPicker.colors.teal',
+    blue: 'onboarding.iconPicker.colors.blue',
+    indigo: 'onboarding.iconPicker.colors.indigo',
+    purple: 'onboarding.iconPicker.colors.purple',
+    pink: 'onboarding.iconPicker.colors.pink',
+  } as const satisfies Record<IconColor, MessageKey>;
 
   let el: HTMLDivElement;
   let input: HTMLInputElement;
@@ -27,6 +41,9 @@
   let tab = $state<'icons' | 'emoji'>(current?.kind === 'emoji' ? 'emoji' : 'icons');
   let color = $state<string | null>(current?.kind === 'icon' ? current.color : lastColor);
 
+  // Emoji and icons are found by English keywords for now, whatever the
+  // interface's language; icons also by their names, in it and in English.
+  const iconWords = new Map(PAGE_ICONS.map((i) => [i.name, searchText(i.label).toLowerCase()]));
   const results = $derived.by(() => {
     const q = query.trim().toLowerCase();
     if (!q) return null;
@@ -35,9 +52,9 @@
   const iconResults = $derived.by(() => {
     const q = query.trim().toLowerCase();
     if (!q) return null;
-    return PAGE_ICONS.filter((i) => i.name.includes(q) || i.keywords.includes(q));
+    return PAGE_ICONS.filter((i) => i.name.includes(q) || iconWords.get(i.name)!.includes(q) || i.keywords.includes(q));
   });
-  const iconGroups = [...new Set(PAGE_ICONS.map((i) => i.group))].map((g) => ({ name: g, items: PAGE_ICONS.filter((i) => i.group === g) }));
+  const iconGroups = PAGE_ICON_GROUPS.map((g) => ({ id: g, items: PAGE_ICONS.filter((i) => i.group === g) }));
 
   function pickIcon(name: string) {
     lastColor = color;
@@ -89,17 +106,17 @@
 
 <div class="picker popover" bind:this={el} style:left="{pos.left}px" style:top="{pos.top}px" in:pop|global out:fadeOut|global>
   <div class="tabs" role="tablist">
-    <button role="tab" class:on={tab === 'icons'} aria-selected={tab === 'icons'} onclick={() => ((tab = 'icons'), input.focus())}>Icons</button>
-    <button role="tab" class:on={tab === 'emoji'} aria-selected={tab === 'emoji'} onclick={() => ((tab = 'emoji'), input.focus())}>Emoji</button>
+    <button role="tab" class:on={tab === 'icons'} aria-selected={tab === 'icons'} onclick={() => ((tab = 'icons'), input.focus())}>{t('onboarding.iconPicker.icons')}</button>
+    <button role="tab" class:on={tab === 'emoji'} aria-selected={tab === 'emoji'} onclick={() => ((tab = 'emoji'), input.focus())}>{t('onboarding.iconPicker.emoji')}</button>
     <span class="grow"></span>
-    <button class="text-btn" onclick={random}>Random</button>
+    <button class="text-btn" onclick={random}>{t('onboarding.iconPicker.random')}</button>
     {#if picker.onRemove}
       <button
         class="text-btn"
         onclick={() => {
           picker.onRemove?.();
           close();
-        }}>Remove</button
+        }}>{t('onboarding.iconPicker.remove')}</button
       >
     {/if}
   </div>
@@ -109,7 +126,7 @@
       <input
         bind:this={input}
         bind:value={query}
-        placeholder={tab === 'icons' ? 'Search icons' : 'Search emoji'}
+        placeholder={tab === 'icons' ? t('onboarding.iconPicker.searchIcons') : t('onboarding.iconPicker.searchEmoji')}
         spellcheck="false"
         onkeydown={(e) => {
           if (e.key !== 'Enter') return;
@@ -120,10 +137,10 @@
     </label>
   </div>
   {#if tab === 'icons'}
-    <div class="colors" role="radiogroup" aria-label="Icon colour">
-      <button class="swatch plain" class:on={color === null} role="radio" aria-checked={color === null} aria-label="No colour" data-tip="Text colour" onclick={() => (color = null)}></button>
+    <div class="colors" role="radiogroup" aria-label={t('onboarding.iconPicker.color')}>
+      <button class="swatch plain" class:on={color === null} role="radio" aria-checked={color === null} aria-label={t('onboarding.iconPicker.noColor')} data-tip={t('onboarding.iconPicker.textColor')} onclick={() => (color = null)}></button>
       {#each ICON_COLORS as c (c)}
-        <button class="swatch" class:on={color === c} role="radio" aria-checked={color === c} aria-label={c} style:--sw={colorVar(c)} onclick={() => (color = c)}></button>
+        <button class="swatch" class:on={color === c} role="radio" aria-checked={color === c} aria-label={t(COLOR_NAMES[c])} style:--sw={colorVar(c)} onclick={() => (color = c)}></button>
       {/each}
     </div>
   {/if}
@@ -132,17 +149,17 @@
       {#if iconResults}
         <div class="grid">
           {#each iconResults as i (i.name)}
-            <button class="em glyph" onclick={() => pickIcon(i.name)} aria-label={i.name}><PageIcon icon={lineIcon(i.name, color)} /></button>
+            <button class="em glyph" onclick={() => pickIcon(i.name)} aria-label={t(i.label)}><PageIcon icon={lineIcon(i.name, color)} /></button>
           {:else}
-            <p class="none">No icons found</p>
+            <p class="none">{t('onboarding.iconPicker.noIcons')}</p>
           {/each}
         </div>
       {:else}
-        {#each iconGroups as g (g.name)}
-          <div class="group-name">{g.name}</div>
+        {#each iconGroups as g (g.id)}
+          <div class="group-name">{t(PAGE_ICON_GROUP_LABELS[g.id])}</div>
           <div class="grid">
             {#each g.items as i (i.name)}
-              <button class="em glyph" onclick={() => pickIcon(i.name)} aria-label={i.name}><PageIcon icon={lineIcon(i.name, color)} /></button>
+              <button class="em glyph" onclick={() => pickIcon(i.name)} aria-label={t(i.label)}><PageIcon icon={lineIcon(i.name, color)} /></button>
             {/each}
           </div>
         {/each}
@@ -152,12 +169,12 @@
         {#each results as e (e.emoji)}
           <button class="em" onclick={() => pick(e.emoji)}>{e.emoji}</button>
         {:else}
-          <p class="none">No emoji found</p>
+          <p class="none">{t('onboarding.iconPicker.noEmoji')}</p>
         {/each}
       </div>
     {:else}
-      {#each EMOJI_GROUPS as g (g.name)}
-        <div class="group-name">{g.name}</div>
+      {#each EMOJI_GROUPS as g (g.id)}
+        <div class="group-name">{t(EMOJI_GROUP_LABELS[g.id])}</div>
         <div class="grid">
           {#each g.items as e (e.emoji)}
             <button class="em" onclick={() => pick(e.emoji)}>{e.emoji}</button>

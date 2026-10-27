@@ -8,6 +8,8 @@
   import { planner } from '../planner.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
 
   let { days, onnew }: { days: string[]; onnew: (day: string, time?: string) => void } = $props();
 
@@ -98,14 +100,14 @@
     {#each days as day (day)}
       {@const d = parseDate(day)}
       <button class="day-head" class:today={day === clock.today} onclick={() => (calendar.selected = day)}>
-        <span class="wd">{d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
-        <span class="dn round">{d.getDate()}</span>
+        <span class="wd">{fmt.date(d, { weekday: 'short' })}</span>
+        <span class="dn round">{fmt.number(d.getDate())}</span>
       </button>
     {/each}
   </div>
 
   <div class="all-day">
-    <div class="gutter label">all-day</div>
+    <div class="gutter label">{t('planner.calendar.allDay')}</div>
     {#each days as day (day)}
       {@const d = items.get(day) ?? empty}
       <div
@@ -133,7 +135,7 @@
             ondragstart={(e) => start(e, 'event', occ.event.id, day, occ.start)}
             ondragend={() => (calendar.drag = null)}
             onclick={() => planner.openEvent(occ.event.id, occ.start)}
-            oncontextmenu={(e) => menu(e, eventMenuItems(occ.event.id, occ.start))}>{occ.event.title || 'New Event'}</button
+            oncontextmenu={(e) => menu(e, eventMenuItems(occ.event.id, occ.start))}>{occ.event.title || t('planner.untitledEvent')}</button
           >
         {/each}
         {#each d.rows as r (r.key)}
@@ -148,7 +150,7 @@
             data-tip={store.byId.get(r.dbId)?.title}
           >
             <span class="square"></span>
-            <span class="label">{#if page?.icon}<PageIcon icon={page.icon} />&nbsp;{/if}{page?.title || 'Untitled'}</span>
+            <span class="label">{#if page?.icon}<PageIcon icon={page.icon} />&nbsp;{/if}{page?.title || t('common.untitled')}</span>
             {#if r.time}<span class="t">{formatTime(r.time)}</span>{/if}
           </button>
         {/each}
@@ -164,7 +166,7 @@
             oncontextmenu={(e) => menu(e, assignmentMenuItems(a.id))}
           >
             <span class="ring round"></span>
-            <span class="label">{a.title || 'Untitled'}</span>
+            <span class="label">{a.title || t('common.untitled')}</span>
             {#if a.dueTime}<span class="t">{formatTime(a.dueTime)}</span>{/if}
           </button>
         {/each}
@@ -216,7 +218,7 @@
               onclick={() => planner.openEvent(ev.id, b.occ.start)}
               oncontextmenu={(e) => menu(e, eventMenuItems(ev.id, b.occ.start))}
             >
-              <span class="b-title">{ev.title || 'New Event'}</span>
+              <span class="b-title">{ev.title || t('planner.untitledEvent')}</span>
               <span class="b-time">{formatTime(ev.startTime ?? '00:00')}{ev.location ? ` · ${ev.location}` : ''}</span>
             </button>
           {/each}

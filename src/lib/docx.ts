@@ -10,6 +10,7 @@ import { zip } from './zip';
 import { iconText } from './page-icon';
 import { toOmml } from './math/omml';
 import { loadKatex } from './math/katex';
+import { t } from './i18n';
 
 type Kind = 'page' | 'assignment' | 'event' | 'file';
 
@@ -94,7 +95,7 @@ class Writer {
 
   /** One run of text. Word wants run properties in schema order. */
   run(text: string, marks: { type: string; attrs?: Record<string, any> }[] = [], style: RunStyle = {}): string {
-    const has = (t: string) => marks.some((m) => m.type === t);
+    const has = (type: string) => marks.some((m) => m.type === type);
     const textColor = TEXT_COLORS[marks.find((m) => m.type === 'textColor')?.attrs?.color ?? ''];
     const tint = HIGHLIGHT_TINTS[marks.find((m) => m.type === 'highlight')?.attrs?.color ?? ''];
     let rPr = '';
@@ -217,7 +218,7 @@ class Writer {
         );
       }
       case 'codeBlock': {
-        const text = (n.content ?? []).map((t) => t.text ?? '').join('');
+        const text = (n.content ?? []).map((c) => c.text ?? '').join('');
         return this.para(this.run(text), frame, { style: 'Code' });
       }
       case 'horizontalRule':
@@ -337,7 +338,7 @@ class Writer {
   async picture(n: JNode, frame: Frame): Promise<string> {
     const src = n.attrs?.src;
     const img = src ? await this.ctx.image(src) : null;
-    if (!img) return n.attrs?.alt ? this.para(this.run(`[${n.attrs.alt}]`), frame) : '';
+    if (!img) return n.attrs?.alt ? this.para(this.run(t('pages.export.missingImage', { alt: String(n.attrs.alt) })), frame) : '';
     const name = `image${this.#pic}.png`;
     const id = this.#pic++;
     this.media.push({ name, data: img.bytes });
@@ -420,7 +421,7 @@ export async function toDocx(doc: JNode, title: string, ctx: DocxContext): Promi
   // Equations are built from KaTeX's MathML.
   if (/"(inlineMath|mathBlock)"/.test(JSON.stringify(doc))) await loadKatex().catch(() => {});
   const w = new Writer(ctx);
-  const titlePara = w.para(w.run(title || 'Untitled'), { indent: 0 }, { style: 'Title' });
+  const titlePara = w.para(w.run(title || t('common.untitled')), { indent: 0 }, { style: 'Title' });
   const body = await w.blocks(doc.content, { indent: 0 });
   const document =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${NS}><w:body>` +

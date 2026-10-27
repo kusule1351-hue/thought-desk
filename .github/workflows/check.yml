@@ -33,6 +33,9 @@ jobs:
       - name: Type-check the interface
         run: npm run check
 
+      - name: Check the interface's messages and translations
+        run: npm run i18n
+
       # The storage tests build the app, which embeds the built interface.
       - name: Build the interface
         run: npm run build

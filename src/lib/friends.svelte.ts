@@ -8,18 +8,21 @@ import { untrack } from 'svelte';
 import { account } from './account.svelte';
 import { api } from './api';
 import { cloud, USERNAME, type Friend } from './cloud';
+import { t } from './i18n';
+import { fmt } from './i18n/format';
 import { ui } from './ui.svelte';
 
 const EVERY = 60_000;
 
-const byName = (a: Friend, b: Friend) => (a.profile.displayName || a.profile.username || '').localeCompare(b.profile.displayName || b.profile.username || '');
+/** By name, the interface language's way; every difference counts (case, accents), so the order is always the same. */
+const byName = (a: Friend, b: Friend) => fmt.collator({}).compare(a.profile.displayName || a.profile.username || '', b.profile.displayName || b.profile.username || '');
 
 /** How to show someone: their name, else their @username. */
 export const nameOf = (f: Friend) => f.profile.displayName || `@${f.profile.username ?? '?'}`;
 
 /** News for you: in the app, and as a system notification when it's in the background. */
 export function announce(title: string, body = '', action?: { label: string; run: () => void }) {
-  ui.toast(body ? `${title}: ${body}` : title, action, 8000);
+  ui.toast(body ? t('social.notify.toast', { title, body }) : title, action, 8000);
   if (document.hidden || !document.hasFocus()) void api.notify(title, body).catch(() => {});
 }
 
@@ -112,27 +115,28 @@ class Friends {
     if (!before) return;
     for (const f of list) {
       const was = before.get(f.profile.id)?.status;
-      if (f.status === 'incoming' && was !== 'incoming') announce(`${nameOf(f)} wants to be friends`, `@${f.profile.username}`, { label: 'Accept', run: () => void this.accept(f.profile.id) });
-      if (f.status === 'accepted' && was === 'outgoing') announce(`${nameOf(f)} accepted your friend request`, `@${f.profile.username}`);
+      if (f.status === 'incoming' && was !== 'incoming')
+        announce(t('social.friends.wantsToBeFriends', { name: nameOf(f) }), `@${f.profile.username}`, { label: t('social.friends.accept'), run: () => void this.accept(f.profile.id) });
+      if (f.status === 'accepted' && was === 'outgoing') announce(t('social.friends.acceptedRequest', { name: nameOf(f) }), `@${f.profile.username}`);
     }
     // A request of yours that's gone, and you didn't take it back: they
     // declined. Said in the app only, with no system notification.
     const now = new Set(list.map((f) => f.profile.id));
     for (const [id, f] of before)
-      if (f.status === 'outgoing' && !now.has(id) && !this.#withdrawn.has(id)) ui.toast(`${nameOf(f)} declined your friend request.`, undefined, 8000);
+      if (f.status === 'outgoing' && !now.has(id) && !this.#withdrawn.has(id)) ui.toast(t('social.friends.declinedRequest', { name: nameOf(f) }), undefined, 8000);
   }
 
   /** Sends a friend request by username (or accepts theirs). */
   async add(input: string): Promise<'sent' | 'accepted'> {
     const name = input.trim().toLowerCase().replace(/^@/, '');
-    if (!USERNAME.test(name)) throw new Error('Usernames are 3–20 lowercase letters, digits or _.');
-    if (name === account.profile?.username) throw new Error("That's you.");
+    if (!USERNAME.test(name)) throw new Error(t('social.friends.errors.usernameRule'));
+    if (name === account.profile?.username) throw new Error(t('social.friends.errors.thatsYou'));
     const c = await cloud();
     const person = await c.findProfile(name);
-    if (!person) throw new Error(`No one is called @${name}.`);
+    if (!person) throw new Error(t('social.friends.errors.noOne', { username: name }));
     const already = this.list.find((f) => f.profile.id === person.id);
-    if (already?.status === 'accepted') throw new Error(`You're already friends with @${name}.`);
-    if (already?.status === 'outgoing') throw new Error(`You've already asked @${name}.`);
+    if (already?.status === 'accepted') throw new Error(t('social.friends.errors.alreadyFriends', { username: name }));
+    if (already?.status === 'outgoing') throw new Error(t('social.friends.errors.alreadyAsked', { username: name }));
     if (already?.status === 'incoming') {
       await this.accept(person.id);
       return 'accepted';

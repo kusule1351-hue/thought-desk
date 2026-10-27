@@ -7,10 +7,10 @@
   import { isMac } from '../platform';
   import { changeLook } from '../look-transition';
   import { drag, dragLater, endDrag, pageDragImage } from './TreeItem.svelte';
-  import { prefs } from '../prefs.svelte';
+  import { prefs, type Theme } from '../prefs.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
-  import { relativeTime } from '../time';
+  import { relativeWhen } from '../time';
   import { pageMenuItems } from '../page-actions';
   import { planner } from '../planner.svelte';
   import { cards } from '../cards.svelte';
@@ -20,13 +20,15 @@
   import { cowork } from '../cowork.svelte';
   import { tabs } from '../tabs.svelte';
   import TabStrip from './TabStrip.svelte';
+  import { t, type MessageKey } from '../i18n';
+  import { fmt } from '../i18n/format';
 
   let { words = 0, scrolled = false }: { words?: number; scrolled?: boolean } = $props();
 
   let now = $state(Date.now());
   onMount(() => {
-    const t = setInterval(() => (now = Date.now()), 30_000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => (now = Date.now()), 30_000);
+    return () => clearInterval(timer);
   });
 
   const page = $derived(store.view === 'page' ? store.current : null);
@@ -37,18 +39,18 @@
   const together = $derived(!!live && live.people.some((p) => !p.me));
   const deck = $derived(page ? cards.deck(page.id) : undefined);
   const VIEW_CRUMBS: Record<string, { label: string; icon: string }> = {
-    home: { label: 'Home', icon: 'home' },
-    assignments: { label: 'Assignments', icon: 'assignment' },
-    calendar: { label: 'Calendar', icon: 'calendar' },
-    files: { label: 'Files', icon: 'files' },
-    cards: { label: 'Flashcards', icon: 'cards' },
-    friends: { label: 'Friends', icon: 'users' },
+    home: { label: t('common.views.home'), icon: 'home' },
+    assignments: { label: t('common.views.assignments'), icon: 'assignment' },
+    calendar: { label: t('common.views.calendar'), icon: 'calendar' },
+    files: { label: t('common.views.files'), icon: 'files' },
+    cards: { label: t('common.views.flashcards'), icon: 'cards' },
+    friends: { label: t('common.views.friends'), icon: 'users' },
   };
   const viewCrumb = $derived(
     store.view === 'tag'
       ? { label: `#${store.tag ?? ''}`, icon: 'tag' }
       : store.view === 'course'
-        ? { label: planner.courseById.get(store.courseId ?? '')?.name || 'Course', icon: 'book' }
+        ? { label: planner.courseById.get(store.courseId ?? '')?.name || t('common.course'), icon: 'book' }
         : VIEW_CRUMBS[store.view],
   );
   const crumbs = $derived.by(() => {
@@ -62,17 +64,32 @@
   // A page nobody has typed in yet reads "Created", not "Edited".
   const status = $derived.by(() => {
     if (!page) return '';
-    if (page.kind === 'database') {
-      const n = databases.rowCount(page.id);
-      return `${n.toLocaleString()} row${n === 1 ? '' : 's'}`;
-    }
+    if (page.kind === 'database') return t('shell.rowCount', { count: databases.rowCount(page.id) });
     const untouched = page.updatedAt - page.createdAt < 1500;
-    return untouched ? `Created ${relativeTime(page.createdAt, now)}` : `Edited ${relativeTime(page.updatedAt, now)}`;
+    const when = relativeWhen(untouched ? page.createdAt : page.updatedAt, now);
+    if (when.kind === 'now') return t(untouched ? 'shell.titleBar.created.now' : 'shell.titleBar.edited.now');
+    if (when.kind === 'relative') return t(untouched ? 'shell.titleBar.created.relative' : 'shell.titleBar.edited.relative', { when: when.text });
+    return t(untouched ? 'shell.titleBar.created.date' : 'shell.titleBar.edited.date', { date: when.text });
+  });
+
+  // The live chip: how the session is going, and with whom. A sentence for each state, since other languages word them differently.
+  const LIVE_WITH = { here: 'shell.titleBar.live.with', paused: 'shell.titleBar.live.withPaused', away: 'shell.titleBar.live.withAway' } as const satisfies Record<string, MessageKey>;
+  /** No session row yet: "a friend". */
+  const LIVE_WITH_FRIEND = { here: 'shell.titleBar.live.withFriend', paused: 'shell.titleBar.live.withFriendPaused', away: 'shell.titleBar.live.withFriendAway' } as const satisfies Record<string, MessageKey>;
+  /** A row, but the other person is no longer a friend: "Your friend" (cowork.aboutOther). */
+  const LIVE_WITH_YOUR_FRIEND = { here: 'shell.titleBar.live.withYourFriend', paused: 'shell.titleBar.live.withYourFriendPaused', away: 'shell.titleBar.live.withYourFriendAway' } as const satisfies Record<string, MessageKey>;
+  const liveText = $derived.by(() => {
+    if (!live) return '';
+    if (live.status === 'offline') return t('shell.titleBar.live.offline');
+    if (live.status === 'connecting') return t('shell.titleBar.live.connecting');
+    const state = live.status === 'paused' ? 'paused' : together ? 'here' : 'away';
+    return liveRow ? cowork.aboutOther(liveRow, LIVE_WITH[state], LIVE_WITH_YOUR_FRIEND[state]) : t(LIVE_WITH_FRIEND[state]);
   });
 
   // App-wide buttons: appearance, Trash and Settings.
   const themeIcon = $derived(prefs.theme === 'system' ? 'monitor' : prefs.theme === 'dark' ? 'moon' : 'sun');
-  const themeLabel = $derived(prefs.theme === 'system' ? 'System' : prefs.theme === 'dark' ? 'Dark' : 'Light');
+  const THEME_TIPS = { system: 'shell.titleBar.appearance.system', dark: 'shell.titleBar.appearance.dark', light: 'shell.titleBar.appearance.light' } as const satisfies Record<Theme, MessageKey>;
+  const themeTip = $derived(t(THEME_TIPS[prefs.theme] ?? THEME_TIPS.light));
   function cycleTheme() {
     changeLook(() => (prefs.theme = prefs.theme === 'system' ? 'light' : prefs.theme === 'light' ? 'dark' : 'system'));
   }
@@ -115,14 +132,14 @@
 <header class="titlebar" class:scrolled class:tabbed={tabs.list.length > 1} class:bare={!prefs.sidebarOpen} data-tauri-drag-region>
   <div class="nav">
     {#if !prefs.sidebarOpen}
-      <button class="icon-btn" onclick={() => (prefs.sidebarOpen = true)} data-tip="Show sidebar" data-tip-key={shortcuts.label('sidebar')}>
+      <button class="icon-btn" onclick={() => (prefs.sidebarOpen = true)} data-tip={t('shell.titleBar.showSidebar')} data-tip-key={shortcuts.label('sidebar')}>
         <Icon name="sidebar-left" />
       </button>
     {/if}
-    <button class="icon-btn" disabled={!store.canGoBack} onclick={() => store.back()} data-tip="Back" data-tip-key={shortcuts.label('back')}>
+    <button class="icon-btn" disabled={!store.canGoBack} onclick={() => store.back()} data-tip={t('shell.titleBar.back')} data-tip-key={shortcuts.label('back')}>
       <Icon name="arrow-left" />
     </button>
-    <button class="icon-btn" disabled={!store.canGoForward} onclick={() => store.forward()} data-tip="Forward" data-tip-key={shortcuts.label('forward')}>
+    <button class="icon-btn" disabled={!store.canGoForward} onclick={() => store.forward()} data-tip={t('shell.titleBar.forward')} data-tip-key={shortcuts.label('forward')}>
       <Icon name="arrow-right" />
     </button>
   </div>
@@ -130,7 +147,7 @@
   {#if tabs.list.length > 1}
     <TabStrip />
   {:else}
-  <nav class="crumbs" data-tauri-drag-region aria-label="Breadcrumb">
+  <nav class="crumbs" data-tauri-drag-region aria-label={t('shell.titleBar.breadcrumb')}>
     {#if viewCrumb}
       <span class="crumb current view-crumb" data-tauri-drag-region>
         <span class="view-icon"><Icon name={viewCrumb.icon} size={15} /></span>
@@ -149,19 +166,19 @@
           draggable={i === crumbs.length - 1}
           ondragstart={(e) => {
             const id = c.id;
-            e.dataTransfer?.setData('text/plain', c.title || 'Untitled');
+            e.dataTransfer?.setData('text/plain', c.title || t('common.untitled'));
             pageDragImage(e, c.title, c.icon);
             dragLater(id, 'main');
           }}
           ondragend={endDrag}
         >
           {#if c.icon}<span class="emoji"><PageIcon icon={c.icon} /></span>{:else if c.kind === 'database'}<Icon name="database" size={13} />{/if}
-          <span class="crumb-title">{c.title || (c.kind === 'database' ? 'Untitled database' : 'Untitled')}</span>
+          <span class="crumb-title">{c.title || (c.kind === 'database' ? t('common.untitledDatabase') : t('common.untitled'))}</span>
         </button>
       {/if}
     {/each}
   </nav>
-    <button class="icon-btn new-tab" onclick={() => tabs.newTab()} aria-label="New tab" data-tip="New tab" data-tip-key={shortcuts.label('newTab')}>
+    <button class="icon-btn new-tab" onclick={() => tabs.newTab()} aria-label={t('shell.newTab')} data-tip={t('shell.newTab')} data-tip-key={shortcuts.label('newTab')}>
       <Icon name="plus" size={15} />
     </button>
     <div class="spacer" data-tauri-drag-region></div>
@@ -170,38 +187,38 @@
   {#if page}
     <div class="actions">
       {#if live}
-        <button class="live-chip" class:offline={live.status === 'offline'} class:alone={(live.status === 'live' && !together) || live.status === 'paused'} onclick={() => (ui.liveSheet = page.id)} data-tip="Writing together: who's here, and End Session">
+        <button class="live-chip" class:offline={live.status === 'offline'} class:alone={(live.status === 'live' && !together) || live.status === 'paused'} onclick={() => (ui.liveSheet = page.id)} data-tip={t('shell.titleBar.live.tip')}>
           <span class="live-dot"></span>
-          {live.status === 'offline' ? 'Offline' : live.status === 'connecting' ? 'Connecting…' : `Live with ${liveRow ? cowork.otherName(liveRow) : 'a friend'}${live.status === 'paused' ? ' · paused' : together ? '' : ' · away'}`}
+          {liveText}
         </button>
       {/if}
       <span class="status" data-tauri-drag-region>
-        {store.saving ? 'Saving…' : status}
+        {store.saving ? t('shell.titleBar.saving') : status}
       </span>
       {#if deck}
-        <button class="btn small study" onclick={() => cards.study([deck.pageId], page.title || 'Untitled')} data-tip="Study this page’s {deck.count} flashcard{deck.count === 1 ? '' : 's'}">
-          <Icon name="cards" size={14} stroke={2} /> Study{deck.due + deck.fresh ? ` ${deck.due + deck.fresh}` : ''}
+        <button class="btn small study" onclick={() => cards.study([deck.pageId], page.title || t('common.untitled'))} data-tip={t('shell.titleBar.studyTip', { count: deck.count })}>
+          <Icon name="cards" size={14} stroke={2} /> {t('shell.titleBar.study', { count: deck.due + deck.fresh })}
         </button>
       {/if}
       <button
         class="icon-btn"
         class:on={!!page.favorite}
         onclick={() => store.toggleFavorite(page.id)}
-        data-tip={page.favorite ? 'Remove from Favorites' : 'Add to Favorites'}
+        data-tip={page.favorite ? t('shell.titleBar.removeFavorite') : t('shell.titleBar.addFavorite')}
       >
         <Icon name="star" size={15} stroke={page.favorite ? 1.6 : 1.9} filled={!!page.favorite} />
       </button>
-      <button class="icon-btn" class:open={moreOpen} onclick={openMore} data-tip="More">
+      <button class="icon-btn" class:open={moreOpen} onclick={openMore} data-tip={t('common.actions.more')}>
         <Icon name="more" />
       </button>
     </div>
     <span class="divider"></span>
   {/if}
   <div class="app-tools">
-    <button class="icon-btn" class:on={split.open} onclick={() => split.toggle()} data-tip={split.open ? 'Close split view' : 'Split view'} data-tip-key={shortcuts.label('split')} aria-label="Split view" aria-pressed={split.open}>
+    <button class="icon-btn" class:on={split.open} onclick={() => split.toggle()} data-tip={split.open ? t('shell.closeSplitView') : t('shell.splitView')} data-tip-key={shortcuts.label('split')} aria-label={t('shell.splitView')} aria-pressed={split.open}>
       <Icon name="split" size={15} />
     </button>
-    <button class="icon-btn" onclick={cycleTheme} data-tip="Appearance: {themeLabel}" data-tip-key={shortcuts.label('theme')} aria-label="Appearance: {themeLabel}">
+    <button class="icon-btn" onclick={cycleTheme} data-tip={themeTip} data-tip-key={shortcuts.label('theme')} aria-label={themeTip}>
       <Icon name={themeIcon} size={15} />
     </button>
     <button
@@ -213,13 +230,13 @@
       ondragover={onTrashDragOver}
       ondragleave={() => (trashHover = false)}
       ondrop={onTrashDrop}
-      data-tip={trashCount ? `Trash · ${trashCount} item${trashCount === 1 ? '' : 's'}` : 'Trash'}
-      aria-label="Trash"
+      data-tip={t('shell.titleBar.trashTip', { count: trashCount })}
+      aria-label={t('common.views.trash')}
     >
       <Icon name="trash" />
-      {#if trashCount}<span class="badge">{trashCount > 99 ? '99+' : trashCount}</span>{/if}
+      {#if trashCount}<span class="badge">{trashCount > 99 ? t('shell.titleBar.badgeOverflow', { max: 99 }) : fmt.number(trashCount)}</span>{/if}
     </button>
-    <button class="icon-btn" class:open={ui.settingsOpen} onclick={() => (ui.settingsOpen = true)} data-tip="Settings" aria-label="Settings">
+    <button class="icon-btn" class:open={ui.settingsOpen} onclick={() => (ui.settingsOpen = true)} data-tip={t('common.views.settings')} aria-label={t('common.views.settings')}>
       <Icon name="settings" />
     </button>
   </div>

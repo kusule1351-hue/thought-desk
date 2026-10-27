@@ -1,5 +1,6 @@
 /** Transient UI state: overlays, menus, dialogs and toasts. */
 
+import { t } from './i18n';
 import type { AssignmentPatch, EventPatch, FileMeta, TrashTable } from './types';
 import type { IcsItem } from './ics';
 import type { Card } from './types';
@@ -184,7 +185,7 @@ class UI {
       this.confirmState = {
         title: opts.title,
         message: opts.message,
-        confirmLabel: opts.confirmLabel ?? 'Confirm',
+        confirmLabel: opts.confirmLabel ?? t('app.confirm'),
         danger: opts.danger ?? false,
         resolve,
       };
@@ -207,7 +208,7 @@ class UI {
       this.confirmState = {
         title: opts.title,
         message: opts.message ?? '',
-        confirmLabel: opts.confirmLabel ?? 'Save',
+        confirmLabel: opts.confirmLabel ?? t('common.actions.save'),
         danger: false,
         icon: opts.icon ?? 'pencil',
         input: { value: opts.value ?? '', placeholder: opts.placeholder ?? '', select: opts.select ?? 'all' },
@@ -230,18 +231,18 @@ class UI {
 
   /** Changes what a toast that's still showing says (progress). */
   retoast(id: number, message: string) {
-    const t = this.toasts.find((t) => t.id === id);
-    if (t) t.message = message;
+    const toast = this.toasts.find((x) => x.id === id);
+    if (toast) toast.message = message;
   }
 
   dismissToast(id: number) {
-    const i = this.toasts.findIndex((t) => t.id === id);
+    const i = this.toasts.findIndex((x) => x.id === id);
     if (i >= 0) this.toasts.splice(i, 1);
   }
 
   error(e: unknown) {
     console.error(e);
-    this.toast(typeof e === 'string' ? e : e instanceof Error ? e.message : 'Something went wrong');
+    this.toast(typeof e === 'string' ? e : e instanceof Error ? e.message : t('app.somethingWentWrong'));
   }
 }
 

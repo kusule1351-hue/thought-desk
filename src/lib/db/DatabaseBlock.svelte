@@ -4,6 +4,7 @@
   import DatabaseView from './DatabaseView.svelte';
   import { databases } from '../databases.svelte';
   import { store } from '../store.svelte';
+  import { t } from '../i18n';
 
   let { id, view, onview }: { id: string; view: string | null; onview: (view: string) => void } = $props();
 
@@ -11,13 +12,13 @@
 </script>
 
 {#if !databases.loaded}
-  <div class="gone">Loading…</div>
+  <div class="gone">{t('common.loading')}</div>
 {:else if !meta || !databases.isDatabase(id)}
-  <div class="gone"><Icon name="database" size={15} /> This database was deleted.</div>
+  <div class="gone"><Icon name="database" size={15} /> {t('dbTable.block.deleted')}</div>
 {:else if meta.deletedAt}
   <div class="gone">
-    <Icon name="trash" size={15} /> “{meta.title || 'Untitled database'}” is in the Trash.
-    <button class="btn small raised" onclick={() => void store.restore(id)}>Restore</button>
+    <Icon name="trash" size={15} /> {t('dbTable.block.inTrash', { title: meta.title || t('common.untitledDatabase') })}
+    <button class="btn small raised" onclick={() => void store.restore(id)}>{t('common.actions.restore')}</button>
   </div>
 {:else}
   <DatabaseView {id} embedded viewId={view} {onview} />

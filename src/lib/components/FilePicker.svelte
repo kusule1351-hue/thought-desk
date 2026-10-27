@@ -8,6 +8,7 @@
   import { rank } from '../editor/suggestion.svelte';
   import { formatBytes, relativeTime } from '../time';
   import { ui, type FilePickerState } from '../ui.svelte';
+  import { t } from '../i18n';
 
   let { picker: request }: { picker: FilePickerState } = $props();
   // The request is fixed for this popover's life; closing clears the prop.
@@ -101,16 +102,16 @@
   <div class="bar">
     <label class="field">
       <Icon name="search" size={14} stroke={2} />
-      <input bind:this={input} bind:value={query} placeholder="Search files" spellcheck="false" onkeydown={onKey} />
+      <input bind:this={input} bind:value={query} placeholder={t('onboarding.filePicker.placeholder')} spellcheck="false" onkeydown={onKey} />
     </label>
   </div>
   <div class="list" bind:this={list}>
     <button class="row" class:selected={selected === 0} data-index={0} onmousemove={() => (selected = 0)} onclick={() => choose(0)}>
       <span class="up"><Icon name="upload" size={16} stroke={2} /></span>
-      <span class="text"><span class="name">Upload from Computer…</span></span>
+      <span class="text"><span class="name">{t('onboarding.filePicker.upload')}</span></span>
     </button>
     {#if files.length}
-      <div class="eyebrow head">{query ? 'Matching files' : 'Library'}</div>
+      <div class="eyebrow head">{query ? t('onboarding.filePicker.matching') : t('onboarding.filePicker.library')}</div>
     {/if}
     {#each files as f, i (f.id)}
       <button class="row" class:selected={selected === i + 1} data-index={i + 1} onmousemove={() => (selected = i + 1)} onclick={() => choose(i + 1)}>
@@ -121,7 +122,7 @@
         </span>
       </button>
     {:else}
-      {#if query}<p class="none">No files match “{query}”</p>{/if}
+      {#if query}<p class="none">{t('onboarding.filePicker.noMatch', { query })}</p>{/if}
     {/each}
   </div>
 </div>

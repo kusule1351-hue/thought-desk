@@ -27,10 +27,13 @@
   import { prefs, type CalendarMode } from '../prefs.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
+  import Rich from '../i18n/Rich.svelte';
+  import { fmt } from '../i18n/format';
 
   const modes: { value: CalendarMode; label: string }[] = [
-    { value: 'month', label: 'Month' },
-    { value: 'week', label: 'Week' },
+    { value: 'month', label: t('planner.calendar.mode.month') },
+    { value: 'week', label: t('planner.calendar.mode.week') },
   ];
 
   const weeks = $derived.by(() => {
@@ -51,11 +54,10 @@
 
   const title = $derived.by(() => {
     if (prefs.calendarMode === 'month') return formatMonth(calendar.cursor);
-    const a = formatMonth(weekDays[0]);
-    const b = formatMonth(weekDays[6]);
-    if (a.month === b.month) return a;
-    const short = (iso: string) => parseDate(iso).toLocaleDateString(undefined, { month: 'short' });
-    return { month: `${short(weekDays[0])} – ${short(weekDays[6])}`, year: b.year };
+    // Same month: compared by date ("2026-10"), not by its written name.
+    if (weekDays[0].slice(0, 7) === weekDays[6].slice(0, 7)) return formatMonth(weekDays[0]);
+    const short = (iso: string) => fmt.date(parseDate(iso), { month: 'short' });
+    return { month: t('planner.dates.range', { from: short(weekDays[0]), to: short(weekDays[6]) }), year: formatMonth(weekDays[6]).year };
   });
 
   const range = $derived(
@@ -71,11 +73,10 @@
       for (const o of [...d.allDay, ...d.timed]) events.add(o.key);
       due += d.due.filter((a) => a.status !== 'done').length;
     }
-    const period = prefs.calendarMode === 'month' ? 'this month' : 'this week';
-    if (!events.size && !due) return `Nothing scheduled ${period}`;
+    if (!events.size && !due) return prefs.calendarMode === 'month' ? t('planner.calendar.nothingThisMonth') : t('planner.calendar.nothingThisWeek');
     const parts = [];
-    if (events.size) parts.push(`${events.size} event${events.size === 1 ? '' : 's'}`);
-    if (due) parts.push(`${due} assignment${due === 1 ? '' : 's'} due`);
+    if (events.size) parts.push(t('planner.calendar.events', { count: events.size }));
+    if (due) parts.push(t('planner.calendar.assignmentsDue', { count: due }));
     return parts.join(' · ');
   });
 
@@ -114,8 +115,8 @@
     ui.openMenuAt(
       e.currentTarget as Element,
       [
-        { label: 'New Event', icon: 'calendar', action: () => newEvent() },
-        { label: 'New Assignment', icon: 'assignment', action: () => planner.newAssignment({ dueDate: calendar.selected }) },
+        { label: t('planner.newEvent'), icon: 'calendar', action: () => newEvent() },
+        { label: t('planner.newAssignment'), icon: 'assignment', action: () => planner.newAssignment({ dueDate: calendar.selected }) },
       ],
       { alignRight: true },
     );
@@ -142,22 +143,40 @@
 <div class="view wide cal">
   <header class="view-head">
     <div>
-      <h1 class="view-title">{title.month} <span class="year">{title.year}</span></h1>
+      <h1 class="view-title"
+        ><Rich key="planner.calendar.title" params={{ month: title.month, year: title.year }}
+          >{#snippet year(text: string)}<span class="year">{text}</span>{/snippet}</Rich
+        ></h1
+      >
       <p class="view-sub">{summary}</p>
     </div>
     <div class="view-actions">
-      <Segmented options={modes} value={prefs.calendarMode} onchange={(v) => (prefs.calendarMode = v)} label="Calendar view" />
+      <Segmented options={modes} value={prefs.calendarMode} onchange={(v) => (prefs.calendarMode = v)} label={t('planner.calendar.modeLabel')} />
       <div class="nav">
-        <button class="icon-btn" onclick={() => step(-1)} data-tip={prefs.calendarMode === 'month' ? 'Previous month' : 'Previous week'} data-tip-key={shortcuts.label('calendarPrev')}>
+        <button
+          class="icon-btn"
+          onclick={() => step(-1)}
+          data-tip={prefs.calendarMode === 'month' ? t('planner.calendar.previousMonth') : t('planner.calendar.previousWeek')}
+          data-tip-key={shortcuts.label('calendarPrev')}
+        >
           <Icon name="chevron-left" />
         </button>
-        <button class="btn small today-btn" onclick={today} data-tip-key={shortcuts.label('calendarToday')} data-tip="Go to today">Today</button>
-        <button class="icon-btn" onclick={() => step(1)} data-tip={prefs.calendarMode === 'month' ? 'Next month' : 'Next week'} data-tip-key={shortcuts.label('calendarNext')}>
+        <button class="btn small today-btn" onclick={today} data-tip-key={shortcuts.label('calendarToday')} data-tip={t('planner.calendar.goToToday')}
+          >{t('planner.calendar.today')}</button
+        >
+        <button
+          class="icon-btn"
+          onclick={() => step(1)}
+          data-tip={prefs.calendarMode === 'month' ? t('planner.calendar.nextMonth') : t('planner.calendar.nextWeek')}
+          data-tip-key={shortcuts.label('calendarNext')}
+        >
           <Icon name="chevron-right" />
         </button>
       </div>
-      <button class="btn raised import-btn" onclick={importCalendar} data-tip="Your class schedule from Canvas, Google Calendar or Outlook (.ics)"><Icon name="download" size={15} /> Import</button>
-      <button class="btn primary" onclick={() => newEvent()}><Icon name="plus" size={15} stroke={2.2} /> New Event</button>
+      <button class="btn raised import-btn" onclick={importCalendar} data-tip={t('planner.calendar.importTip')}
+        ><Icon name="download" size={15} /> {t('planner.calendar.import')}</button
+      >
+      <button class="btn primary" onclick={() => newEvent()}><Icon name="plus" size={15} stroke={2.2} /> {t('planner.newEvent')}</button>
     </div>
   </header>
 
@@ -165,11 +184,11 @@
     <div class="first-run">
       <Icon name="calendar" size={18} />
       <div class="grow">
-        <strong>Bring in your class schedule</strong>
-        <span>In Canvas, Google Calendar or Outlook, export or download the calendar as an .ics file, then import it here. Classes, deadlines and repeats come along.</span>
+        <strong>{t('planner.calendar.firstRunTitle')}</strong>
+        <span>{t('planner.calendar.firstRunText')}</span>
       </div>
-      <button class="btn primary" onclick={importCalendar}><Icon name="download" size={15} /> Import .ics</button>
-      <button class="btn raised" onclick={() => newEvent()}>Add a class</button>
+      <button class="btn primary" onclick={importCalendar}><Icon name="download" size={15} /> {t('planner.calendar.importIcs')}</button>
+      <button class="btn raised" onclick={() => newEvent()}>{t('planner.calendar.addClass')}</button>
     </div>
   {/if}
 
@@ -179,23 +198,23 @@
         <MonthGrid {weeks} month={calendar.cursor.slice(0, 7)} onnew={(d) => newEvent(d)} />
       {:else}
         {#key weekDays[0]}
-          <WeekGrid days={weekDays} onnew={(d, t) => newEvent(d, t)} />
+          <WeekGrid days={weekDays} onnew={(d, time) => newEvent(d, time)} />
         {/key}
       {/if}
     </div>
 
     {#if prefs.calendarMode === 'month'}
-      <aside class="panel" aria-label="Selected day">
+      <aside class="panel" aria-label={t('planner.calendar.selectedDay')}>
         <div class="panel-head">
           <div>
-            <div class="eyebrow">{calendar.selected === clock.today ? 'Today' : selectedDate.toLocaleDateString(undefined, { weekday: 'long' })}</div>
-            <h2>{selectedDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</h2>
+            <div class="eyebrow">{calendar.selected === clock.today ? t('common.today') : fmt.date(selectedDate, { weekday: 'long' })}</div>
+            <h2>{fmt.date(selectedDate, { month: 'long', day: 'numeric' })}</h2>
           </div>
-          <button class="icon-btn" onclick={newMenu} data-tip="Add to this day"><Icon name="plus" /></button>
+          <button class="icon-btn" onclick={newMenu} data-tip={t('planner.calendar.addToDay')}><Icon name="plus" /></button>
         </div>
 
         {#if day?.due.length}
-          <h3 class="group-title">Due</h3>
+          <h3 class="group-title">{t('planner.calendar.due')}</h3>
           <div class="group">
             {#each day.due as a (a.id)}
               <AssignmentRow {a} compact />
@@ -204,7 +223,7 @@
         {/if}
 
         {#if occurrencesForDay.length}
-          <h3 class="group-title">Events</h3>
+          <h3 class="group-title">{t('planner.calendar.eventsHeading')}</h3>
           <div class="group">
             {#each occurrencesForDay as occ (occ.key)}
               <EventRow {occ} day={calendar.selected} />
@@ -213,36 +232,36 @@
         {/if}
 
         {#if day?.rows.length}
-          <h3 class="group-title">From Databases</h3>
+          <h3 class="group-title">{t('planner.calendar.fromDatabases')}</h3>
           <div class="group">
             {#each day.rows as r (r.key)}
               {@const p = store.byId.get(r.row.id)}
               <button class="group-row page-row" onclick={() => store.open(r.row.id)}>
                 <span class="page-icon">{#if p?.icon}<PageIcon icon={p.icon} />{:else}<span class="square" style:--c={r.color}></span>{/if}</span>
-                <span class="page-title">{p?.title || 'Untitled'}</span>
-                <span class="page-meta">{r.time ? `${formatTime(r.time)} · ` : ''}{store.byId.get(r.dbId)?.title || 'Database'}</span>
+                <span class="page-title">{p?.title || t('common.untitled')}</span>
+                <span class="page-meta">{r.time ? `${formatTime(r.time)} · ` : ''}{store.byId.get(r.dbId)?.title || t('planner.calendar.untitledDatabase')}</span>
               </button>
             {/each}
           </div>
         {/if}
 
         {#if dayPages.length}
-          <h3 class="group-title">Pages</h3>
+          <h3 class="group-title">{t('planner.calendar.pages')}</h3>
           <div class="group">
             {#each dayPages as p (p.id)}
               <button class="group-row page-row" onclick={() => store.open(p.id)}>
                 <span class="page-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={16} />{/if}</span>
-                <span class="page-title">{p.title || 'Untitled'}</span>
-                <span class="page-meta">{toISODate(new Date(p.createdAt)) === calendar.selected ? 'Created' : 'Edited'}</span>
+                <span class="page-title">{p.title || t('common.untitled')}</span>
+                <span class="page-meta">{toISODate(new Date(p.createdAt)) === calendar.selected ? t('planner.calendar.created') : t('planner.calendar.edited')}</span>
               </button>
             {/each}
           </div>
         {/if}
 
         {#if isEmptyDay}
-          <EmptyState compact icon="calendar" title="Nothing scheduled" text="Double-click a day to add an event.">
-            <button class="btn small" onclick={() => newEvent()}>Event</button>
-            <button class="btn small" onclick={() => planner.newAssignment({ dueDate: calendar.selected })}>Assignment</button>
+          <EmptyState compact icon="calendar" title={t('planner.calendar.nothingScheduled')} text={t('planner.calendar.emptyDayText')}>
+            <button class="btn small" onclick={() => newEvent()}>{t('planner.calendar.newEventShort')}</button>
+            <button class="btn small" onclick={() => planner.newAssignment({ dueDate: calendar.selected })}>{t('planner.calendar.newAssignmentShort')}</button>
           </EmptyState>
         {/if}
       </aside>

@@ -10,6 +10,7 @@
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { databases } from './databases.svelte';
+import { t } from './i18n';
 import { planner } from './planner.svelte';
 import { store } from './store.svelte';
 import { ui } from './ui.svelte';
@@ -31,7 +32,7 @@ class Updates {
   /** Looks for a newer version; `quiet` says nothing unless there is one. */
   async check(quiet = true) {
     if (!NATIVE) {
-      if (!quiet) ui.toast('Updates are checked in the installed app.');
+      if (!quiet) ui.toast(t('app.updates.browserOnly'));
       return;
     }
     if (this.checking || this.progress !== null) return;
@@ -40,9 +41,9 @@ class Updates {
       const found = await check();
       if (found) {
         this.available = found;
-        ui.toast(`Thought Desk ${found.version} is ready to install`, { label: 'Update', run: () => void this.install() }, 20_000);
+        ui.toast(t('app.updates.ready', { version: found.version }), { label: t('app.updates.install'), run: () => void this.install() }, 20_000);
       } else if (!quiet) {
-        ui.toast('Thought Desk is up to date.');
+        ui.toast(t('app.updates.upToDate'));
       }
     } catch (e) {
       // Offline, or GitHub unreachable: try again next time.

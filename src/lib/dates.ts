@@ -4,7 +4,9 @@
  * so daylight-saving changes never move a day.
  */
 
-import type { CalEvent } from './types';
+import { t, type MessageKey } from './i18n';
+import { fmt } from './i18n/format';
+import type { CalEvent, Repeat } from './types';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -64,8 +66,8 @@ export function minutes(time: string): number {
 }
 
 export function fromMinutes(total: number): string {
-  const t = Math.max(0, Math.min(23 * 60 + 59, Math.round(total)));
-  return `${pad(Math.floor(t / 60))}:${pad(t % 60)}`;
+  const m = Math.max(0, Math.min(23 * 60 + 59, Math.round(total)));
+  return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 }
 
 export function nowTime(): string {
@@ -75,17 +77,14 @@ export function nowTime(): string {
 
 // --------------------------------------------------------------- formatting
 
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-const hourFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric' });
-
 export function formatTime(time: string): string {
   const [h, m] = time.split(':').map(Number);
-  return timeFmt.format(new Date(2000, 0, 1, h, m));
+  return fmt.time(new Date(2000, 0, 1, h, m));
 }
 
 /** "9 AM" style labels for the week view's hour gutter. */
 export function formatHour(h: number): string {
-  return hourFmt.format(new Date(2000, 0, 1, h));
+  return fmt.time(new Date(2000, 0, 1, h), { hour: 'numeric' });
 }
 
 export function formatDate(iso: string, opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }): string {
@@ -93,39 +92,43 @@ export function formatDate(iso: string, opts: Intl.DateTimeFormatOptions = { mon
   if (opts.year === undefined && d.getFullYear() !== new Date().getFullYear() && !opts.weekday) {
     opts = { ...opts, year: 'numeric' };
   }
-  return d.toLocaleDateString(undefined, opts);
+  return fmt.date(d, opts);
 }
 
 export function formatMonth(iso: string): { month: string; year: string } {
   const d = parseDate(iso);
   return {
-    month: d.toLocaleDateString(undefined, { month: 'long' }),
+    month: fmt.date(d, { month: 'long' }),
     year: String(d.getFullYear()),
   };
 }
 
 /** Weekday labels starting at `weekStart`. */
 export function weekdayNames(weekStart: 0 | 1, style: 'short' | 'narrow' | 'long' = 'short'): string[] {
-  // 2023-01-01 was a Sunday.
-  return Array.from({ length: 7 }, (_, i) =>
-    new Date(2023, 0, 1 + ((i + weekStart) % 7), 12).toLocaleDateString(undefined, { weekday: style }),
-  );
+  const names = fmt.weekdayNames(style);
+  return Array.from({ length: 7 }, (_, i) => names[(i + weekStart) % 7]);
 }
 
 /** "Today", "Tomorrow", "Friday", "Oct 20": how people say due dates. */
 export function relativeDay(iso: string, today = todayISO()): string {
   const n = diffDays(today, iso);
-  if (n === 0) return 'Today';
-  if (n === 1) return 'Tomorrow';
-  if (n === -1) return 'Yesterday';
+  if (n === 0) return t('common.today');
+  if (n === 1) return t('common.tomorrow');
+  if (n === -1) return t('common.yesterday');
   if (n > 1 && n < 7) return formatDate(iso, { weekday: 'long' });
   return formatDate(iso);
 }
 
+/** A due date, with its time if it has one ("Tomorrow, 3:05 PM", "Friday", "Oct 20, 9:00 AM"). */
 export function formatDue(date: string | null, time: string | null, today = todayISO()): string {
-  if (!date) return 'No due date';
-  const day = relativeDay(date, today);
-  return time ? `${day}, ${formatTime(time)}` : day;
+  if (!date) return t('planner.dates.noDueDate');
+  if (!time) return relativeDay(date, today);
+  const at = formatTime(time);
+  const n = diffDays(today, date);
+  if (n === 0) return t('planner.dates.todayAt', { time: at });
+  if (n === 1) return t('planner.dates.tomorrowAt', { time: at });
+  if (n === -1) return t('planner.dates.yesterdayAt', { time: at });
+  return t('planner.dates.dateAt', { date: relativeDay(date, today), time: at });
 }
 
 export type DueState = 'done' | 'overdue' | 'today' | 'soon' | 'later' | 'none';
@@ -195,8 +198,28 @@ export function occurrences(event: CalEvent, from: string, to: string): Occurren
 }
 
 export const REPEAT_LABELS: Record<string, string> = {
-  none: 'Never',
-  daily: 'Every Day',
-  weekly: 'Every Week',
-  monthly: 'Every Month',
+  none: t('planner.repeat.never'),
+  daily: t('planner.repeat.daily'),
+  weekly: t('planner.repeat.weekly'),
+  monthly: t('planner.repeat.monthly'),
 };
+
+const REPEATS = {
+  none: 'planner.repeats.never',
+  daily: 'planner.repeats.daily',
+  weekly: 'planner.repeats.weekly',
+  monthly: 'planner.repeats.monthly',
+} as const satisfies Record<Repeat, MessageKey>;
+const REPEATS_UNTIL = {
+  daily: 'planner.repeatsUntil.daily',
+  weekly: 'planner.repeatsUntil.weekly',
+  monthly: 'planner.repeatsUntil.monthly',
+} as const satisfies Record<Exclude<Repeat, 'none'>, MessageKey>;
+
+/** How an event repeats, as a sentence ("Repeats every week until Mar 3"). */
+export function repeatSentence(repeat: string, until?: string | null): string {
+  const r = repeat as Repeat;
+  // An event that doesn't repeat has no last date to give.
+  if (r === 'none' || !until) return t(REPEATS[r]);
+  return t(REPEATS_UNTIL[r], { date: formatDate(until) });
+}

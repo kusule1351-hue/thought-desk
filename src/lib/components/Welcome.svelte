@@ -15,6 +15,8 @@
   import { prefs, type Font, type Theme } from '../prefs.svelte';
   import { store } from '../store.svelte';
   import { changeLook } from '../look-transition';
+  import { t } from '../i18n';
+  import Rich from '../i18n/Rich.svelte';
 
   const STEPS = ['welcome', 'look', 'tour', 'done'] as const;
   let step = $state(0);
@@ -28,14 +30,14 @@
   const first = $derived(name.trim().split(/\s+/)[0] ?? '');
 
   const themes: { value: Theme; label: string }[] = [
-    { value: 'light', label: 'Light' },
-    { value: 'dark', label: 'Dark' },
-    { value: 'system', label: 'Match system' },
+    { value: 'light', label: t('onboarding.look.light') },
+    { value: 'dark', label: t('onboarding.look.dark') },
+    { value: 'system', label: t('onboarding.look.system') },
   ];
   const fonts: { value: Font; label: string; note: string }[] = [
-    { value: 'sans', label: 'Default', note: 'Clean and modern' },
-    { value: 'serif', label: 'Serif', note: 'Like a printed book' },
-    { value: 'mono', label: 'Mono', note: 'Like a typewriter' },
+    { value: 'sans', label: t('onboarding.look.sans'), note: t('onboarding.look.sansNote') },
+    { value: 'serif', label: t('onboarding.look.serif'), note: t('onboarding.look.serifNote') },
+    { value: 'mono', label: t('onboarding.look.mono'), note: t('onboarding.look.monoNote') },
   ];
 
   onMount(() => {
@@ -68,7 +70,7 @@
     else void go(step + 1);
   }
 
-  const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+  const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
 
   /** Steps slide in from the side they come from… */
   function slideIn(_node: Element, { from }: { from: number }) {
@@ -76,7 +78,7 @@
       // Starts as the old step is nearly gone, so the two never read on top of each other.
       delay: reduced ? 0 : 140,
       duration: reduced ? 0 : 420,
-      css: (t: number) => `opacity:${easeOut(t)}; transform: translateX(${(1 - easeOut(t)) * 40 * from}px)`,
+      css: (x: number) => `opacity:${easeOut(x)}; transform: translateX(${(1 - easeOut(x)) * 40 * from}px)`,
     };
   }
 
@@ -84,7 +86,7 @@
   function slideOut(_node: Element, { to }: { to: number }) {
     return {
       duration: reduced ? 0 : 170,
-      css: (t: number) => `opacity:${t * t * t}; transform: translateX(${(1 - t) * 28 * to}px) scale(${0.985 + 0.015 * t})`,
+      css: (x: number) => `opacity:${x * x * x}; transform: translateX(${(1 - x) * 28 * to}px) scale(${0.985 + 0.015 * x})`,
     };
   }
 
@@ -92,7 +94,7 @@
   function leave(_node: Element) {
     return {
       duration: reduced ? 0 : 520,
-      css: (t: number) => `opacity:${easeOut(t)}; transform: scale(${1 + (1 - t) * 0.04}); filter: blur(${(1 - t) * 6}px)`,
+      css: (x: number) => `opacity:${easeOut(x)}; transform: scale(${1 + (1 - x) * 0.04}); filter: blur(${(1 - x) * 6}px)`,
     };
   }
 
@@ -101,7 +103,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<div class="welcome" class:still={reduced} role="dialog" aria-modal="true" aria-label="Welcome to Thought Desk" tabindex="-1" {onkeydown} out:leave|global>
+<div class="welcome" class:still={reduced} role="dialog" aria-modal="true" aria-label={t('onboarding.welcome')} tabindex="-1" {onkeydown} out:leave|global>
   <header class="bar" data-tauri-drag-region>
     <div class="grow" data-tauri-drag-region></div>
     {#if !isMac}<WindowControls />{/if}
@@ -112,62 +114,66 @@
       <section class="step" in:slideIn={{ from: dir }} out:slideOut={{ to: -dir }}>
         {#if STEPS[step] === 'welcome'}
           <Logo size={88} class="welcome-logo" />
-          <h1>Welcome to Thought Desk</h1>
-          <p class="lead">Your notes, classes and deadlines in one quiet place. Everything stays on this computer.</p>
+          <h1>{t('onboarding.welcome')}</h1>
+          <p class="lead">{t('onboarding.lead')}</p>
           <label class="name">
-            <span>What should we call you?</span>
-            <input bind:this={nameEl} bind:value={name} placeholder="Your name" maxlength="40" autocomplete="given-name" spellcheck="false" />
+            <span>{t('onboarding.nameLabel')}</span>
+            <input bind:this={nameEl} bind:value={name} placeholder={t('onboarding.namePlaceholder')} maxlength="40" autocomplete="given-name" spellcheck="false" />
           </label>
         {:else if STEPS[step] === 'look'}
-          <h1>Make it yours</h1>
-          <p class="lead">Pick what feels right. You can change any of it later in Settings.</p>
+          <h1>{t('onboarding.look.title')}</h1>
+          <p class="lead">{t('onboarding.look.lead')}</p>
 
-          <div class="field-label">Appearance</div>
-          <div class="choices three" role="radiogroup" aria-label="Appearance">
-            {#each themes as t (t.value)}
-              <button class="choice" class:on={prefs.theme === t.value} role="radio" aria-checked={prefs.theme === t.value} onclick={() => changeLook(() => (prefs.theme = t.value))}>
-                <span class="window {t.value}" aria-hidden="true">
+          <div class="field-label">{t('onboarding.look.appearance')}</div>
+          <div class="choices three" role="radiogroup" aria-label={t('onboarding.look.appearance')}>
+            {#each themes as theme (theme.value)}
+              <button class="choice" class:on={prefs.theme === theme.value} role="radio" aria-checked={prefs.theme === theme.value} onclick={() => changeLook(() => (prefs.theme = theme.value))}>
+                <span class="window {theme.value}" aria-hidden="true">
                   <span class="half light"><i class="side"></i><i class="line"></i><i class="line short"></i></span>
                   <span class="half dark"><i class="side"></i><i class="line"></i><i class="line short"></i></span>
                 </span>
-                <span class="choice-label">{t.label}</span>
+                <span class="choice-label">{theme.label}</span>
               </button>
             {/each}
           </div>
 
-          <div class="field-label">Accent color</div>
+          <div class="field-label">{t('onboarding.look.accentColor')}</div>
           <div class="accent">
-            <Swatches keys={[...ACCENTS]} value={prefs.accent === 'custom' ? 'graphite' : prefs.accent} onchange={(k) => changeLook(() => (prefs.accent = k as Accent))} label="Accent color" />
+            <Swatches keys={[...ACCENTS]} value={prefs.accent === 'custom' ? 'graphite' : prefs.accent} onchange={(k) => changeLook(() => (prefs.accent = k as Accent))} label={t('onboarding.look.accentColor')} />
           </div>
 
-          <div class="field-label">Writing font</div>
-          <div class="choices three" role="radiogroup" aria-label="Writing font">
+          <div class="field-label">{t('onboarding.look.writingFont')}</div>
+          <div class="choices three" role="radiogroup" aria-label={t('onboarding.look.writingFont')}>
             {#each fonts as f (f.value)}
               <button class="choice font" class:on={prefs.font === f.value} role="radio" aria-checked={prefs.font === f.value} onclick={() => changeLook(() => (prefs.font = f.value))}>
-                <span class="sample {f.value}" aria-hidden="true">Aa</span>
+                <span class="sample {f.value}" aria-hidden="true">{t('onboarding.look.fontSample')}</span>
                 <span class="choice-label">{f.label}</span>
                 <span class="note">{f.note}</span>
               </button>
             {/each}
           </div>
         {:else if STEPS[step] === 'tour'}
-          <h1>Three things to know</h1>
-          <p class="lead">That's all you need to get going.</p>
+          <h1>{t('onboarding.tour.title')}</h1>
+          <p class="lead">{t('onboarding.tour.lead')}</p>
           <ul class="tips">
             <li style:--n={0}>
               <span class="keys"><kbd>/</kbd></span>
-              <span class="tip"><strong>Type / for anything</strong>Headings, to-dos, tables, math and databases: type / on an empty line and pick one.</span>
+              <span class="tip"><strong>{t('onboarding.tour.slashTitle')}</strong>{t('onboarding.tour.slashBody')}</span>
             </li>
             <li style:--n={1}>
               <span class="keys"><kbd>{MOD}</kbd><kbd>K</kbd></span>
-              <span class="tip"><strong>Find anything</strong>Pages, assignments, events and files, as fast as you can type.</span>
+              <span class="tip"><strong>{t('onboarding.tour.searchTitle')}</strong>{t('onboarding.tour.searchBody')}</span>
             </li>
             <li style:--n={2}>
               <span class="keys"><span class="home-ico"><Icon name="home" size={16} /></span></span>
-              <span class="tip"><strong>Home has your day</strong>Today's classes, what's due soon and every open to-do, in one place.</span>
+              <span class="tip"><strong>{t('onboarding.tour.homeTitle')}</strong>{t('onboarding.tour.homeBody')}</span>
             </li>
           </ul>
-          <p class="aside">Forgot a shortcut? <kbd>{MOD}</kbd><kbd>/</kbd> shows them all.</p>
+          <p class="aside">
+            <Rich key="onboarding.shortcutsAside" params={{ mod: MOD }}>
+              {#snippet kbd(text: string)}<kbd>{text}</kbd>{/snippet}
+            </Rich>
+          </p>
         {:else}
           <div class="done-mark" aria-hidden="true">
             {#each BURST as b, i (i)}<i class="spark" style:--a="{b.angle}deg" style:--far="{b.far}px" style:--s="{b.size}px"></i>{/each}
@@ -175,8 +181,8 @@
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path class="tick" d="M5 12.5l4.2 4.2L19 7" /></svg>
             </span>
           </div>
-          <h1>{first ? `You're all set, ${first}.` : "You're all set."}</h1>
-          <p class="lead">Home will help you add your courses and class schedule next. Start whenever you're ready.</p>
+          <h1>{first ? t('onboarding.done.titleNamed', { name: first }) : t('onboarding.done.title')}</h1>
+          <p class="lead">{t('onboarding.done.lead')}</p>
         {/if}
       </section>
     {/key}
@@ -185,19 +191,19 @@
   <footer class="nav">
     <div class="nav-side">
       {#if step > 0}
-        <button class="btn ghost" onclick={() => go(step - 1)}><Icon name="arrow-left" size={15} /> Back</button>
+        <button class="btn ghost" onclick={() => go(step - 1)}><Icon name="arrow-left" size={15} /> {t('onboarding.back')}</button>
       {/if}
     </div>
-    <div class="dots" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
+    <div class="dots" aria-label={t('onboarding.stepOf', { step: step + 1, total: STEPS.length })}>
       {#each STEPS as s, i (s)}<span class="dot" class:on={i === step} class:past={i < step}></span>{/each}
     </div>
     <div class="nav-side end">
       {#if step < STEPS.length - 1}
         <button class="btn primary" bind:this={nextEl} onclick={() => go(step + 1)}>
-          {step === 0 && !name.trim() ? 'Skip' : 'Continue'} <Icon name="arrow-right" size={15} />
+          {step === 0 && !name.trim() ? t('onboarding.skip') : t('onboarding.continue')} <Icon name="arrow-right" size={15} />
         </button>
       {:else}
-        <button class="btn primary" bind:this={nextEl} onclick={finish}>Start using Thought Desk</button>
+        <button class="btn primary" bind:this={nextEl} onclick={finish}>{t('onboarding.start')}</button>
       {/if}
     </div>
   </footer>

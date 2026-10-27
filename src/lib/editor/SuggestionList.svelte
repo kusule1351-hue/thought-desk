@@ -26,7 +26,7 @@
   });
 
   function groupStart(items: MenuEntry[], i: number) {
-    return items[i].group && items[i].group !== items[i - 1]?.group ? items[i].group : null;
+    return items[i].group && items[i].group !== items[i - 1]?.group ? items[i].groupLabel : null;
   }
 </script>
 

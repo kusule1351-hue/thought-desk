@@ -18,6 +18,7 @@
   import { store } from '../store.svelte';
   import { relativeTime } from '../time';
   import { ui } from '../ui.svelte';
+  import { searchText, t } from '../i18n';
   import type { Page, PageMeta } from '../types';
 
   let page = $state<Page | null>(null);
@@ -66,10 +67,12 @@
   /** Pages to pick from: matches for what's typed, else the most recently edited. */
   const choices = $derived.by(() => {
     const q = query.trim().toLowerCase();
+    // An untitled page is found by the name it shows, in the interface's language or English.
+    const untitled = searchText('common.untitled');
     const out: PageMeta[] = [];
     for (const p of store.all) {
       if (p.deletedAt || store.isRow(p) || (store.view === 'page' && p.id === store.currentId)) continue;
-      if (q && !(p.title || 'untitled').toLowerCase().includes(q)) continue;
+      if (q && !(p.title || untitled).toLowerCase().includes(q)) continue;
       out.push(p);
     }
     out.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -82,7 +85,7 @@
   }
 </script>
 
-<section class="pane" aria-label="Side page">
+<section class="pane" aria-label={t('shell.splitPane.label')}>
   <header class="pane-head">
     {#if showing}
       <button
@@ -91,25 +94,25 @@
         onclick={() => split.expand()}
         ondragstart={(e) => {
           const id = showing.id;
-          e.dataTransfer?.setData('text/plain', showing.title || 'Untitled');
+          e.dataTransfer?.setData('text/plain', showing.title || t('common.untitled'));
           pageDragImage(e, showing.title, showing.icon);
           dragLater(id, 'side');
         }}
         ondragend={endDrag}
-        data-tip="Drag to the left, or click, to open in the main view"
+        data-tip={t('shell.splitPane.dragHint')}
       >
         <span class="lead">{#if showing.icon}<PageIcon icon={showing.icon} />{:else}<Icon name={showing.kind === 'database' ? 'database' : 'page'} size={14} />{/if}</span>
-        <span class="name">{showing.title || 'Untitled'}</span>
+        <span class="name">{showing.title || t('common.untitled')}</span>
       </button>
     {:else}
-      <span class="title static"><Icon name="split" size={14} /><span class="name">Split view</span></span>
+      <span class="title static"><Icon name="split" size={14} /><span class="name">{t('shell.splitView')}</span></span>
     {/if}
     <div class="actions">
       {#if showing}
-        <button class="icon-btn" onclick={() => split.swap()} data-tip="Swap sides" aria-label="Swap sides"><Icon name="swap" size={15} /></button>
-        <button class="icon-btn" onclick={() => split.expand()} data-tip="Open in the main view" aria-label="Open in the main view"><Icon name="expand" size={15} /></button>
+        <button class="icon-btn" onclick={() => split.swap()} data-tip={t('shell.splitPane.swapSides')} aria-label={t('shell.splitPane.swapSides')}><Icon name="swap" size={15} /></button>
+        <button class="icon-btn" onclick={() => split.expand()} data-tip={t('shell.splitPane.openInMain')} aria-label={t('shell.splitPane.openInMain')}><Icon name="expand" size={15} /></button>
       {/if}
-      <button class="icon-btn" onclick={() => split.close()} data-tip="Close split view" aria-label="Close split view"><Icon name="x" size={15} /></button>
+      <button class="icon-btn" onclick={() => split.close()} data-tip={t('shell.closeSplitView')} aria-label={t('shell.closeSplitView')}><Icon name="x" size={15} /></button>
     </div>
   </header>
 
@@ -122,28 +125,28 @@
       {#key `${page.id}:${page.sharedRoom ?? ''}:${cowork.isLive(page.id)}`}<PageView {page} />{/key}
     {:else if split.duplicate}
       <div class="picker">
-        <p class="hint">This page is open on the left.</p>
-        <button class="btn raised small" onclick={() => split.clear()}>Choose another page</button>
+        <p class="hint">{t('shell.splitPane.openOnLeft')}</p>
+        <button class="btn raised small" onclick={() => split.clear()}>{t('shell.splitPane.chooseAnother')}</button>
       </div>
     {:else if !showing}
       <div class="picker">
-        <h2>Open a page beside this one</h2>
-        <p class="hint">Pick one below, or Alt+click any page in the sidebar or a link in your notes.</p>
+        <h2>{t('shell.splitPane.pickTitle')}</h2>
+        <p class="hint">{t('shell.splitPane.pickHint')}</p>
         <label class="search">
           <Icon name="search" size={14} />
-          <input bind:this={searchEl} bind:value={query} placeholder="Find a page" spellcheck="false" onkeydown={onPickKey} />
+          <input bind:this={searchEl} bind:value={query} placeholder={t('shell.splitPane.findPage')} spellcheck="false" onkeydown={onPickKey} />
         </label>
         <ul class="choices">
           {#each choices as p (p.id)}
             <li>
               <button onclick={() => split.show(p.id)}>
                 <span class="lead">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name={p.kind === 'database' ? 'database' : 'page'} size={15} />{/if}</span>
-                <span class="name">{p.title || 'Untitled'}</span>
+                <span class="name">{p.title || t('common.untitled')}</span>
                 <span class="when">{relativeTime(p.updatedAt)}</span>
               </button>
             </li>
           {:else}
-            <li class="none">No pages match.</li>
+            <li class="none">{t('shell.splitPane.noMatches')}</li>
           {/each}
         </ul>
       </div>

@@ -6,6 +6,8 @@
   import EventRow from '../ui/EventRow.svelte';
   import FileTile from '../ui/FileTile.svelte';
   import { PALETTE, colorVar } from '../colors';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
   import { library } from '../library.svelte';
   import { store } from '../store.svelte';
   import { tags } from '../tags.svelte';
@@ -38,10 +40,10 @@
     ui.openMenuAt(
       e.currentTarget as Element,
       [
-        { label: 'Rename…', icon: 'pencil', action: () => void tags.rename(name) },
+        { label: t('sheets.renameMenu'), icon: 'pencil', action: () => void tags.rename(name) },
         { separator: true },
-        { header: 'Color' },
-        { label: 'Default', icon: 'sparkle', checked: !tags.colorKey(name), action: () => void tags.recolor(name, '') },
+        { header: t('sheets.color') },
+        { label: t('sheets.tag.defaultColor'), icon: 'sparkle', checked: !tags.colorKey(name), action: () => void tags.recolor(name, '') },
         ...PALETTE.map((p) => ({
           label: p.label,
           dot: colorVar(p.key),
@@ -49,7 +51,7 @@
           action: () => void tags.recolor(name, p.key),
         })),
         { separator: true },
-        { label: 'Delete Tag', icon: 'trash', danger: true, action: () => void tags.remove(name) },
+        { label: t('sheets.tag.delete'), icon: 'trash', danger: true, action: () => void tags.remove(name) },
       ],
       { alignRight: true },
     );
@@ -62,20 +64,20 @@
   <header class="view-head">
     <div>
       <h1 class="view-title tag-title" style:--c={tags.color(name)}><span class="hash">#</span>{name}</h1>
-      <p class="view-sub">{total} item{total === 1 ? '' : 's'}</p>
+      <p class="view-sub">{t('sheets.tag.items', { count: total })}</p>
     </div>
     <div class="view-actions">
-      <button class="icon-btn" onclick={menu} data-tip="Tag options" aria-label="Tag options"><Icon name="more" /></button>
+      <button class="icon-btn" onclick={menu} data-tip={t('sheets.tag.options')} aria-label={t('sheets.tag.options')}><Icon name="more" /></button>
     </div>
   </header>
 
   {#if shown.pages.length}
-    <h2 class="group-title"><span>Pages</span><span class="count">{items.pages.length}</span></h2>
+    <h2 class="group-title"><span>{t('sheets.section.pages')}</span><span class="count">{fmt.number(items.pages.length)}</span></h2>
     <div class="group">
       {#each shown.pages as p (p.id)}
         <button class="group-row link-row" onclick={() => store.open(p.id)}>
           <span class="icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={16} />{/if}</span>
-          <span class="title">{p.title || 'Untitled'}</span>
+          <span class="title">{p.title || t('common.untitled')}</span>
           <span class="meta">{relativeTime(p.updatedAt)}</span>
         </button>
       {/each}
@@ -83,7 +85,7 @@
   {/if}
 
   {#if shown.assignments.length}
-    <h2 class="group-title"><span>Assignments</span><span class="count">{items.assignments.length}</span></h2>
+    <h2 class="group-title"><span>{t('sheets.section.assignments')}</span><span class="count">{fmt.number(items.assignments.length)}</span></h2>
     <div class="group">
       {#each shown.assignments as a (a.id)}
         <AssignmentRow {a} />
@@ -92,7 +94,7 @@
   {/if}
 
   {#if shown.events.length}
-    <h2 class="group-title"><span>Events</span><span class="count">{items.events.length}</span></h2>
+    <h2 class="group-title"><span>{t('sheets.section.events')}</span><span class="count">{fmt.number(items.events.length)}</span></h2>
     <div class="group">
       {#each shown.events as e (e.id)}
         <EventRow occ={occ(e)} series />
@@ -101,7 +103,7 @@
   {/if}
 
   {#if shown.files.length}
-    <h2 class="group-title"><span>Files</span><span class="count">{items.files.length}</span></h2>
+    <h2 class="group-title"><span>{t('sheets.section.files')}</span><span class="count">{fmt.number(items.files.length)}</span></h2>
     <div class="group">
       {#each shown.files as f (f.id)}
         <button class="group-row link-row" onclick={() => library.preview(f.id)}>
@@ -116,7 +118,7 @@
   {#if lazy.limit < total}<div {@attach lazy.more}></div>{/if}
 
   {#if !total}
-    <EmptyState icon="tag" title="Nothing tagged #{name}" text="Add this tag to pages, assignments, events or files from their Tags row." />
+    <EmptyState icon="tag" title={t('sheets.tag.nothingTagged', { name })} text={t('sheets.tag.nothingTaggedText')} />
   {/if}
 </div>
 

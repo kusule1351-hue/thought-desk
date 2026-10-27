@@ -1,24 +1,25 @@
 /** Block-level actions used by the block menu and the bubble menu. */
 
 import type { Editor } from '@tiptap/core';
-import { MOD } from '../platform';
+import { comboLabel } from '../shortcuts.svelte';
 import { TextSelection } from '@tiptap/pm/state';
 import type { MenuItem } from '../ui.svelte';
 import type { BlockTarget } from './block-handle';
+import { t } from '../i18n';
 
 export type BlockKind = 'paragraph' | 'h1' | 'h2' | 'h3' | 'bulletList' | 'orderedList' | 'taskList' | 'blockquote' | 'codeBlock' | 'callout';
 
 export const KINDS: { kind: BlockKind; label: string; icon: string }[] = [
-  { kind: 'paragraph', label: 'Text', icon: 'text' },
-  { kind: 'h1', label: 'Heading 1', icon: 'h1' },
-  { kind: 'h2', label: 'Heading 2', icon: 'h2' },
-  { kind: 'h3', label: 'Heading 3', icon: 'h3' },
-  { kind: 'bulletList', label: 'Bulleted List', icon: 'list' },
-  { kind: 'orderedList', label: 'Numbered List', icon: 'list-ordered' },
-  { kind: 'taskList', label: 'To-do List', icon: 'todo' },
-  { kind: 'blockquote', label: 'Quote', icon: 'quote' },
-  { kind: 'codeBlock', label: 'Code', icon: 'code' },
-  { kind: 'callout', label: 'Callout', icon: 'callout' },
+  { kind: 'paragraph', label: t('editor.blockType.paragraph'), icon: 'text' },
+  { kind: 'h1', label: t('editor.blockType.h1'), icon: 'h1' },
+  { kind: 'h2', label: t('editor.blockType.h2'), icon: 'h2' },
+  { kind: 'h3', label: t('editor.blockType.h3'), icon: 'h3' },
+  { kind: 'bulletList', label: t('editor.blockType.bulletList'), icon: 'list' },
+  { kind: 'orderedList', label: t('editor.blockType.orderedList'), icon: 'list-ordered' },
+  { kind: 'taskList', label: t('editor.blockType.taskList'), icon: 'todo' },
+  { kind: 'blockquote', label: t('editor.blockType.blockquote'), icon: 'quote' },
+  { kind: 'codeBlock', label: t('editor.blockType.codeBlock'), icon: 'code' },
+  { kind: 'callout', label: t('editor.blockType.callout'), icon: 'callout' },
 ];
 
 const LISTS = ['bulletList', 'orderedList', 'taskList'] as const;
@@ -93,7 +94,7 @@ export function blockMenuItems(editor: Editor, target: BlockTarget): MenuItem[] 
   const convertible = node.isTextblock || ['listItem', 'taskItem', 'blockquote', 'callout'].includes(node.type.name);
 
   if (convertible && node.type.name !== 'codeBlock' && node.type.name !== 'detailsSummary') {
-    items.push({ header: 'Turn into' });
+    items.push({ header: t('editor.blockMenu.turnInto') });
     for (const k of KINDS) {
       items.push({
         label: k.label,
@@ -113,16 +114,16 @@ export function blockMenuItems(editor: Editor, target: BlockTarget): MenuItem[] 
 
   items.push(
     {
-      label: 'Duplicate',
+      label: t('common.actions.duplicate'),
       icon: 'copy',
-      hint: `${MOD}+D`,
+      hint: comboLabel('Mod+KeyD'),
       action: () => {
         const { tr } = editor.state;
         editor.view.dispatch(tr.insert(pos + node.nodeSize, node));
       },
     },
     {
-      label: 'Move Up',
+      label: t('editor.blockMenu.moveUp'),
       icon: 'arrow-up',
       disabled: index === 0,
       action: () => {
@@ -133,7 +134,7 @@ export function blockMenuItems(editor: Editor, target: BlockTarget): MenuItem[] 
       },
     },
     {
-      label: 'Move Down',
+      label: t('editor.blockMenu.moveDown'),
       icon: 'arrow-down',
       disabled: index >= parent.childCount - 1,
       action: () => {
@@ -145,7 +146,7 @@ export function blockMenuItems(editor: Editor, target: BlockTarget): MenuItem[] 
     },
     { separator: true },
     {
-      label: 'Delete',
+      label: t('common.actions.delete'),
       icon: 'trash',
       danger: true,
       action: () => {

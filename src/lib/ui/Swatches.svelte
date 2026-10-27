@@ -1,13 +1,14 @@
 <script lang="ts">
   import Icon from '../components/Icon.svelte';
   import { PALETTE } from '../colors';
+  import { t } from '../i18n';
 
   let {
     value,
     onchange,
     keys,
     auto,
-    label = 'Color',
+    label = t('library.controls.color'),
     custom,
   }: {
     value: string;
@@ -49,8 +50,8 @@
       style:--sw={custom}
       role="radio"
       aria-checked={value === 'custom'}
-      aria-label="Custom"
-      data-tip="Custom color"
+      aria-label={t('library.controls.custom')}
+      data-tip={t('library.controls.customColor')}
       onclick={() => onchange('custom')}
     ><span class="dot round"></span></button>
   {/if}

@@ -7,6 +7,8 @@
   import { databases } from '../databases.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
   import { Progressive, takeGrouped } from '../progressive.svelte';
   import { pinFirst, type Group } from './query';
   import type { DbRow, DbView, Property } from '../types';
@@ -76,12 +78,12 @@
       x: e.clientX,
       y: e.clientY,
       items: [
-        { label: 'Open', icon: 'expand', action: () => store.open(row.id) },
-        ...(databases.subItems(dbId) ? [{ label: 'Add a sub-item', icon: 'corner-down-right', action: () => void add(null, row) }] : []),
-        { label: 'Duplicate', icon: 'copy', action: () => void databases.duplicateRows([row.id]) },
-        { label: 'Save as template', icon: 'template', action: () => void databases.newTemplate(dbId, row) },
+        { label: t('common.actions.open'), icon: 'expand', action: () => store.open(row.id) },
+        ...(databases.subItems(dbId) ? [{ label: t('dbViews.list.addSubItem'), icon: 'corner-down-right', action: () => void add(null, row) }] : []),
+        { label: t('common.actions.duplicate'), icon: 'copy', action: () => void databases.duplicateRows([row.id]) },
+        { label: t('dbViews.list.saveAsTemplate'), icon: 'template', action: () => void databases.newTemplate(dbId, row) },
         { separator: true },
-        { label: 'Delete', icon: 'trash', danger: true, action: () => void databases.deleteRows([row.id]) },
+        { label: t('common.actions.delete'), icon: 'trash', danger: true, action: () => void databases.deleteRows([row.id]) },
       ],
     });
   }
@@ -92,7 +94,7 @@
     {#if s.group}
       <div class="group">
         {#if s.group.color}<span class="pill" style:--pill={s.group.color}><span>{s.group.label}</span></span>{:else}<span class="g-label">{s.group.label}</span>{/if}
-        <span class="count">{s.group.total ?? s.group.rows.length}</span>
+        <span class="count">{fmt.number(s.group.total ?? s.group.rows.length, { useGrouping: false })}</span>
       </div>
     {/if}
     {#each s.items as row (row.id)}
@@ -104,10 +106,10 @@
           <input
             bind:this={input}
             bind:value={editing.title}
-            placeholder="Name it"
+            placeholder={t('dbViews.nameIt')}
             onkeydown={(e) => (e.key === 'Enter' || e.key === 'Escape') && commit()}
             onblur={commit}
-            aria-label="Title"
+            aria-label={t('dbViews.titleField')}
           />
         </div>
       {:else}
@@ -118,14 +120,14 @@
               class="twisty"
               class:open={databases.expanded[row.id]}
               onclick={() => databases.toggleExpanded(row.id)}
-              aria-label={databases.expanded[row.id] ? 'Hide sub-items' : 'Show sub-items'}
+              aria-label={databases.expanded[row.id] ? t('dbViews.list.hideSubItems') : t('dbViews.list.showSubItems')}
               aria-expanded={!!databases.expanded[row.id]}
-              data-tip="{k} sub-item{k === 1 ? '' : 's'}"><Icon name="chevron-right" size={12} stroke={2.4} /></button
+              data-tip={t('dbViews.list.subItems', { count: k })}><Icon name="chevron-right" size={12} stroke={2.4} /></button
             >
           {/if}
         <button class="line" class:nested onclick={() => store.open(row.id)} oncontextmenu={(e) => menu(e, row)}>
           <span class="lead">{#if page?.icon}<PageIcon icon={page.icon} />{:else}<Icon name="page" size={15} />{/if}</span>
-          <span class="title" class:untitled={!page?.title}>{page?.title || 'Untitled'}</span>
+          <span class="title" class:untitled={!page?.title}>{page?.title || t('common.untitled')}</span>
           <span class="allProps">
             {#each shownFor(row) as p (p.id)}<span class="prop" data-tip={p.name}><Value {dbId} {row} prop={p} compact /></span>{/each}
           </span>
@@ -135,7 +137,7 @@
     {/each}
   {/each}
   {#if sections.reduce((n, s) => n + s.items.length, 0) < total}<div class="more" {@attach lazy.more}></div>{/if}
-  <button class="line add" onclick={() => add()}><span class="lead"><Icon name="plus" size={15} /></span><span class="title">New</span></button>
+  <button class="line add" onclick={() => add()}><span class="lead"><Icon name="plus" size={15} /></span><span class="title">{t('common.actions.new')}</span></button>
 </div>
 
 <style>

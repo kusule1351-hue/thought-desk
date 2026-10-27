@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { mount, unmount } from 'svelte';
 import DatabaseBlock from '../db/DatabaseBlock.svelte';
+import { t } from '../i18n';
 import { store } from '../store.svelte';
 
 /**
@@ -31,7 +32,7 @@ export const DatabaseNode = Node.create({
   renderHTML({ HTMLAttributes }) {
     return ['div', mergeAttributes(HTMLAttributes)];
   },
-  renderText: ({ node }) => store.byId.get(node.attrs.id)?.title || 'Database',
+  renderText: ({ node }) => store.byId.get(node.attrs.id)?.title || t('blocks.database.fallbackTitle'),
 
   addNodeView() {
     return ({ node, editor, getPos }) => {

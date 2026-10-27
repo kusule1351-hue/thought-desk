@@ -6,7 +6,12 @@
 
 import { byKey } from './order';
 import { CALC_LABELS, formatDay, formatNumber, isoDate, kindOf, toDate, type ValueKind } from './schema';
+import { t, type PluralKey, type TextKey } from '../i18n';
+import { fmt } from '../i18n/format';
 import type { CalcFn, DateValue, DbRow, FilterRule, Property, SortRule } from '../types';
+
+/** A message without plural forms. */
+type Key = TextKey;
 
 /** A row's value, normalised by kind (see ValueKind):
  * text → string, number → number | null, option → id | null,
@@ -36,18 +41,19 @@ export interface OpInfo {
 }
 
 const EMPTY_OPS: OpInfo[] = [
-  { op: 'isEmpty', label: 'is empty', input: 'none' },
-  { op: 'isNotEmpty', label: 'is not empty', input: 'none' },
+  { op: 'isEmpty', label: t('database.ops.isEmpty'), input: 'none' },
+  { op: 'isNotEmpty', label: t('database.ops.isNotEmpty'), input: 'none' },
 ];
 
+/** Each kind's filter conditions (`op` is stored in views; the label is what the filter panel shows). The number ones are symbols, the same in every language. */
 export const OPS: Record<ValueKind, OpInfo[]> = {
   text: [
-    { op: 'contains', label: 'contains', input: 'text' },
-    { op: 'notContains', label: 'does not contain', input: 'text' },
-    { op: 'is', label: 'is', input: 'text' },
-    { op: 'isNot', label: 'is not', input: 'text' },
-    { op: 'startsWith', label: 'starts with', input: 'text' },
-    { op: 'endsWith', label: 'ends with', input: 'text' },
+    { op: 'contains', label: t('database.ops.text.contains'), input: 'text' },
+    { op: 'notContains', label: t('database.ops.text.notContains'), input: 'text' },
+    { op: 'is', label: t('database.ops.text.is'), input: 'text' },
+    { op: 'isNot', label: t('database.ops.text.isNot'), input: 'text' },
+    { op: 'startsWith', label: t('database.ops.text.startsWith'), input: 'text' },
+    { op: 'endsWith', label: t('database.ops.text.endsWith'), input: 'text' },
     ...EMPTY_OPS,
   ],
   number: [
@@ -60,43 +66,145 @@ export const OPS: Record<ValueKind, OpInfo[]> = {
     ...EMPTY_OPS,
   ],
   option: [
-    { op: 'is', label: 'is', input: 'options' },
-    { op: 'isNot', label: 'is not', input: 'options' },
+    { op: 'is', label: t('database.ops.option.is'), input: 'options' },
+    { op: 'isNot', label: t('database.ops.option.isNot'), input: 'options' },
     ...EMPTY_OPS,
   ],
   options: [
-    { op: 'hasAny', label: 'has any of', input: 'options' },
-    { op: 'hasAll', label: 'has all of', input: 'options' },
-    { op: 'hasNone', label: 'has none of', input: 'options' },
+    { op: 'hasAny', label: t('database.ops.options.hasAny'), input: 'options' },
+    { op: 'hasAll', label: t('database.ops.options.hasAll'), input: 'options' },
+    { op: 'hasNone', label: t('database.ops.options.hasNone'), input: 'options' },
     ...EMPTY_OPS,
   ],
-  list: [{ op: 'hasAny', label: 'includes', input: 'options' }, { op: 'hasNone', label: 'does not include', input: 'options' }, ...EMPTY_OPS],
+  list: [{ op: 'hasAny', label: t('database.ops.list.hasAny'), input: 'options' }, { op: 'hasNone', label: t('database.ops.list.hasNone'), input: 'options' }, ...EMPTY_OPS],
   date: [
-    { op: 'is', label: 'is', input: 'date' },
-    { op: 'before', label: 'is before', input: 'date' },
-    { op: 'after', label: 'is after', input: 'date' },
-    { op: 'onOrBefore', label: 'is on or before', input: 'date' },
-    { op: 'onOrAfter', label: 'is on or after', input: 'date' },
-    { op: 'pastDays', label: 'is within the past', input: 'days' },
-    { op: 'nextDays', label: 'is within the next', input: 'days' },
-    { op: 'thisWeek', label: 'is this week', input: 'none' },
-    { op: 'thisMonth', label: 'is this month', input: 'none' },
+    { op: 'is', label: t('database.ops.date.is'), input: 'date' },
+    { op: 'before', label: t('database.ops.date.before'), input: 'date' },
+    { op: 'after', label: t('database.ops.date.after'), input: 'date' },
+    { op: 'onOrBefore', label: t('database.ops.date.onOrBefore'), input: 'date' },
+    { op: 'onOrAfter', label: t('database.ops.date.onOrAfter'), input: 'date' },
+    { op: 'pastDays', label: t('database.ops.date.pastDays'), input: 'days' },
+    { op: 'nextDays', label: t('database.ops.date.nextDays'), input: 'days' },
+    { op: 'thisWeek', label: t('database.ops.date.thisWeek'), input: 'none' },
+    { op: 'thisMonth', label: t('database.ops.date.thisMonth'), input: 'none' },
     ...EMPTY_OPS,
   ],
   checkbox: [
-    { op: 'checked', label: 'is checked', input: 'none' },
-    { op: 'unchecked', label: 'is not checked', input: 'none' },
+    { op: 'checked', label: t('database.ops.checkbox.checked'), input: 'none' },
+    { op: 'unchecked', label: t('database.ops.checkbox.unchecked'), input: 'none' },
   ],
 };
 
-/** Relative days a date filter can use instead of a fixed date. */
-export const RELATIVE_DAYS: { key: string; label: string; days: number }[] = [
-  { key: 'today', label: 'Today', days: 0 },
-  { key: 'tomorrow', label: 'Tomorrow', days: 1 },
-  { key: 'yesterday', label: 'Yesterday', days: -1 },
-  { key: 'oneWeekAgo', label: 'One week ago', days: -7 },
-  { key: 'oneWeekFromNow', label: 'One week from now', days: 7 },
+export type RelativeDay = 'today' | 'tomorrow' | 'yesterday' | 'oneWeekAgo' | 'oneWeekFromNow';
+
+/** Relative days a date filter can use instead of a fixed date (the key is stored in the filter). */
+export const RELATIVE_DAYS: { key: RelativeDay; label: string; days: number }[] = [
+  { key: 'today', label: t('common.today'), days: 0 },
+  { key: 'tomorrow', label: t('common.tomorrow'), days: 1 },
+  { key: 'yesterday', label: t('common.yesterday'), days: -1 },
+  { key: 'oneWeekAgo', label: t('database.relativeDays.oneWeekAgo'), days: -7 },
+  { key: 'oneWeekFromNow', label: t('database.relativeDays.oneWeekFromNow'), days: 7 },
 ];
+
+// ------------------------------------------------- filters as sentences
+
+/** A filter's chip, for conditions with a typed value ({value}), picked values ({values}) or none. */
+const RULES: Record<ValueKind, Record<string, Key>> = {
+  text: {
+    contains: 'database.rule.text.contains',
+    notContains: 'database.rule.text.notContains',
+    is: 'database.rule.text.is',
+    isNot: 'database.rule.text.isNot',
+    startsWith: 'database.rule.text.startsWith',
+    endsWith: 'database.rule.text.endsWith',
+  },
+  number: {
+    eq: 'database.rule.number.eq',
+    neq: 'database.rule.number.neq',
+    gt: 'database.rule.number.gt',
+    lt: 'database.rule.number.lt',
+    gte: 'database.rule.number.gte',
+    lte: 'database.rule.number.lte',
+  },
+  option: { is: 'database.rule.option.is', isNot: 'database.rule.option.isNot' },
+  options: { hasAny: 'database.rule.options.hasAny', hasAll: 'database.rule.options.hasAll', hasNone: 'database.rule.options.hasNone' },
+  list: { hasAny: 'database.rule.list.hasAny', hasNone: 'database.rule.list.hasNone' },
+  date: { thisWeek: 'database.rule.date.thisWeek', thisMonth: 'database.rule.date.thisMonth' },
+  checkbox: { checked: 'database.rule.checkbox.checked', unchecked: 'database.rule.checkbox.unchecked' },
+};
+
+type DateOp = 'is' | 'before' | 'after' | 'onOrBefore' | 'onOrAfter';
+
+/** A date filter's chip, one sentence per day it can name: a fixed date, or each relative day. */
+const DATE_RULES: Record<DateOp, Record<RelativeDay | 'date', Key>> = {
+  is: {
+    date: 'database.rule.date.is.date',
+    today: 'database.rule.date.is.today',
+    tomorrow: 'database.rule.date.is.tomorrow',
+    yesterday: 'database.rule.date.is.yesterday',
+    oneWeekAgo: 'database.rule.date.is.oneWeekAgo',
+    oneWeekFromNow: 'database.rule.date.is.oneWeekFromNow',
+  },
+  before: {
+    date: 'database.rule.date.before.date',
+    today: 'database.rule.date.before.today',
+    tomorrow: 'database.rule.date.before.tomorrow',
+    yesterday: 'database.rule.date.before.yesterday',
+    oneWeekAgo: 'database.rule.date.before.oneWeekAgo',
+    oneWeekFromNow: 'database.rule.date.before.oneWeekFromNow',
+  },
+  after: {
+    date: 'database.rule.date.after.date',
+    today: 'database.rule.date.after.today',
+    tomorrow: 'database.rule.date.after.tomorrow',
+    yesterday: 'database.rule.date.after.yesterday',
+    oneWeekAgo: 'database.rule.date.after.oneWeekAgo',
+    oneWeekFromNow: 'database.rule.date.after.oneWeekFromNow',
+  },
+  onOrBefore: {
+    date: 'database.rule.date.onOrBefore.date',
+    today: 'database.rule.date.onOrBefore.today',
+    tomorrow: 'database.rule.date.onOrBefore.tomorrow',
+    yesterday: 'database.rule.date.onOrBefore.yesterday',
+    oneWeekAgo: 'database.rule.date.onOrBefore.oneWeekAgo',
+    oneWeekFromNow: 'database.rule.date.onOrBefore.oneWeekFromNow',
+  },
+  onOrAfter: {
+    date: 'database.rule.date.onOrAfter.date',
+    today: 'database.rule.date.onOrAfter.today',
+    tomorrow: 'database.rule.date.onOrAfter.tomorrow',
+    yesterday: 'database.rule.date.onOrAfter.yesterday',
+    oneWeekAgo: 'database.rule.date.onOrAfter.oneWeekAgo',
+    oneWeekFromNow: 'database.rule.date.onOrAfter.oneWeekFromNow',
+  },
+};
+
+/** A date filter's chip with a number of days. */
+const DAYS_RULES: Record<string, PluralKey> = { pastDays: 'database.rule.date.pastDays', nextDays: 'database.rule.date.nextDays' };
+
+/** A filter as its chip says it ("Status is Done, Doing", "Due is before today"); `names` are those of the values picked. */
+export function ruleText(name: string, kind: ValueKind, rule: FilterRule, names: string[]): string {
+  const op = OPS[kind].find((o) => o.op === rule.op);
+  if (!op) return name;
+  if (rule.op === 'isEmpty') return t('database.rule.isEmpty', { name });
+  if (rule.op === 'isNotEmpty') return t('database.rule.isNotEmpty', { name });
+  const days = DAYS_RULES[rule.op];
+  if (op.input === 'days' && days) {
+    // A value left from another condition (a day picked before) counts as none, as the filter itself takes it.
+    const n = Number(rule.value ?? 7);
+    return t(days, { name, count: Number.isFinite(n) ? n : 0 });
+  }
+  const dated = DATE_RULES[rule.op as DateOp];
+  if (op.input === 'date' && dated && !Array.isArray(rule.value)) {
+    const rel = RELATIVE_DAYS.find((d) => d.key === rule.value);
+    return rel ? t(dated[rel.key], { name }) : t(dated.date, { name, date: String(rule.value ?? '') });
+  }
+  const key = RULES[kind][rule.op];
+  if (!key) return name;
+  // Values picked from a list read as one ("Done, Doing"); a typed one as typed.
+  const value = Array.isArray(rule.value) ? fmt.list(names, 'conjunction', 'narrow') : rule.value === undefined || rule.value === null ? '' : String(rule.value);
+  return t(key, { name, value, values: value });
+}
 
 export function addDaysIso(day: string, n: number): string {
   const d = toDate(day);
@@ -251,7 +359,7 @@ export function filterRows(
 
 // ------------------------------------------------------------------- sorting
 
-const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const collator = fmt.collator({ numeric: true, sensitivity: 'base' });
 
 /** A comparable stand-in for a value; null sorts last either way. */
 function sortKey(v: Plain, p: Property, ctx: Ctx): number | string | null {
@@ -346,7 +454,7 @@ export interface Group {
   rows: DbRow[];
 }
 
-const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
+const MONTH_YEAR: Intl.DateTimeFormatOptions = { month: 'long', year: 'numeric' };
 
 /** Properties a view can be grouped by. */
 export function canGroup(p: Property): boolean {
@@ -355,7 +463,7 @@ export function canGroup(p: Property): boolean {
 
 export function groupRows(rows: DbRow[], p: Property, ctx: Ctx): Group[] {
   const kind = ctx.kind(p);
-  const empty: Group = { key: '', label: `No ${p.name || 'value'}`, rows: [] };
+  const empty: Group = { key: '', label: p.name ? t('database.group.empty', { name: p.name }) : t('database.group.emptyUnnamed'), rows: [] };
   if (kind === 'option' || kind === 'options') {
     const groups = ctx.groups(p).map((g) => ({ ...g, rows: [] as DbRow[] }));
     const byKey = new Map(groups.map((g) => [g.key, g]));
@@ -379,8 +487,8 @@ export function groupRows(rows: DbRow[], p: Property, ctx: Ctx): Group[] {
     return [empty, ...groups];
   }
   if (kind === 'checkbox') {
-    const off: Group = { key: 'false', label: 'Not checked', rows: [] };
-    const on: Group = { key: 'true', label: 'Checked', rows: [] };
+    const off: Group = { key: 'false', label: t('database.group.unchecked'), rows: [] };
+    const on: Group = { key: 'true', label: t('database.group.checked'), rows: [] };
     for (const row of rows) (ctx.get(row, p) === true ? on : off).rows.push(row);
     return [off, on];
   }
@@ -392,7 +500,7 @@ export function groupRows(rows: DbRow[], p: Property, ctx: Ctx): Group[] {
     if (kind === 'date') {
       if (v && typeof v === 'object' && !Array.isArray(v)) {
         key = (v as DateValue).start.slice(0, 7);
-        label = monthFmt.format(toDate(`${key}-01`));
+        label = fmt.date(toDate(`${key}-01`), MONTH_YEAR);
       }
     } else if (Array.isArray(v)) {
       // Lists (relations): one group per item.
@@ -422,31 +530,36 @@ export function groupRows(rows: DbRow[], p: Property, ctx: Ctx): Group[] {
 
 // ---------------------------------------------------------------- summaries
 
+const PERCENT: Intl.NumberFormatOptions = { style: 'percent', maximumFractionDigits: 1 };
+/** Counts under a column are written without thousands separators ("1234"), as they always were, in the locale's digits. */
+const COUNT: Intl.NumberFormatOptions = { useGrouping: false };
+
 /** A column's summary, ready to show ("12", "$1,204.50", "45%"). */
 export function calculate(rows: DbRow[], p: Property, fn: CalcFn, ctx: Ctx): string {
   if (fn === 'none') return '';
   const kind = ctx.kind(p);
   const values = rows.map((r) => ctx.get(r, p));
   const filled = values.filter((v) => !isEmptyPlain(v));
-  const pct = (n: number) => (rows.length ? `${Math.round((n / rows.length) * 1000) / 10}%` : '0%');
+  // A share to one decimal place (rounded here, as it always was), written the locale's way: "45.5%".
+  const pct = (n: number) => fmt.number(rows.length ? Math.round((n / rows.length) * 1000) / 1000 : 0, PERCENT);
   const numFmt = (n: number) => (p.type === 'number' || p.type === 'formula' || p.type === 'rollup' ? formatNumber(n, p.config) : formatNumber(n));
   switch (fn) {
     case 'count':
-      return String(rows.length);
+      return fmt.number(rows.length, COUNT);
     case 'countValues':
-      return String(filled.length);
+      return fmt.number(filled.length, COUNT);
     case 'countEmpty':
-      return String(rows.length - filled.length);
+      return fmt.number(rows.length - filled.length, COUNT);
     case 'countUnique':
-      return String(new Set(rows.filter((r) => !isEmptyPlain(ctx.get(r, p))).flatMap((r) => (kind === 'options' || kind === 'list' ? (ctx.get(r, p) as string[]) : [ctx.text(r, p)]))).size);
+      return fmt.number(new Set(rows.filter((r) => !isEmptyPlain(ctx.get(r, p))).flatMap((r) => (kind === 'options' || kind === 'list' ? (ctx.get(r, p) as string[]) : [ctx.text(r, p)]))).size, COUNT);
     case 'percentFilled':
       return pct(filled.length);
     case 'percentEmpty':
       return pct(rows.length - filled.length);
     case 'checked':
-      return String(values.filter((v) => v === true).length);
+      return fmt.number(values.filter((v) => v === true).length, COUNT);
     case 'unchecked':
-      return String(values.filter((v) => v !== true).length);
+      return fmt.number(values.filter((v) => v !== true).length, COUNT);
     case 'percentChecked':
       return pct(values.filter((v) => v === true).length);
   }
@@ -457,7 +570,7 @@ export function calculate(rows: DbRow[], p: Property, fn: CalcFn, ctx: Ctx): str
     if (fn === 'latest') return formatDay(days[days.length - 1]);
     if (fn === 'range') {
       const span = Math.round((toDate(days[days.length - 1].slice(0, 10)).getTime() - toDate(days[0].slice(0, 10)).getTime()) / 86_400_000);
-      return `${span} day${span === 1 ? '' : 's'}`;
+      return t('database.calcDays', { count: span });
     }
     return '';
   }

@@ -3,6 +3,7 @@
   import { BubbleMenuPlugin } from '@tiptap/extension-bubble-menu';
   import { onMount } from 'svelte';
   import Icon from '../components/Icon.svelte';
+  import { t } from '../i18n';
 
   let { editor }: { editor: Editor } = $props();
   let el: HTMLDivElement;
@@ -43,14 +44,14 @@
 </script>
 
 <div class="table-menu popover" bind:this={el} style="visibility: hidden">
-  <button onmousedown={run(() => editor.chain().focus().addRowAfter().run())} data-tip="Add row below"><Icon name="row-plus" size={15} /></button>
-  <button onmousedown={run(() => editor.chain().focus().addColumnAfter().run())} data-tip="Add column to the right"><Icon name="col-plus" size={15} /></button>
+  <button onmousedown={run(() => editor.chain().focus().addRowAfter().run())} data-tip={t('editor.table.addRow')}><Icon name="row-plus" size={15} /></button>
+  <button onmousedown={run(() => editor.chain().focus().addColumnAfter().run())} data-tip={t('editor.table.addColumn')}><Icon name="col-plus" size={15} /></button>
   <span class="sep"></span>
-  <button onmousedown={run(() => editor.chain().focus().deleteRow().run())} data-tip="Delete row"><Icon name="row-minus" size={15} /></button>
-  <button onmousedown={run(() => editor.chain().focus().deleteColumn().run())} data-tip="Delete column"><Icon name="col-minus" size={15} /></button>
+  <button onmousedown={run(() => editor.chain().focus().deleteRow().run())} data-tip={t('editor.table.deleteRow')}><Icon name="row-minus" size={15} /></button>
+  <button onmousedown={run(() => editor.chain().focus().deleteColumn().run())} data-tip={t('editor.table.deleteColumn')}><Icon name="col-minus" size={15} /></button>
   <span class="sep"></span>
-  <button onmousedown={run(() => editor.chain().focus().toggleHeaderRow().run())} data-tip="Toggle header row"><Icon name="header" size={15} /></button>
-  <button onmousedown={run(() => editor.chain().focus().deleteTable().run())} data-tip="Delete table"><Icon name="trash" size={15} /></button>
+  <button onmousedown={run(() => editor.chain().focus().toggleHeaderRow().run())} data-tip={t('editor.table.toggleHeader')}><Icon name="header" size={15} /></button>
+  <button onmousedown={run(() => editor.chain().focus().deleteTable().run())} data-tip={t('editor.table.delete')}><Icon name="trash" size={15} /></button>
 </div>
 
 <style>

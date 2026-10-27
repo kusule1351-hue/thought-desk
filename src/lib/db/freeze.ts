@@ -12,12 +12,14 @@
  * what the menu promises and what the table pins cannot disagree.
  */
 
+import { t } from '../i18n';
+
 /** The leading selection/drag gutter, in CSS px. */
 export const GUTTER = 40;
 /** The least part of the next real column that must stay visible, in CSS px. */
 export const MIN_NEXT_COLUMN = 1;
 /** Shown when a boundary cannot be offered at the current width. */
-export const NO_ROOM = 'Not enough room to freeze through this column';
+export const NO_ROOM = t('dbEdit.property.freezeNoRoom');
 
 export interface FreezeColumn {
   id: string;

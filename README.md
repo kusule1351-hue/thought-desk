@@ -129,6 +129,8 @@ Thank you to everyone who has [contributed](https://github.com/kusule1351-hue/th
 
 Fixes, measurements and ideas are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); contributors sign a short [Contributor License Agreement](CLA.md) once, on their first pull request. Questions, or just want to talk? Join the [Discord](https://discord.gg/JEaUHwz5bP).
 
+**Want Thought Desk in your language?** Translations are JSON files, one per area of the app, and can be done a bit at a time: [docs/TRANSLATING.md](docs/TRANSLATING.md) shows how.
+
 ## License
 
 Copyright (C) 2026 Kusule. Thought Desk is free software under the [GNU Affero General Public License](LICENSE), version 3 or later: if you distribute a modified version, or let people use one over a network, you must share its source under the same license.

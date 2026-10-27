@@ -6,6 +6,8 @@
   import SearchField from '../ui/SearchField.svelte';
   import Segmented from '../ui/Segmented.svelte';
   import { fileMenuItems } from '../file-actions';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
   import { KINDS, fileKind, library, pickFiles, type FileKind } from '../library.svelte';
   import { prefs, type FilesLayout } from '../prefs.svelte';
   import { Progressive } from '../progressive.svelte';
@@ -28,25 +30,29 @@
     other: ['archive', 'code', 'other'],
   };
   const filters: { value: Filter; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'images', label: 'Images' },
-    { value: 'docs', label: 'Documents' },
-    { value: 'media', label: 'Media' },
-    { value: 'other', label: 'Other' },
-    { value: 'unused', label: 'Unused' },
+    { value: 'all', label: t('library.files.filter.all') },
+    { value: 'images', label: t('library.files.filter.images') },
+    { value: 'docs', label: t('library.files.filter.documents') },
+    { value: 'media', label: t('library.files.filter.media') },
+    { value: 'other', label: t('library.files.filter.otherKinds') },
+    { value: 'unused', label: t('library.files.filter.unused') },
   ];
   const layouts: { value: FilesLayout; label: string; icon: string }[] = [
-    { value: 'grid', label: 'Grid', icon: 'grid' },
-    { value: 'list', label: 'List', icon: 'rows' },
+    { value: 'grid', label: t('library.files.grid'), icon: 'grid' },
+    { value: 'list', label: t('library.files.list'), icon: 'rows' },
   ];
-  const sorts: Record<Sort, string> = { newest: 'Date Added', name: 'Name', size: 'Size' };
+  const sorts: Record<Sort, string> = {
+    newest: t('library.files.sort.dateAdded'),
+    name: t('library.files.sort.name'),
+    size: t('library.files.sort.size'),
+  };
 
   // Usage changes as pages are edited elsewhere; refresh on the way in.
   onMount(() => void library.refreshUsage());
 
   const uses = (f: FileMeta) => library.useCount(f.id);
   // One collator for the whole sort (localeCompare with options builds one per call).
-  const byName = new Intl.Collator(undefined, { numeric: true }).compare;
+  const byName = fmt.collator({ numeric: true }).compare;
 
   const shown = $derived.by(() => {
     const q = query.trim().toLowerCase();
@@ -78,9 +84,13 @@
   });
   const visible = $derived(shown.length > lazy.limit ? shown.slice(0, lazy.limit) : shown);
 
+  function toastAdded(added: FileMeta[]) {
+    if (added.length === 1) ui.toast(t('library.files.addedFile', { name: added[0].name }));
+    else if (added.length) ui.toast(t('library.files.addedFiles', { count: added.length }));
+  }
+
   async function importFiles() {
-    const added = await library.add(await pickFiles());
-    if (added.length) ui.toast(`Added ${added.length === 1 ? `“${added[0].name}”` : `${added.length} files`}`);
+    toastAdded(await library.add(await pickFiles()));
   }
 
   function onDragOver(e: DragEvent) {
@@ -95,8 +105,7 @@
     const list = Array.from(e.dataTransfer?.files ?? []);
     if (!list.length) return;
     e.preventDefault();
-    const added = await library.add(list);
-    if (added.length) ui.toast(`Added ${added.length === 1 ? `“${added[0].name}”` : `${added.length} files`}`);
+    toastAdded(await library.add(list));
   }
 
   let menuFor = $state<string | null>(null);
@@ -114,7 +123,7 @@
     ui.openMenuAt(
       e.currentTarget as Element,
       [
-        { header: 'Sort By' },
+        { header: t('library.files.sortBy') },
         ...(Object.keys(sorts) as Sort[]).map((s) => ({ label: sorts[s], checked: sort === s, action: () => (sort = s) })),
       ],
       { alignRight: true },
@@ -132,35 +141,35 @@
 >
   <header class="view-head">
     <div>
-      <h1 class="view-title">Files</h1>
+      <h1 class="view-title">{t('common.views.files')}</h1>
       <p class="view-sub">
         {#if library.live.length}
-          {library.live.length} file{library.live.length === 1 ? '' : 's'} · {formatBytes(library.totalBytes)}
+          {t('library.files.subtitle', { count: library.live.length, size: formatBytes(library.totalBytes) })}
         {:else}
-          Everything you attach and drop in, in one place
+          {t('library.files.emptySubtitle')}
         {/if}
       </p>
     </div>
     <div class="view-actions">
-      <Segmented options={layouts} value={prefs.filesLayout} onchange={(v) => (prefs.filesLayout = v)} label="Layout" iconOnly />
-      <button class="btn primary" onclick={importFiles}><Icon name="upload" size={15} stroke={2.2} /> Add Files</button>
+      <Segmented options={layouts} value={prefs.filesLayout} onchange={(v) => (prefs.filesLayout = v)} label={t('library.files.layout')} iconOnly />
+      <button class="btn primary" onclick={importFiles}><Icon name="upload" size={15} stroke={2.2} /> {t('library.files.addFiles')}</button>
     </div>
   </header>
 
   <div class="toolbar">
-    <div class="kinds" role="radiogroup" aria-label="Kind">
+    <div class="kinds" role="radiogroup" aria-label={t('library.files.kindFilter')}>
       {#each filters as f (f.value)}
         {#if f.value === 'all' || counts[f.value] > 0}
           <button class="chip" class:on={filter === f.value} role="radio" aria-checked={filter === f.value} onclick={() => (filter = f.value)}>
             {f.label}
-            <span class="n">{counts[f.value]}</span>
+            <span class="n">{fmt.number(counts[f.value])}</span>
           </button>
         {/if}
       {/each}
     </div>
     <span class="spacer"></span>
     <button class="btn small sort" onclick={sortMenu}><Icon name="arrow-down" size={13} stroke={2} />{sorts[sort]}</button>
-    <SearchField bind:value={query} placeholder="Search files" width={200} small />
+    <SearchField bind:value={query} placeholder={t('library.files.search')} width={200} small />
   </div>
 
   {#if shown.length && prefs.filesLayout === 'grid'}
@@ -183,11 +192,11 @@
           <div class="card-text">
             <span class="name" title={f.name}>{f.name}</span>
             <span class="meta">
-              {f.missing ? 'Missing' : formatBytes(f.size)}
-              {#if n}<span class="uses" data-tip="Used in {n} place{n === 1 ? '' : 's'}"><Icon name="link" size={11} stroke={2.2} />{n}</span>{/if}
+              {f.missing ? t('library.files.missing') : formatBytes(f.size)}
+              {#if n}<span class="uses" data-tip={t('library.files.usedInPlaces', { count: n })}><Icon name="link" size={11} stroke={2.2} />{fmt.number(n)}</span>{/if}
             </span>
           </div>
-          <button class="card-more" tabindex="-1" onclick={(e) => menu(e, f, e.currentTarget as Element)} aria-label="More"><Icon name="more" size={15} /></button>
+          <button class="card-more" tabindex="-1" onclick={(e) => menu(e, f, e.currentTarget as Element)} aria-label={t('common.actions.more')}><Icon name="more" size={15} /></button>
         </div>
       {/each}
     </div>
@@ -209,11 +218,11 @@
           <FileTile file={f} size={32} />
           <div class="f-main">
             <span class="name">{f.name}</span>
-            <span class="meta">{KINDS[fileKind(f)].label} · {f.missing ? 'Missing' : formatBytes(f.size)}</span>
+            <span class="meta">{KINDS[fileKind(f)].label} · {f.missing ? t('library.files.missing') : formatBytes(f.size)}</span>
           </div>
-          <span class="f-uses">{n ? `Used in ${n}` : 'Unused'}</span>
+          <span class="f-uses">{t('library.files.uses', { count: n })}</span>
           <span class="f-date">{relativeTime(f.createdAt)}</span>
-          <button class="act" tabindex="-1" onclick={(e) => menu(e, f, e.currentTarget as Element)} aria-label="More"><Icon name="more" size={15} /></button>
+          <button class="act" tabindex="-1" onclick={(e) => menu(e, f, e.currentTarget as Element)} aria-label={t('common.actions.more')}><Icon name="more" size={15} /></button>
         </div>
       {/each}
     </div>
@@ -221,15 +230,15 @@
   {:else}
     <EmptyState
       icon="files"
-      title={query ? 'No matches' : library.live.length ? 'Nothing here' : 'No files yet'}
+      title={query ? t('library.files.noMatches') : library.live.length ? t('library.files.nothingHere') : t('library.files.empty')}
       text={query
-        ? 'Try a different name.'
+        ? t('library.files.noMatchesText')
         : library.live.length
-          ? 'No files of this kind.'
-          : 'Drop files here, attach them to assignments, or drag them into a page. They’re kept on this computer.'}
+          ? t('library.files.nothingHereText')
+          : t('library.files.emptyText')}
     >
       {#if !library.live.length}
-        <button class="btn primary" onclick={importFiles}><Icon name="upload" size={15} stroke={2.2} /> Add Files</button>
+        <button class="btn primary" onclick={importFiles}><Icon name="upload" size={15} stroke={2.2} /> {t('library.files.addFiles')}</button>
       {/if}
     </EmptyState>
   {/if}
@@ -237,7 +246,7 @@
   {#if dropping}
     <div class="drop-hint">
       <span class="drop-badge"><Icon name="upload" size={22} stroke={2} /></span>
-      <strong>Drop to add to Files</strong>
+      <strong>{t('library.files.dropToAdd')}</strong>
     </div>
   {/if}
 </div>

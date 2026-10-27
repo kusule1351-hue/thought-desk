@@ -6,6 +6,7 @@
  */
 
 import { createClient, type PostgrestError } from '@supabase/supabase-js';
+import { t } from '../i18n';
 import * as clerk from './clerk';
 import { ONLINE_FOR, type Cloud, type CloudChange, type CloudUser, type Friend, type LiveSession, type Profile, type Provider } from './types';
 
@@ -44,23 +45,23 @@ const asProfile = (r: { id: string; username: string | null; display_name: strin
   avatarUrl: r.avatar_url,
 });
 
-/** An error as something to show people. */
-function friendly(e: PostgrestError | Error | null | undefined, fallback = 'Something went wrong. Try again.'): Error {
+/** An error as something to show people (the database's own words, as they come, when it isn't one of these). */
+function friendly(e: PostgrestError | Error | null | undefined, fallback = t('social.cloud.somethingWrong')): Error {
   if (!e) return new Error(fallback);
   const code = 'code' in e ? String(e.code ?? '') : '';
-  if (code === '23505') return new Error('That username is taken.');
-  if (code === '23514') return new Error('Use 3–20 lowercase letters, digits or _.');
-  if (e instanceof TypeError || /fetch/i.test(e.message)) return new Error("Can't reach the cloud. Check your internet connection.");
+  if (code === '23505') return new Error(t('social.cloud.usernameTaken'));
+  if (code === '23514') return new Error(t('social.cloud.usernameRule'));
+  if (e instanceof TypeError || /fetch/i.test(e.message)) return new Error(t('social.cloud.cloudOffline'));
   return new Error(e.message || fallback);
 }
 
 /** The session functions' errors (supabase/README.md) as something to show people. */
 function sessionError(e: PostgrestError): Error {
-  if (/expired/.test(e.message)) return new Error('That invite has expired. Ask for a new one.');
-  if (/not friends/.test(e.message)) return new Error("You're not friends any more.");
-  if (/not pending/.test(e.message)) return new Error('That invite was already answered.');
-  if (/already (ended|cancelled|declined)/.test(e.message)) return new Error('That session has already ended.');
-  if (e.code === 'P0002') return new Error('That session is gone.');
+  if (/expired/.test(e.message)) return new Error(t('social.cloud.inviteExpired'));
+  if (/not friends/.test(e.message)) return new Error(t('social.cloud.notFriends'));
+  if (/not pending/.test(e.message)) return new Error(t('social.cloud.inviteAnswered'));
+  if (/already (ended|cancelled|declined)/.test(e.message)) return new Error(t('social.cloud.sessionEnded'));
+  if (e.code === 'P0002') return new Error(t('social.cloud.sessionGone'));
   return friendly(e);
 }
 
@@ -156,7 +157,7 @@ class SupabaseCloud implements Cloud {
   async requestFriend(userId: string) {
     const me = await this.#me();
     const { error } = await this.client.from('friendships').insert({ requester: me.id, addressee: userId });
-    if (error?.code === '23505') throw new Error("You're already friends, or one of you has asked already.");
+    if (error?.code === '23505') throw new Error(t('social.cloud.alreadyFriends'));
     if (error) throw friendly(error);
   }
 
@@ -190,7 +191,7 @@ class SupabaseCloud implements Cloud {
     const row: Pick<SessionRow, 'host' | 'guest' | 'kind' | 'title'> =
       kind === 'invite' ? { host: me.id, guest: friendId, kind, title } : { host: friendId, guest: me.id, kind, title: '' };
     const { data, error } = await this.client.from('cowork_sessions').insert(row).select(SESSION_COLS).single();
-    if (error?.code === '42501') throw new Error('You can only work with friends.');
+    if (error?.code === '42501') throw new Error(t('social.cloud.friendsOnly'));
     if (error) throw friendly(error);
     return asSession(data as SessionRow);
   }
@@ -255,7 +256,7 @@ class SupabaseCloud implements Cloud {
   /** Whoever is signed in, or an error saying to sign in. */
   async #me(): Promise<CloudUser> {
     const me = await this.user();
-    if (!me) throw new Error('Sign in first.');
+    if (!me) throw new Error(t('social.cloud.signInFirst'));
     return me;
   }
 

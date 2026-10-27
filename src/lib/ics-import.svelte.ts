@@ -1,5 +1,6 @@
 /** Importing an .ics file: pick it, preview it, then add or update items. */
 
+import { t } from './i18n';
 import { parseIcs, type IcsItem } from './ics';
 import { pickFiles } from './library.svelte';
 import { planner } from './planner.svelte';
@@ -19,11 +20,11 @@ export async function importCalendar() {
     const seen = new Set<string>();
     items = parseIcs(await file.text()).filter((i) => !seen.has(i.uid) && !!seen.add(i.uid));
   } catch {
-    ui.error(`“${file.name}” couldn't be read as a calendar.`);
+    ui.error(t('sheets.import.unreadable', { name: file.name }));
     return;
   }
   if (items.length === 0) {
-    ui.error(`“${file.name}” has no events in it.`);
+    ui.error(t('sheets.import.noEvents', { name: file.name }));
     return;
   }
   ui.settingsOpen = false;

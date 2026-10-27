@@ -26,6 +26,8 @@ import { api } from './api';
 import { cloud, type Friend, type LiveSession } from './cloud';
 import { buildExtensions } from './editor/extensions';
 import { announce, friends, oneAtATime } from './friends.svelte';
+import { t, type Params, type TextKey } from './i18n';
+import { fmt } from './i18n/format';
 import type { JNode } from './markdown';
 import { docOf } from './page-actions';
 import { prefs } from './prefs.svelte';
@@ -77,6 +79,9 @@ const NAME_FOR = 2500;
 
 /** Cursor colours: hex (the cursor extension takes only that), dark enough for white names in either theme. */
 const CURSOR_COLORS = ['#e5484d', '#e2620e', '#2b9a66', '#0d9488', '#0b7ee8', '#3e63dd', '#8e4ec6', '#d6409f'];
+
+/** A message without plural forms. */
+type SentenceKey = TextKey;
 
 export interface Person {
   id: number;
@@ -296,6 +301,12 @@ export class Session {
     this.#names.set(id, setTimeout(() => (mark(false), this.#names.delete(id)), NAME_FOR));
   }
 
+  /** Whether someone's name is showing: the editor redraws their cursor as
+   *  they type, and a cursor drawn then starts with its name (extensions.ts). */
+  isAwake(id: number): boolean {
+    return this.#names.has(id);
+  }
+
   /** Reads the state kept here, then connects. */
   async start() {
     const kept = await api.getPageYjs(this.pageId);
@@ -317,8 +328,8 @@ export class Session {
     const me = this.doc.clientID;
     this.people = [...this.awareness.getStates()]
       .filter(([, s]) => s.user)
-      .map(([id, s]) => ({ id, name: String(s.user.name ?? 'Guest').slice(0, MAX_NAME), color: safeColor(s.user.color), me: id === me }))
-      .sort((a, b) => Number(b.me) - Number(a.me) || a.name.localeCompare(b.name));
+      .map(([id, s]) => ({ id, name: String(s.user.name ?? t('social.session.guest')).slice(0, MAX_NAME), color: safeColor(s.user.color), me: id === me }))
+      .sort((a, b) => Number(b.me) - Number(a.me) || fmt.collator({}).compare(a.name, b.name));
     this.#ownColor();
   }
 
@@ -352,7 +363,7 @@ export class Session {
       if (!this.#tooBig) {
         this.#tooBig = true;
         this.#drop();
-        ui.toast('This page grew too big to write together, so the session ended. You both keep the page.');
+        ui.toast(t('social.session.tooBig'));
         void cowork.end(this.room);
       }
       return;
@@ -423,9 +434,22 @@ class Cowork {
     return friends.list.find((f) => f.profile.id === id);
   }
 
-  otherName(row: LiveSession): string {
+  /** Their name, else their @username; null when they aren't among your friends (any more). */
+  knownName(row: LiveSession): string | null {
     const f = this.other(row);
-    return f ? f.profile.displayName || `@${f.profile.username}` : 'Your friend';
+    return f ? f.profile.displayName || `@${f.profile.username}` : null;
+  }
+
+  /** The other person shown on their own (a name in a list): their name, else "Your friend". */
+  otherName(row: LiveSession): string {
+    return this.knownName(row) ?? t('social.yourFriend');
+  }
+
+  /** A sentence about the other person: `named`, given their {name}, or
+   *  `unnamed`, worded with "your friend" its own way, when it isn't known. */
+  aboutOther(row: LiveSession, named: SentenceKey, unnamed: SentenceKey, params: Params = {}): string {
+    const name = this.knownName(row);
+    return name === null ? t(unnamed, params) : t(named, { ...params, name });
   }
 
   /** The live session a page is in, if any. */
@@ -495,24 +519,34 @@ class Cowork {
       const was = before.get(row.id);
       const mine = (row.kind === 'invite' ? row.hostId : row.guestId) === me;
       if (row.status === 'pending' && !was && !first && !mine) {
-        const name = this.otherName(row);
-        if (row.kind === 'invite') announce(`${name} invites you to write together`, `“${row.title || 'Untitled'}”`, { label: 'Join', run: () => void this.join(row).catch((e) => ui.error(e)) });
-        else announce(`${name} wants to write together`, 'Pick a page to share, in Friends.', { label: 'Open Friends', run: () => store.go('friends') });
+        if (row.kind === 'invite')
+          announce(this.aboutOther(row, 'social.session.invitesYou', 'social.session.invitesYouFriend'), t('social.session.quotedTitle', { title: row.title || t('common.untitled') }), {
+            label: t('social.session.join'),
+            run: () => void this.join(row).catch((e) => ui.error(e)),
+          });
+        else
+          announce(this.aboutOther(row, 'social.session.wantsTo', 'social.session.wantsToFriend'), t('social.session.pickPage'), {
+            label: t('social.session.openFriends'),
+            run: () => store.go('friends'),
+          });
       }
       if (row.status === 'active' && !this.#held.has(row.id)) {
         const fresh = !first && was?.status !== 'active';
         // They said yes: to your invite, or to your request, with a page of theirs.
         if (fresh && was && mine) {
-          const page = `“${row.title || 'Untitled'}”`;
-          announce(row.kind === 'invite' ? `${this.otherName(row)} joined ${page}` : `${this.otherName(row)} shared ${page} with you`);
+          const title = row.title || t('common.untitled');
+          announce(
+            row.kind === 'invite'
+              ? this.aboutOther(row, 'social.session.joined', 'social.session.joinedFriend', { title })
+              : this.aboutOther(row, 'social.session.shared', 'social.session.sharedFriend', { title }),
+          );
         }
         void this.#start(row, fresh);
       }
       if ((row.status === 'ended' || row.status === 'declined' || row.status === 'cancelled') && (this.#held.has(row.id) || this.#pageOf(row.id) || prefs.coworkPages[row.id])) {
         if (was && was.status !== row.status) {
-          const name = this.otherName(row);
-          if (row.status === 'ended') ui.toast(`The session with ${name} ended. You both keep the page.`);
-          else if (row.status === 'declined' && mine) ui.toast(`${name} said no this time.`);
+          if (row.status === 'ended') ui.toast(this.aboutOther(row, 'social.session.ended', 'social.session.endedFriend'));
+          else if (row.status === 'declined' && mine) ui.toast(this.aboutOther(row, 'social.session.saidNo', 'social.session.saidNoFriend'));
         }
         void this.#finish(row.id);
       }
@@ -528,11 +562,11 @@ class Cowork {
   /** Invites a friend to write a page with you. */
   async invite(friend: Friend, pageId: string) {
     const page = store.byId.get(pageId);
-    if (!page || page.deletedAt) throw new Error('That page is gone.');
-    if (page.kind === 'database') throw new Error('Databases can’t be shared yet: invite them to a page.');
-    if (page.sharedRoom) throw new Error('This page is already live with someone.');
-    if (Object.values(prefs.coworkPages).includes(pageId)) throw new Error('Someone is already invited to this page.');
-    const row = await (await cloud()).createSession({ kind: 'invite', friendId: friend.profile.id, title: page.title || 'Untitled' });
+    if (!page || page.deletedAt) throw new Error(t('social.session.errors.pageGone'));
+    if (page.kind === 'database') throw new Error(t('social.session.errors.database'));
+    if (page.sharedRoom) throw new Error(t('social.session.errors.thisPageLive'));
+    if (Object.values(prefs.coworkPages).includes(pageId)) throw new Error(t('social.session.errors.alreadyInvited'));
+    const row = await (await cloud()).createSession({ kind: 'invite', friendId: friend.profile.id, title: page.title || t('common.untitled') });
     prefs.coworkPages = { ...prefs.coworkPages, [row.id]: pageId };
     this.rows = [row, ...this.rows];
   }
@@ -552,10 +586,10 @@ class Cowork {
   /** Accepts a request on one of your pages. */
   async share(row: LiveSession, pageId: string) {
     const page = store.byId.get(pageId);
-    if (!page) throw new Error('That page is gone.');
-    if (page.sharedRoom) throw new Error('That page is already live with someone.');
+    if (!page) throw new Error(t('social.session.errors.pageGone'));
+    if (page.sharedRoom) throw new Error(t('social.session.errors.thatPageLive'));
     prefs.coworkPages = { ...prefs.coworkPages, [row.id]: pageId };
-    await (await cloud()).respondSession(row.id, true, page.title || 'Untitled');
+    await (await cloud()).respondSession(row.id, true, page.title || t('common.untitled'));
     await this.refresh();
   }
 
@@ -600,12 +634,12 @@ class Cowork {
           const p = chosen ? store.byId.get(chosen) : undefined;
           if (!p || p.deletedAt) {
             await (await cloud()).endSession(row.id).catch(() => {});
-            ui.toast('The page for that session is gone, so the session ended.');
+            ui.toast(t('social.session.pageGoneEnded'));
             return;
           }
           await this.#seed(p.id, row.id);
         } else {
-          const made = await api.createPage(null, null, row.title || 'Shared page', '');
+          const made = await api.createPage(null, null, row.title || t('social.session.sharedPage'), '');
           await api.setPageShared(made.id, row.id);
         }
         await store.refresh();
@@ -621,7 +655,7 @@ class Cowork {
       this.#held.set(row.id, page.id);
       // A new tab for the session, on both sides (after a restart, the tab
       // that was already live for it).
-      const tab = tabs.list.find((t) => t.live === row.id);
+      const tab = tabs.list.find((x) => x.live === row.id);
       if (tab) {
         if (focus) tabs.activate(tab.id);
       } else tabs.openPage(page.id, { live: row.id, focus });
@@ -666,7 +700,7 @@ class Cowork {
         if (store.byId.get(pageId)?.sharedRoom === room) await api.setPageShared(pageId, null);
         await store.refresh();
       }
-      for (const t of tabs.list) if (t.live === room) t.live = null;
+      for (const tab of tabs.list) if (tab.live === room) tab.live = null;
       if (prefs.coworkPages[room]) {
         const rest = { ...prefs.coworkPages };
         delete rest[room];

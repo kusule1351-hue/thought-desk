@@ -22,6 +22,8 @@
   import { comboKeys, shortcuts, type ShortcutId } from '../shortcuts.svelte';
   import { Progressive, sliceKeeping } from '../progressive.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
 
   const MIN = 208;
   const MAX = 420;
@@ -80,12 +82,12 @@
   });
 
   const nav: { view: AppView; label: string; icon: string; key: ShortcutId }[] = [
-    { view: 'home', label: 'Home', icon: 'home', key: 'goHome' },
-    { view: 'assignments', label: 'Assignments', icon: 'assignment', key: 'goAssignments' },
-    { view: 'calendar', label: 'Calendar', icon: 'calendar', key: 'goCalendar' },
-    { view: 'files', label: 'Files', icon: 'files', key: 'goFiles' },
-    { view: 'cards', label: 'Flashcards', icon: 'cards', key: 'goCards' },
-    { view: 'friends', label: 'Friends', icon: 'users', key: 'goFriends' },
+    { view: 'home', label: t('common.views.home'), icon: 'home', key: 'goHome' },
+    { view: 'assignments', label: t('common.views.assignments'), icon: 'assignment', key: 'goAssignments' },
+    { view: 'calendar', label: t('common.views.calendar'), icon: 'calendar', key: 'goCalendar' },
+    { view: 'files', label: t('common.views.files'), icon: 'files', key: 'goFiles' },
+    { view: 'cards', label: t('common.views.flashcards'), icon: 'cards', key: 'goCards' },
+    { view: 'friends', label: t('common.views.friends'), icon: 'users', key: 'goFriends' },
   ];
   const shownNav = $derived(nav.filter((n) => shownInSidebar(n.view)));
   const searchKeys = $derived(shortcuts.combos('search')[0] ? comboKeys(shortcuts.combos('search')[0]).join(' ') : '');
@@ -99,12 +101,14 @@
     friends: waiting,
   });
   const countTips = $derived<Record<string, string>>({
-    assignments: `${planner.dueSoon.length} due within a week${overdue ? ', some overdue' : ''}`,
-    calendar: `${todayEvents} event${todayEvents === 1 ? '' : 's'} today`,
-    files: `${library.live.length} file${library.live.length === 1 ? '' : 's'}`,
-    cards: `${cards.dueCount} card${cards.dueCount === 1 ? '' : 's'} to study today`,
-    friends: `${waiting} waiting for you`,
+    assignments: t(overdue ? 'shell.sidebar.dueSoonOverdue' : 'shell.sidebar.dueSoon', { count: planner.dueSoon.length }),
+    calendar: t('shell.sidebar.eventsToday', { count: todayEvents }),
+    files: t('shell.sidebar.fileCount', { count: library.live.length }),
+    cards: t('shell.sidebar.cardsToStudy', { count: cards.dueCount }),
+    friends: t('shell.sidebar.waiting', { count: waiting }),
   });
+  /** A count at the end of a row: the locale's digits, no thousands separator (there's little room). */
+  const badge = (n: number) => fmt.number(n, { useGrouping: false });
 
 
   /** Open assignments per course. */
@@ -142,10 +146,10 @@
       <span data-tauri-drag-region>Thought Desk</span>
     </div>
     <div class="head-actions">
-      <button class="icon-btn collapse" onclick={() => (prefs.sidebarOpen = false)} data-tip="Hide sidebar" data-tip-key={shortcuts.label('sidebar')}>
+      <button class="icon-btn collapse" onclick={() => (prefs.sidebarOpen = false)} data-tip={t('shell.sidebar.hide')} data-tip-key={shortcuts.label('sidebar')}>
         <Icon name="sidebar-left" />
       </button>
-      <button class="icon-btn" onclick={() => void store.create(null)} data-tip="New page" data-tip-key={shortcuts.label('newPage')}>
+      <button class="icon-btn" onclick={() => void store.create(null)} data-tip={t('shell.newPage')} data-tip-key={shortcuts.label('newPage')}>
         <Icon name="compose" />
       </button>
     </div>
@@ -153,12 +157,12 @@
 
   <button class="search" onclick={() => (ui.searchOpen = true)}>
     <span class="lead search-icon"><Icon name="search" size={15} stroke={2} /></span>
-    <span>Search</span>
+    <span>{t('common.views.search')}</span>
     {#if searchKeys}<kbd>{searchKeys}</kbd>{/if}
   </button>
 
   {#if shownNav.length}
-  <nav class="views" aria-label="Views">
+  <nav class="views" aria-label={t('shell.sidebar.views')}>
     {#each shownNav as n (n.view)}
       <div class="nav-row" class:active={store.view === n.view}>
         <button class="nav-main" onclick={(e) => (e.ctrlKey || e.metaKey ? tabs.open({ view: n.view, id: null }, { focus: false }) : store.go(n.view))} onmousedown={(e) => e.button === 1 && e.preventDefault()} onauxclick={(e) => e.button === 1 && (e.preventDefault(), tabs.open({ view: n.view, id: null }, { focus: false }))} oncontextmenu={(e) => sidebarItemMenu(e, n.view)} aria-current={store.view === n.view ? 'page' : undefined} data-tip={n.label} data-tip-key={shortcuts.label(n.key)}>
@@ -166,7 +170,7 @@
           <span class="label">{n.label}</span>
         </button>
         {#if counts[n.view]}
-          <span class="count" class:alert={n.view === 'assignments' && overdue} class:news={n.view === 'friends'} data-tip={countTips[n.view]}>{counts[n.view]}</span>
+          <span class="count" class:alert={n.view === 'assignments' && overdue} class:news={n.view === 'friends'} data-tip={countTips[n.view]}>{badge(counts[n.view])}</span>
         {/if}
       </div>
     {/each}
@@ -178,12 +182,12 @@
       <section>
         <div class="section-head">
           <button class="section-title" onclick={() => toggleSection('favorites')} oncontextmenu={(e) => sidebarItemMenu(e, 'favorites')} aria-expanded={!prefs.sections.favorites}>
-            Favorites
+            {t('shell.sidebar.sections.favorites')}
             <span class="caret" class:closed={prefs.sections.favorites}><Icon name="chevron-down" size={11} stroke={2.4} /></span>
           </button>
         </div>
         {#if !prefs.sections.favorites}
-          <div role="tree" aria-label="Favorites">
+          <div role="tree" aria-label={t('shell.sidebar.sections.favorites')}>
             {#each store.favorites as p (p.id)}
               <TreeItem page={p} favorite />
             {/each}
@@ -196,10 +200,10 @@
       <section>
         <div class="section-head">
           <button class="section-title" onclick={() => toggleSection('courses')} oncontextmenu={(e) => sidebarItemMenu(e, 'courses')} aria-expanded={!prefs.sections.courses}>
-            Courses
+            {t('shell.sidebar.sections.courses')}
             <span class="caret" class:closed={prefs.sections.courses}><Icon name="chevron-down" size={11} stroke={2.4} /></span>
           </button>
-          <button class="section-add" onclick={addCourse} data-tip="New course"><Icon name="plus" size={14} stroke={2} /></button>
+          <button class="section-add" onclick={addCourse} data-tip={t('shell.sidebar.newCourse')}><Icon name="plus" size={14} stroke={2} /></button>
         </div>
         {#if !prefs.sections.courses}
           <div class="tag-list">
@@ -208,14 +212,14 @@
               <div class="nav-row" class:active={store.view === 'course' && store.courseId === c.id}>
                 <button class="nav-main" onclick={() => store.openCourse(c.id)}>
                   <span class="lead"><span class="dot" style:--dot={colorVar(c.color)}></span></span>
-                  <span class="label">{c.name || 'Untitled'}</span>
+                  <span class="label">{c.name || t('common.untitled')}</span>
                 </button>
-                {#if open}<span class="count" data-tip="{open} open assignment{open === 1 ? '' : 's'}">{open}</span>{/if}
+                {#if open}<span class="count" data-tip={t('shell.sidebar.openAssignments', { count: open })}>{badge(open)}</span>{/if}
               </div>
             {:else}
               <button class="row-btn muted" onclick={addCourse}>
                 <span class="lead"><Icon name="plus" /></span>
-                <span class="label">Add a course</span>
+                <span class="label">{t('shell.sidebar.addCourse')}</span>
               </button>
             {/each}
           </div>
@@ -227,10 +231,10 @@
       <section>
         <div class="section-head">
           <button class="section-title" onclick={() => toggleSection('databases')} oncontextmenu={(e) => sidebarItemMenu(e, 'databases')} aria-expanded={!prefs.sections.databases}>
-            Databases
+            {t('shell.sidebar.sections.databases')}
             <span class="caret" class:closed={prefs.sections.databases}><Icon name="chevron-down" size={11} stroke={2.4} /></span>
           </button>
-          <button class="section-add" onclick={() => (ui.newDatabase = { parentId: null })} data-tip="New database"><Icon name="plus" size={14} stroke={2} /></button>
+          <button class="section-add" onclick={() => (ui.newDatabase = { parentId: null })} data-tip={t('shell.sidebar.newDatabase')}><Icon name="plus" size={14} stroke={2} /></button>
         </div>
         {#if !prefs.sections.databases}
           <div class="tag-list">
@@ -246,21 +250,21 @@
                   ondragstart={(e) => {
                     drag.id = d.id;
                     drag.from = undefined;
-                    e.dataTransfer?.setData('text/plain', d.title || 'Untitled database');
-                    pageDragImage(e, d.title || 'Untitled database', d.icon);
+                    e.dataTransfer?.setData('text/plain', d.title || t('common.untitledDatabase'));
+                    pageDragImage(e, d.title || t('common.untitledDatabase'), d.icon);
                   }}
                   ondragend={() => (drag.id = null)}
                 >
                   <span class="lead">{#if d.icon}<span class="emoji"><PageIcon icon={d.icon} /></span>{:else}<Icon name="database" />{/if}</span>
-                  <span class="label">{d.title || 'Untitled database'}</span>
+                  <span class="label">{d.title || t('common.untitledDatabase')}</span>
                 </button>
-                <button class="row-more" onclick={(e) => dbMenu(e, d.id, e.currentTarget as Element)} aria-label="More" data-tip="More"><Icon name="more" size={15} /></button>
-                {#if n}<span class="count" data-tip="{n} row{n === 1 ? '' : 's'}">{n}</span>{/if}
+                <button class="row-more" onclick={(e) => dbMenu(e, d.id, e.currentTarget as Element)} aria-label={t('common.actions.more')} data-tip={t('common.actions.more')}><Icon name="more" size={15} /></button>
+                {#if n}<span class="count" data-tip={t('shell.rowCount', { count: n })}>{badge(n)}</span>{/if}
               </div>
             {:else}
               <button class="row-btn muted" onclick={() => (ui.newDatabase = { parentId: null })}>
                 <span class="lead"><Icon name="plus" /></span>
-                <span class="label">Add a database</span>
+                <span class="label">{t('shell.sidebar.addDatabase')}</span>
               </button>
             {/each}
           </div>
@@ -272,7 +276,7 @@
       <section>
         <div class="section-head">
           <button class="section-title" onclick={() => toggleSection('tags')} oncontextmenu={(e) => sidebarItemMenu(e, 'tags')} aria-expanded={!prefs.sections.tags}>
-            Tags
+            {t('common.tags')}
             <span class="caret" class:closed={prefs.sections.tags}><Icon name="chevron-down" size={11} stroke={2.4} /></span>
           </button>
         </div>
@@ -284,7 +288,7 @@
                   <span class="lead"><span class="dot" style:--dot={tags.color(name)}></span></span>
                   <span class="label">#{name}</span>
                 </button>
-                <span class="count">{tags.counts.get(name)}</span>
+                <span class="count">{badge(tags.counts.get(name) ?? 0)}</span>
               </div>
             {/each}
           </div>
@@ -295,13 +299,13 @@
     <section>
       <div class="section-head">
         <button class="section-title" onclick={() => toggleSection('pages')} aria-expanded={!prefs.sections.pages}>
-          Pages
+          {t('shell.sidebar.sections.pages')}
           <span class="caret" class:closed={prefs.sections.pages}><Icon name="chevron-down" size={11} stroke={2.4} /></span>
         </button>
-        <button class="section-add" onclick={() => void store.create(null)} data-tip="New page"><Icon name="plus" size={14} stroke={2} /></button>
+        <button class="section-add" onclick={() => void store.create(null)} data-tip={t('shell.newPage')}><Icon name="plus" size={14} stroke={2} /></button>
       </div>
       {#if !prefs.sections.pages}
-        <div role="tree" aria-label="Pages">
+        <div role="tree" aria-label={t('shell.sidebar.sections.pages')}>
           {#each roots as p (p.id)}
             <TreeItem page={p} />
           {/each}
@@ -310,7 +314,7 @@
         {#if store.loaded && store.roots.length === 0}
           <button class="row-btn muted" onclick={() => void store.create(null)}>
             <span class="lead"><Icon name="plus" /></span>
-            <span class="label">Add a page</span>
+            <span class="label">{t('shell.sidebar.addPage')}</span>
           </button>
         {/if}
         <div

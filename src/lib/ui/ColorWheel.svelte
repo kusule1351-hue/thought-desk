@@ -4,6 +4,8 @@
    * how colourful it is (gray in the middle). Drag, click, or use the arrow
    * keys (left/right turn the hue, up/down change the strength).
    */
+  import { t } from '../i18n';
+
   let {
     hue,
     amount,
@@ -86,7 +88,7 @@
   aria-valuemin={0}
   aria-valuemax={360}
   aria-valuenow={Math.round(hue)}
-  aria-valuetext="Hue {Math.round(hue)}°, strength {Math.round(amount * 100)}%"
+  aria-valuetext={t('library.controls.hueStrength', { hue: Math.round(hue), strength: Math.round(amount * 100) })}
   onpointerdown={down}
   onpointermove={move}
   onpointerup={() => (dragging = false)}

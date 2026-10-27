@@ -21,6 +21,8 @@
   import { cards } from '../cards.svelte';
   import { Progressive, takeGrouped } from '../progressive.svelte';
   import type { PageMeta, Todo } from '../types';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
 
   onMount(() => void todos.load());
 
@@ -28,11 +30,12 @@
     const h = Number(clock.time.slice(0, 2));
     // A greeting uses the first name only.
     const name = prefs.name.trim().split(/\s+/)[0] ?? '';
-    if (h < 5) return name ? `Working late, ${name}?` : 'Working late?';
-    const hello = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-    return name ? `${hello}, ${name}` : hello;
+    if (h < 5) return name ? t('planner.home.greeting.lateName', { name }) : t('planner.home.greeting.late');
+    if (h < 12) return name ? t('planner.home.greeting.morningName', { name }) : t('planner.home.greeting.morning');
+    if (h < 18) return name ? t('planner.home.greeting.afternoonName', { name }) : t('planner.home.greeting.afternoon');
+    return name ? t('planner.home.greeting.eveningName', { name }) : t('planner.home.greeting.evening');
   });
-  const dateLine = $derived(parseDate(clock.today).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }));
+  const dateLine = $derived(fmt.date(parseDate(clock.today), { weekday: 'long', month: 'long', day: 'numeric' }));
 
   const today = $derived(itemsByDay(clock.today, clock.today).get(clock.today));
   const todayEvents = $derived(today ? [...today.allDay, ...today.timed] : []);
@@ -48,12 +51,12 @@
   /** To-dos grouped by the page they're written in. */
   const todoGroups = $derived.by(() => {
     const groups = new Map<string, Todo[]>();
-    for (const t of todos.items) {
-      const page = store.byId.get(t.pageId);
+    for (const todo of todos.items) {
+      const page = store.byId.get(todo.pageId);
       if (!page || page.deletedAt) continue;
-      let list = groups.get(t.pageId);
-      if (!list) groups.set(t.pageId, (list = []));
-      list.push(t);
+      let list = groups.get(todo.pageId);
+      if (!list) groups.set(todo.pageId, (list = []));
+      list.push(todo);
     }
     return [...groups].map(([pageId, items]) => ({ page: store.byId.get(pageId)!, items }));
   });
@@ -78,10 +81,10 @@
 
   const summary = $derived.by(() => {
     const parts: string[] = [];
-    parts.push(todayEvents.length ? `${todayEvents.length} event${todayEvents.length === 1 ? '' : 's'} today` : 'Nothing scheduled today');
-    if (due.length) parts.push(`${due.length} due this week${overdue ? `, ${overdue} overdue` : ''}`);
-    if (openTodos) parts.push(`${openTodos} to-do${openTodos === 1 ? '' : 's'}`);
-    if (cards.dueCount) parts.push(`${cards.dueCount} flashcard${cards.dueCount === 1 ? '' : 's'} to study`);
+    parts.push(t('planner.home.eventsToday', { count: todayEvents.length }));
+    if (due.length) parts.push(overdue ? t('planner.home.dueThisWeekOverdue', { count: due.length, overdue }) : t('planner.dueThisWeek', { count: due.length }));
+    if (openTodos) parts.push(t('planner.home.todos', { count: openTodos }));
+    if (cards.dueCount) parts.push(t('planner.home.flashcardsToStudy', { count: cards.dueCount }));
     return parts.join(' · ');
   });
 </script>
@@ -105,8 +108,8 @@
     <div class="col">
       <section>
         <h2 class="group-title">
-          <span>Today</span>
-          <button class="see-all" onclick={() => store.go('calendar')}>Calendar <Icon name="chevron-right" size={12} stroke={2.2} /></button>
+          <span>{t('common.today')}</span>
+          <button class="see-all" onclick={() => store.go('calendar')}>{t('common.views.calendar')} <Icon name="chevron-right" size={12} stroke={2.2} /></button>
         </h2>
         {#if todayEvents.length}
           <div class="group">
@@ -115,14 +118,14 @@
             {/each}
           </div>
         {:else}
-          <div class="group"><EmptyState compact icon="calendar" title="A free day" text="No classes or events today." /></div>
+          <div class="group"><EmptyState compact icon="calendar" title={t('planner.home.freeDay')} text={t('planner.home.freeDayText')} /></div>
         {/if}
       </section>
 
       <section>
         <h2 class="group-title">
-          <span>Due Soon</span>
-          <button class="see-all" onclick={() => store.go('assignments')}>Assignments <Icon name="chevron-right" size={12} stroke={2.2} /></button>
+          <span>{t('planner.home.dueSoon')}</span>
+          <button class="see-all" onclick={() => store.go('assignments')}>{t('common.views.assignments')} <Icon name="chevron-right" size={12} stroke={2.2} /></button>
         </h2>
         {#if due.length}
           <div class="group">
@@ -131,34 +134,34 @@
             {/each}
           </div>
         {:else}
-          <div class="group"><EmptyState compact icon="assignment" title="Nothing due this week" text="Assignments due in the next 7 days show up here." /></div>
+          <div class="group"><EmptyState compact icon="assignment" title={t('planner.home.nothingDue')} text={t('planner.home.nothingDueText')} /></div>
         {/if}
       </section>
 
       <section>
         <h2 class="group-title">
-          <span>To-dos</span>
-          <span class="count">{openTodos ? `${openTodos} open` : ''}</span>
+          <span>{t('planner.home.todosTitle')}</span>
+          <span class="count">{openTodos ? t('planner.home.openTodos', { count: openTodos }) : ''}</span>
         </h2>
         {#if todoGroups.length}
           <div class="group">
             {#each shownTodos as { group: g, items } (g.page.id)}
               <button class="group-row compact todo-page" onclick={() => store.open(g.page.id)}>
                 <span class="page-icon">{#if g.page.icon}<PageIcon icon={g.page.icon} />{:else}<Icon name="page" size={14} />{/if}</span>
-                <span class="page-title">{g.page.title || 'Untitled'}</span>
+                <span class="page-title">{g.page.title || t('common.untitled')}</span>
                 <Icon name="chevron-right" size={12} stroke={2.2} />
               </button>
-              {#each items as t (`${t.pageId}:${t.index}`)}
-                <div class="group-row compact todo" class:done={todos.isDone(t)}>
+              {#each items as todo (`${todo.pageId}:${todo.index}`)}
+                <div class="group-row compact todo" class:done={todos.isDone(todo)}>
                   <button
                     class="box"
-                    class:on={todos.isDone(t)}
+                    class:on={todos.isDone(todo)}
                     role="checkbox"
-                    aria-checked={todos.isDone(t)}
-                    aria-label={todos.isDone(t) ? 'Mark as not done' : 'Mark as done'}
-                    onclick={() => todos.toggle(t)}
+                    aria-checked={todos.isDone(todo)}
+                    aria-label={todos.isDone(todo) ? t('planner.markNotDone') : t('planner.markDone')}
+                    onclick={() => todos.toggle(todo)}
                   ></button>
-                  <span class="todo-text">{t.text}</span>
+                  <span class="todo-text">{todo.text}</span>
                 </div>
               {/each}
             {/each}
@@ -166,7 +169,7 @@
           {#if lazyTodos.limit < todoCount}<div class="more" {@attach lazyTodos.more}></div>{/if}
         {:else if todos.loaded}
           <div class="group">
-            <EmptyState compact icon="todo" title="No open to-dos" text="Checkboxes you write in any page collect here." />
+            <EmptyState compact icon="todo" title={t('planner.home.noTodos')} text={t('planner.home.noTodosText')} />
           </div>
         {/if}
       </section>
@@ -174,16 +177,16 @@
 
     <div class="col">
       <section>
-        <h2 class="group-title"><span>Recent Pages</span></h2>
+        <h2 class="group-title"><span>{t('planner.home.recentPages')}</span></h2>
         <div class="group">
           {#each recentPages as p (p.id)}
             <button class="group-row compact link-row" onclick={() => store.open(p.id)}>
               <span class="page-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={16} />{/if}</span>
-              <span class="page-title">{p.title || 'Untitled'}</span>
+              <span class="page-title">{p.title || t('common.untitled')}</span>
               <span class="meta">{relativeTime(p.updatedAt)}</span>
             </button>
           {:else}
-            <EmptyState compact icon="page" title="No pages yet" text="Pages you edit show up here." />
+            <EmptyState compact icon="page" title={t('planner.home.noPages')} text={t('planner.home.noPagesText')} />
           {/each}
         </div>
       </section>
@@ -191,8 +194,8 @@
       {#if recentFiles.length}
         <section>
           <h2 class="group-title">
-            <span>Recent Files</span>
-            <button class="see-all" onclick={() => store.go('files')}>Files <Icon name="chevron-right" size={12} stroke={2.2} /></button>
+            <span>{t('planner.home.recentFiles')}</span>
+            <button class="see-all" onclick={() => store.go('files')}>{t('common.views.files')} <Icon name="chevron-right" size={12} stroke={2.2} /></button>
           </h2>
           <div class="group">
             {#each recentFiles as f (f.id)}
@@ -208,11 +211,12 @@
 
       {#if tags.used.length}
         <section>
-          <h2 class="group-title"><span>Tags</span></h2>
+          <h2 class="group-title"><span>{t('common.tags')}</span></h2>
           <div class="tag-cloud">
             {#each tags.used as name (name)}
+              {@const n = tags.counts.get(name)}
               <button class="tag-chip round" style:--c={tags.color(name)} onclick={() => store.openTag(name)}>
-                #{name}<span class="n">{tags.counts.get(name)}</span>
+                #{name}<span class="n">{n === undefined ? '' : fmt.number(n)}</span>
               </button>
             {/each}
           </div>

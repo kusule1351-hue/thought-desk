@@ -16,6 +16,7 @@ import { store } from './store.svelte';
 import { databases } from './databases.svelte';
 import { library } from './library.svelte';
 import { ui } from './ui.svelte';
+import { t } from './i18n';
 import type { DbRow, ExportEntry, PageMeta } from './types';
 
 /** Pages read from storage at a time. */
@@ -26,16 +27,21 @@ const WRITE_AT = 1_000_000;
 /** Names Windows keeps for devices. */
 const RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)$/i;
 
-/** A title as a file or folder name Windows (and everything else) accepts. */
-export function fileName(title: string): string {
-  let name = title
+/** Text without what file names can't hold ("" when nothing is left). */
+function cleanName(text: string): string {
+  return text
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 80)
     .replace(/[. ]+$/, '');
-  if (!name) name = 'Untitled';
-  if (RESERVED.test(name.split('.')[0])) name = `${name} (page)`;
+}
+
+/** A title as a file or folder name Windows (and everything else) accepts. */
+export function fileName(title: string): string {
+  // The fallback is cleaned too: a translation of it could hold a ":" or "?".
+  let name = cleanName(title) || cleanName(t('common.untitled'));
+  if (RESERVED.test(name.split('.')[0])) name = t('pages.export.reservedName', { name });
   return name;
 }
 
@@ -57,7 +63,7 @@ export function frontMatter(page: PageMeta, fields: [string, string][] = []): st
   const lines: string[] = [];
   const icon = iconText(page.icon);
   if (icon) lines.push(`icon: ${JSON.stringify(icon)}`);
-  if (page.tags.length) lines.push(`tags: [${page.tags.map((t) => JSON.stringify(t)).join(', ')}]`);
+  if (page.tags.length) lines.push(`tags: [${page.tags.map((tag) => JSON.stringify(tag)).join(', ')}]`);
   for (const [k, v] of fields) lines.push(`${yamlKey(k)}: ${JSON.stringify(v)}`);
   lines.push(`created: ${stamp(page.createdAt)}`, `updated: ${stamp(page.updatedAt)}`);
   if (page.favorite) lines.push('favorite: true');
@@ -92,7 +98,7 @@ let running = false;
 export async function exportWorkspace() {
   if (running) return;
   running = true;
-  const toast = ui.toast('Exporting your notes…', undefined, 10 * 60_000);
+  const toast = ui.toast(t('pages.export.progress'), undefined, 10 * 60_000);
   try {
     window.dispatchEvent(new Event('td:flush'));
     await Promise.all([store.flush(), databases.flush()]);
@@ -106,7 +112,7 @@ export async function exportWorkspace() {
     const order: string[] = []; // pages to write, parents first
 
     // Taken before any page, so a page called "Attachments" can't share it.
-    const attachDir = names.claim('', 'attachments');
+    const attachDir = names.claim('', t('pages.export.attachmentsFolder'));
     const place = (folder: string, page: PageMeta) => {
       order.push(page.id);
       const kids = store.children(page.id);
@@ -119,11 +125,11 @@ export async function exportWorkspace() {
     };
     for (const page of store.roots) place('', page);
 
-    const dbFolder = dbIds.length ? names.claim('', 'Databases') : '';
+    const dbFolder = dbIds.length ? names.claim('', t('pages.export.databasesFolder')) : '';
     for (const id of dbIds) {
       const db = store.byId.get(id);
       if (!db) continue;
-      const name = names.claim(dbFolder, db.title || 'Untitled database');
+      const name = names.claim(dbFolder, db.title || t('common.untitledDatabase'));
       paths.set(id, join(dbFolder, `${name}.csv`));
       const rows = databases.rowsOf(id);
       const folder = join(dbFolder, name);
@@ -138,7 +144,7 @@ export async function exportWorkspace() {
           place(folder, page);
         }
       }
-      ui.retoast(toast, `Exporting your notes… ${db.title || 'Untitled database'}`);
+      ui.retoast(toast, t('pages.export.progressDatabase', { name: db.title || t('common.untitledDatabase') }));
     }
 
     // A wiki link's target: the file's name, or its path when two share a name.
@@ -164,13 +170,13 @@ export async function exportWorkspace() {
         const name = byStored.get(stored)?.name || stored;
         const dot = name.lastIndexOf('.');
         const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ''];
-        path = `${attachDir}/${names.claim(attachDir, stem)}${fileName(ext).replace(/^Untitled$/, '')}`;
+        path = `${attachDir}/${names.claim(attachDir, stem)}${cleanName(ext)}`;
         attachments.set(stored, path);
       }
       return path;
     };
 
-    const dir = await api.exportBegin(`Thought Desk export ${isoDate(new Date())}`);
+    const dir = await api.exportBegin(t('pages.export.folderName', { date: isoDate(new Date()) }));
     let batch: ExportEntry[] = [];
     let size = 0;
     const write = async (entry: ExportEntry, force = false) => {
@@ -187,7 +193,7 @@ export async function exportWorkspace() {
 
     const markdown = (page: PageMeta, content: string, path: string, fields?: [string, string][]) =>
       frontMatter(page, fields) +
-      toMarkdown(expandDatabases(docOf(content)), page.title || 'Untitled', linkTitle, {
+      toMarkdown(expandDatabases(docOf(content)), page.title || t('common.untitled'), linkTitle, {
         image: (src) => {
           const stored = storedName(src);
           return stored ? linkFrom(path, attachment(stored)) : src;
@@ -211,7 +217,7 @@ export async function exportWorkspace() {
         await write({ path, text });
       }
       done += slice.length;
-      ui.retoast(toast, `Exporting your notes… ${done.toLocaleString()} of ${order.length.toLocaleString()}`);
+      ui.retoast(toast, t('pages.export.progressCount', { done, total: order.length }));
     }
     for (const id of dbIds) {
       const path = paths.get(id);
@@ -222,7 +228,7 @@ export async function exportWorkspace() {
 
     ui.dismissToast(toast);
     const count = order.length + dbIds.length;
-    ui.toast(`Exported ${count.toLocaleString()} page${count === 1 ? '' : 's'} to ${dir.split(/[\\/]/).pop()}`, { label: 'Show in Folder', run: () => void api.exportReveal().catch((e) => ui.error(e)) });
+    ui.toast(t('pages.export.done', { count, folder: dir.split(/[\\/]/).pop()! }), { label: t('pages.showInFolder'), run: () => void api.exportReveal().catch((e) => ui.error(e)) });
   } catch (e) {
     ui.dismissToast(toast);
     ui.error(e);

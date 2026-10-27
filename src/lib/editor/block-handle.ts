@@ -8,6 +8,7 @@ import { Extension, type Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
+import { t } from '../i18n';
 
 export interface BlockTarget {
   pos: number;
@@ -47,15 +48,15 @@ class HandleView {
 
     const plus = document.createElement('button');
     plus.className = 'block-handle-btn';
-    plus.dataset.tip = 'Add a block below';
+    plus.dataset.tip = t('editor.blockHandle.add');
     plus.innerHTML = SVG_PLUS;
     plus.addEventListener('mousedown', (e) => e.preventDefault());
     plus.addEventListener('click', () => this.insertBelow());
 
     this.grip = document.createElement('button');
     this.grip.className = 'block-handle-btn grip';
-    this.grip.dataset.tip = 'Drag to move';
-    this.grip.dataset.tipKey = 'Click for options';
+    this.grip.dataset.tip = t('editor.blockHandle.drag');
+    this.grip.dataset.tipKey = t('editor.blockHandle.options');
     this.grip.innerHTML = SVG_GRIP;
     this.grip.draggable = true;
     this.grip.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -79,10 +80,10 @@ class HandleView {
     const { clientX: x, clientY: y } = e;
     cancelAnimationFrame(this.frame);
     this.frame = requestAnimationFrame(() => {
-      const t = this.findTarget(y);
-      if (!t) return this.hide();
-      if (this.target?.dom === t.dom && this.target.pos === t.pos && this.root.classList.contains('visible')) return;
-      this.show(t, x);
+      const hit = this.findTarget(y);
+      if (!hit) return this.hide();
+      if (this.target?.dom === hit.dom && this.target.pos === hit.pos && this.root.classList.contains('visible')) return;
+      this.show(hit, x);
     });
   };
 
@@ -96,29 +97,29 @@ class HandleView {
     this.root.classList.remove('visible');
   };
 
-  show(t: BlockTarget, _x: number) {
-    this.target = t;
+  show(target: BlockTarget, _x: number) {
+    this.target = target;
     const hostRect = this.host.getBoundingClientRect();
-    const rect = t.dom.getBoundingClientRect();
+    const rect = target.dom.getBoundingClientRect();
 
     // Center the handle on the block's first line of text.
-    let lineEl: HTMLElement = t.dom;
-    if (ITEM_TYPES.has(t.node.type.name)) {
-      lineEl = (t.dom.querySelector('p, h1, h2, h3') as HTMLElement) ?? t.dom;
-    } else if (t.node.type.name === 'callout' || t.node.type.name === 'details' || t.node.type.name === 'blockquote') {
-      lineEl = (t.dom.querySelector('p, h1, h2, h3, summary') as HTMLElement) ?? t.dom;
+    let lineEl: HTMLElement = target.dom;
+    if (ITEM_TYPES.has(target.node.type.name)) {
+      lineEl = (target.dom.querySelector('p, h1, h2, h3') as HTMLElement) ?? target.dom;
+    } else if (target.node.type.name === 'callout' || target.node.type.name === 'details' || target.node.type.name === 'blockquote') {
+      lineEl = (target.dom.querySelector('p, h1, h2, h3, summary') as HTMLElement) ?? target.dom;
     }
     const lineRect = lineEl.getBoundingClientRect();
     const style = getComputedStyle(lineEl);
     const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5 || 24;
     const padTop = parseFloat(style.paddingTop) || 0;
-    const firstLine = t.node.isTextblock || lineEl !== t.dom ? Math.min(lineHeight, lineRect.height) : Math.min(24, rect.height);
+    const firstLine = target.node.isTextblock || lineEl !== target.dom ? Math.min(lineHeight, lineRect.height) : Math.min(24, rect.height);
     // Aim at the optical centre of the first line (Inter sits ~0.094em low).
-    const optical = t.node.isTextblock || lineEl !== t.dom ? (parseFloat(style.fontSize) || 16) * 0.094 : 0;
-    const centerY = (lineEl !== t.dom || t.node.isTextblock ? lineRect.top + padTop : rect.top) + firstLine / 2 + optical;
+    const optical = target.node.isTextblock || lineEl !== target.dom ? (parseFloat(style.fontSize) || 16) * 0.094 : 0;
+    const centerY = (lineEl !== target.dom || target.node.isTextblock ? lineRect.top + padTop : rect.top) + firstLine / 2 + optical;
 
     const top = centerY - hostRect.top - 12;
-    const left = rect.left - hostRect.left - 48 - (ITEM_TYPES.has(t.node.type.name) ? 18 : 0);
+    const left = rect.left - hostRect.left - 48 - (ITEM_TYPES.has(target.node.type.name) ? 18 : 0);
     this.root.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
     this.root.classList.add('visible');
   }
@@ -162,9 +163,9 @@ class HandleView {
   }
 
   insertBelow() {
-    const t = this.target;
-    if (!t) return;
-    const { node, pos } = t;
+    const target = this.target;
+    if (!target) return;
+    const { node, pos } = target;
     const chain = this.editor.chain().focus();
     if (node.type.name === 'paragraph' && node.content.size === 0) {
       chain.setTextSelection(pos + 1).insertContent('/').run();
@@ -185,10 +186,10 @@ class HandleView {
   }
 
   onDragStart = (e: DragEvent) => {
-    const t = this.target;
-    if (!t || !e.dataTransfer) return;
+    const target = this.target;
+    if (!target || !e.dataTransfer) return;
     const { view } = this;
-    const selection = NodeSelection.create(view.state.doc, t.pos);
+    const selection = NodeSelection.create(view.state.doc, target.pos);
     view.dispatch(view.state.tr.setSelection(selection));
     const slice = selection.content();
     const { dom, text } = view.serializeForClipboard(slice);
@@ -196,7 +197,7 @@ class HandleView {
     e.dataTransfer.setData('text/html', dom.innerHTML);
     e.dataTransfer.setData('text/plain', text);
     e.dataTransfer.effectAllowed = 'copyMove';
-    e.dataTransfer.setDragImage(t.dom, 0, 0);
+    e.dataTransfer.setDragImage(target.dom, 0, 0);
     view.dragging = { slice, move: true };
     this.root.classList.add('dragging');
   };

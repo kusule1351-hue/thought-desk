@@ -11,6 +11,7 @@
 
 import type { Repeat } from './types';
 import { addDays, addMonths, diffDays, toISODate, weekday } from './dates';
+import { t } from './i18n';
 
 export interface IcsItem {
   /** Stable id from the file (with a suffix when one entry becomes several). */
@@ -322,7 +323,7 @@ export function parseIcs(text: string): IcsItem[] {
     const base: IcsItem = {
       uid: replaces ? `${uid}#${replaces}` : uid,
       kind,
-      title: title || 'Untitled',
+      title: title || t('common.untitled'),
       course,
       startDate: start.date,
       startTime: start.time,

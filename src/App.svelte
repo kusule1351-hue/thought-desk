@@ -6,6 +6,7 @@
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { onMount } from 'svelte';
   import { warnIfFolderMissing } from './lib/data-folder';
+  import { t } from './lib/i18n';
   import { tabs } from './lib/tabs.svelte';
   import { api } from './lib/api';
   import { cssToRgb } from './lib/color-math';
@@ -170,14 +171,26 @@
   /** The side pane slides in from the right edge. */
   function splitIn(node: HTMLElement) {
     const w = node.getBoundingClientRect().width;
-    return { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 260, css: (t: number) => `opacity:${t}; margin-right:${-(1 - t) * w * 0.35}px` };
+    return { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 260, css: (p: number) => `opacity:${p}; margin-right:${-(1 - p) * w * 0.35}px` };
   }
   function splitOut(_node: Element) {
-    return { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160, css: (t: number) => `opacity:${t}` };
+    return { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160, css: (p: number) => `opacity:${p}` };
   }
 
   /** Saves everything that's waiting to be written. */
   const flushAll = () => Promise.all([store.flush(), planner.flush(), databases.flush()]);
+
+  // A new language (Settings) restarts the window once everything is saved:
+  // the whole interface is then drawn in it from the start (lib/i18n).
+  onMount(() => {
+    const reload = async () => {
+      window.dispatchEvent(new Event('td:flush'));
+      await flushAll().catch(() => {});
+      location.reload();
+    };
+    window.addEventListener('td:reload', reload);
+    return () => window.removeEventListener('td:reload', reload);
+  });
 
   // Only the kind: `store.current` is a new object on every edit (a title
   // keystroke, a save's new timestamp), which mustn't reload the page.
@@ -303,10 +316,10 @@
   /** Ctrl+Z belongs to databases when focus is in one (not in a text box)
    * or nowhere in particular on a database page. */
   function databaseUndo(e: KeyboardEvent): boolean {
-    const t = e.target as HTMLElement;
-    if (t.closest('input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]')) return false;
+    const el = e.target as HTMLElement;
+    if (el.closest('input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]')) return false;
     if (ui.anyModalOpen) return false;
-    return !!t.closest('.dbv') || (t === document.body && store.current?.kind === 'database');
+    return !!el.closest('.dbv') || (el === document.body && store.current?.kind === 'database');
   }
 
   // Mouse back/forward buttons.
@@ -331,8 +344,8 @@
     e.preventDefault();
     const added = await library.add(Array.from(e.dataTransfer?.files ?? []));
     if (added.length) {
-      ui.toast(`Added ${added.length === 1 ? `“${added[0].name}”` : `${added.length} files`} to Files`, {
-        label: 'Show',
+      ui.toast(t('app.filesAdded', { count: added.length, name: added[0].name }), {
+        label: t('common.actions.show'),
         run: () => (added.length === 1 ? library.preview(added[0].id) : store.go('files')),
       });
     }
@@ -340,8 +353,8 @@
 
   // Only editable areas get the native context menu (spelling, copy/paste).
   function onContextMenu(e: MouseEvent) {
-    const t = e.target as HTMLElement;
-    if (t.closest('input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]')) return;
+    const el = e.target as HTMLElement;
+    if (el.closest('input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]')) return;
     e.preventDefault();
   }
 </script>
@@ -389,10 +402,10 @@
       {:else if store.loaded && !store.currentId}
         <div class="empty">
           <Logo size={48} class="empty-logo" />
-          <h2>A clear desk</h2>
-          <p>Create a page to start writing. Everything stays on this computer.</p>
+          <h2>{t('app.empty.title')}</h2>
+          <p>{t('app.empty.body')}</p>
           <button class="btn primary" onclick={() => void store.create(null)}>
-            <Icon name="plus" size={15} stroke={2.2} /> New page
+            <Icon name="plus" size={15} stroke={2.2} /> {t('app.empty.newPage')}
           </button>
         </div>
       {/if}
@@ -405,7 +418,7 @@
         class:dragging={resizing}
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize split view"
+        aria-label={t('app.resizeSplit')}
         aria-valuenow={Math.round((1 - split.ratio) * 100)}
         tabindex="0"
         onpointerdown={startResize}

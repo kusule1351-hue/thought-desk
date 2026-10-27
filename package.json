@@ -16,7 +16,8 @@
     "tauri": "tauri",
     "app": "tauri dev",
     "bundle": "tauri build",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "i18n": "node .github/scripts/i18n-check.mjs"
   },
   "dependencies": {
     "@clerk/clerk-js": "6.40.1",

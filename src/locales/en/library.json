@@ -1,0 +1,304 @@
+{
+  "kinds": {
+    "image": "Image",
+    "@image": "the kind of a file (a photo or picture): shown beside its size in the Files view, as its Kind in the file's details, and under its name in search and @-mentions",
+    "pdf": "PDF",
+    "@pdf": "the kind of a file: a PDF document (shown like the other kinds in this group)",
+    "document": "Document",
+    "@document": "the kind of a file: a word-processor document (.docx, .odt, .pages)",
+    "spreadsheet": "Spreadsheet",
+    "@spreadsheet": "the kind of a file: a spreadsheet (.xlsx, .csv, .numbers)",
+    "presentation": "Presentation",
+    "@presentation": "the kind of a file: slides (.pptx, .key)",
+    "audio": "Audio",
+    "@audio": "the kind of a file: a sound recording or music",
+    "video": "Video",
+    "@video": "the kind of a file: a video",
+    "archive": "Archive",
+    "@archive": "the kind of a file: a compressed archive (.zip, .rar)",
+    "code": "Code",
+    "@code": "the kind of a file: source code (.js, .py, .html)",
+    "text": "Text",
+    "@text": "the kind of a file: plain text (.txt, .md)",
+    "file": "File",
+    "@file": "the kind of a file that is none of the other kinds: just a file"
+  },
+  "files": {
+    "subtitle": {
+      "one": "{count} file · {size}",
+      "other": "{count} files · {size}"
+    },
+    "@subtitle": "under the Files view's title: how many files the library has and their total size; {size} is a size like 3.2 MB",
+    "emptySubtitle": "Everything you attach and drop in, in one place",
+    "addFiles": "Add Files",
+    "@addFiles": "button that opens the system's file picker to add files to the library",
+    "layout": "Layout",
+    "@layout": "screen-reader name of the switch between showing files as a grid or a list",
+    "grid": "Grid",
+    "@grid": "option that shows files as a grid of tiles (a tooltip on its icon)",
+    "list": "List",
+    "@list": "option that shows files as a list of rows (a tooltip on its icon)",
+    "kindFilter": "Kind",
+    "@kindFilter": "screen-reader name of the row of chips that filter the Files view by kind of file",
+    "filter": {
+      "all": "All",
+      "@all": "filter chip that shows every file",
+      "images": "Images",
+      "@images": "filter chip that shows only pictures",
+      "documents": "Documents",
+      "@documents": "filter chip that shows only documents (PDFs, word-processor files, spreadsheets, slides, text)",
+      "media": "Media",
+      "@media": "filter chip that shows only audio and video files",
+      "otherKinds": "Other",
+      "@otherKinds": "filter chip that shows the files of other kinds (archives, code, anything else)",
+      "unused": "Unused",
+      "@unused": "filter chip that shows the files no page or assignment uses"
+    },
+    "sortBy": "Sort By",
+    "@sortBy": "heading of the menu that chooses the order of files",
+    "sort": {
+      "dateAdded": "Date Added",
+      "@dateAdded": "order of files: newest added first (a menu item, and the sort button's label)",
+      "name": "Name",
+      "@name": "order of files: by their names, A to Z (a menu item, and the sort button's label)",
+      "size": "Size",
+      "@size": "order of files: largest first (a menu item, and the sort button's label)"
+    },
+    "search": "Search files",
+    "@search": "placeholder of the box that finds files by name in the Files view",
+    "missing": "Missing",
+    "@missing": "shown instead of a file's size when the file is gone from the disk (a state, not a command)",
+    "usedInPlaces": {
+      "one": "Used in {count} place",
+      "other": "Used in {count} places"
+    },
+    "@usedInPlaces": "tooltip on a file tile's link icon: how many pages and assignments use the file",
+    "uses": {
+      "=0": "Unused",
+      "one": "Used in {count}",
+      "other": "Used in {count}"
+    },
+    "@uses": "a narrow column in the list of files: how many pages and assignments use the file, or that none do",
+    "noMatches": "No matches",
+    "noMatchesText": "Try a different name.",
+    "nothingHere": "Nothing here",
+    "nothingHereText": "No files of this kind.",
+    "empty": "No files yet",
+    "emptyText": "Drop files here, attach them to assignments, or drag them into a page. They’re kept on this computer.",
+    "dropToAdd": "Drop to add to Files",
+    "@dropToAdd": "shown while files are dragged over the Files view; Files is the view's name",
+    "addedFile": "Added “{name}”",
+    "@addedFile": "message after one file was added to the library; {name} is the file's name",
+    "addedFiles": {
+      "one": "Added {count} file",
+      "other": "Added {count} files"
+    },
+    "@addedFiles": "message after several files were added to the library at once",
+    "tooLarge": "“{name}” is larger than {limit}",
+    "@tooLarge": "message when a file is too big to add; {name} is the file's name, {limit} the largest size allowed, like 250 MB",
+    "trashTitle": "Move to Trash?",
+    "trashInUse": {
+      "one": "“{name}” is used in {count} place. It keeps working there until you empty the Trash.",
+      "other": "“{name}” is used in {count} places. It keeps working there until you empty the Trash."
+    },
+    "@trashInUse": "asks before moving a file that pages or assignments use to the Trash; {name} is the file's name, {count} how many places use it",
+    "movedToTrash": "Moved “{name}” to Trash",
+    "@movedToTrash": "message after a file was moved to the Trash; {name} is the file's name",
+    "savedToDownloads": "Saved {name} to Downloads",
+    "@savedToDownloads": "message after a copy of a file was saved; {name} is the copy's file name, Downloads the computer's downloads folder"
+  },
+  "preview": {
+    "label": "File preview",
+    "unreadable": "This file couldn’t be read.",
+    "missing": "This file is missing from the Thought Desk folder.",
+    "@missing": "in the file preview when the file is gone from the disk; Thought Desk is the app's name, the folder where it keeps its files",
+    "noPreview": "No preview for this kind of file.",
+    "openInDefaultApp": "Open in Default App",
+    "details": "Details",
+    "@details": "heading above a file's kind, size, date added and tags",
+    "kind": "Kind",
+    "@kind": "label of the row that says what kind of file it is (Image, PDF…)",
+    "size": "Size",
+    "@size": "label of the row with the file's size",
+    "added": "Added",
+    "@added": "label of the row with when the file was added (\"3 days ago\")",
+    "usedIn": "Used In",
+    "@usedIn": "heading above the list of pages and assignments that use the file",
+    "notUsed": "Not used in any page or assignment",
+    "gone": "This file is no longer in your library."
+  },
+  "flashcards": {
+    "emptySubtitle": "Make cards in any page, then study them here",
+    "dueToday": {
+      "=0": "All caught up",
+      "one": "{count} to study today",
+      "other": "{count} to study today"
+    },
+    "@dueToday": "start of the line under the Flashcards view's title: how many cards are waiting today, or that none are; followed by \" · \" and the count of cards and decks",
+    "cardsInDeck": {
+      "one": "{count} card in {decks} deck",
+      "other": "{count} cards in {decks} deck"
+    },
+    "@cardsInDeck": "end of the line under the Flashcards view's title when all cards are in one deck; {count} is the number of cards (it picks the form), {decks} is 1",
+    "cardsInDecks": {
+      "one": "{count} card in {decks} decks",
+      "other": "{count} cards in {decks} decks"
+    },
+    "@cardsInDecks": "end of the line under the Flashcards view's title when there are several decks; {count} is the number of cards (it picks the form), {decks} the number of decks",
+    "study": {
+      "=0": "Study",
+      "one": "Study {count}",
+      "other": "Study {count}"
+    },
+    "@study": "button that starts studying, with how many cards are waiting (just Study when none are)",
+    "allDecks": "All Decks",
+    "@allDecks": "title of a study session with the cards from every deck",
+    "decks": "Decks",
+    "@decks": "heading above the list of flashcard decks (pages with flashcards) when no course has any",
+    "otherDecks": "Other Decks",
+    "@otherDecks": "heading above the decks that aren't in any course's notes, below the courses' decks",
+    "studyDue": "Study Due Cards",
+    "studyAll": "Study All Cards",
+    "openPage": "Open Page",
+    "resetProgress": "Reset Progress",
+    "empty": "No flashcards yet",
+    "emptyText": "Type /flashcard in any page. Write the front, press Enter for the back, and Enter again for the next card.",
+    "@emptyText": "/flashcard is the command typed in a page to make a card: keep it as written (or write the Flashcard block's name in your language after the slash); Enter is the key",
+    "startDeck": "Start a deck",
+    "cardCount": {
+      "one": "{count} card",
+      "other": "{count} cards"
+    },
+    "@cardCount": "how many flashcards a deck has",
+    "due": {
+      "one": "{count} due",
+      "other": "{count} due"
+    },
+    "@due": "how many of a deck's cards are due for review today",
+    "new": {
+      "one": "{count} new",
+      "other": "{count} new"
+    },
+    "@new": "how many of a deck's cards haven't been studied yet",
+    "mastered": "{percent}% mastered",
+    "@mastered": "how much of a deck has been learned well; {percent} is a whole number from 0 to 100",
+    "nothingDue": "Nothing due. Come back tomorrow.",
+    "noCards": "No flashcards yet. Type /flashcard in a page.",
+    "@noCards": "/flashcard is the command typed in a page to make a card: keep it as written (or write the Flashcard block's name in your language after the slash)",
+    "resetTitle": "Reset Progress?",
+    "resetMessage": "Every card in “{title}” will be new again.",
+    "@resetMessage": "asks before forgetting what was learned of a deck; {title} is the deck's page title",
+    "reset": "Reset",
+    "@reset": "button that confirms forgetting a deck's progress"
+  },
+  "study": {
+    "label": "Study {title}",
+    "@label": "screen-reader name of the study window; {title} is what is being studied (a deck's page, a course, or All Decks)",
+    "shuffle": "Shuffle",
+    "@shuffle": "tooltip of the button that shows the cards in random order (it is off)",
+    "shuffled": "Shuffled",
+    "@shuffled": "tooltip of the same button while the cards are in random order (it is on)",
+    "answerFirst": "Answer first",
+    "@answerFirst": "tooltip of the button that swaps a card's sides, so you're shown the answer and recall the question (it is off)",
+    "answerFirstOn": "Answer first (on)",
+    "@answerFirstOn": "tooltip of the same button while the sides are swapped (it is on)",
+    "progress": "{learned} of {total}",
+    "@progress": "how far a study session is; {learned} is the number of cards done, {total} the number in the session",
+    "review": "Review",
+    "@review": "above a card's question: a card studied before, coming back for review",
+    "new": "New",
+    "@new": "above a card's question: a card never studied before",
+    "reviewAnswerFirst": "Review · Answer first",
+    "@reviewAnswerFirst": "above a card's question: a card studied before, with its sides swapped (Answer first is on)",
+    "newAnswerFirst": "New · Answer first",
+    "@newAnswerFirst": "above a card's question: a card never studied before, with its sides swapped (Answer first is on)",
+    "nothingWritten": "Nothing written on this side",
+    "noAnswer": "(No answer written)",
+    "complete": "Session complete",
+    "summary": {
+      "one": "{count} card · {percent}% remembered · {duration}",
+      "other": "{count} cards · {percent}% remembered · {duration}"
+    },
+    "@summary": "at the end of a study session: how many cards, how many were remembered the first time ({percent}, a whole number), and how long it took ({duration}, like 4 min)",
+    "breakdown": "How the cards went the first time",
+    "neededAnotherLook": {
+      "one": "{count} needed another look.",
+      "other": "{count} needed another look."
+    },
+    "@neededAnotherLook": "at the end of a study session: how many cards were answered Again (forgotten)",
+    "moreDue": {
+      "=0": "Nothing else is due today.",
+      "one": "{count} more due today.",
+      "other": "{count} more due today."
+    },
+    "@moreDue": "at the end of a study session: how many cards are still waiting today",
+    "twoSentences": "{first} {second}",
+    "@twoSentences": "at the end of a study session, two whole sentences one after the other: {first} is how many cards needed another look, {second} how many are still due; put between them what your language puts between sentences (a space in English, nothing in Chinese or Japanese)",
+    "seconds": {
+      "one": "{count} s",
+      "other": "{count} s"
+    },
+    "@seconds": "how long a study session took, in seconds (short)",
+    "minutes": {
+      "one": "{count} min",
+      "other": "{count} min"
+    },
+    "@minutes": "how long a study session took, in minutes (short)",
+    "hoursMinutes": "{hours} h {minutes} min",
+    "@hoursMinutes": "how long a study session took, in hours and minutes (short); {hours} is a whole number of hours, {minutes} the minutes left over, 0 to 59",
+    "undoTip": "Take back the last answer",
+    "undo": "Undo",
+    "@undo": "button that takes back the last answer given to a card",
+    "howWell": "How well did you know it?",
+    "spaceToShow": "Space to show the answer",
+    "@spaceToShow": "hint: pressing the Space bar turns the card over",
+    "done": "Done",
+    "@done": "button that closes a finished study session",
+    "showAnswer": "Show Answer"
+  },
+  "grades": {
+    "again": "Again",
+    "@again": "answer to a flashcard: forgotten, show it again soon (as in Anki)",
+    "hard": "Hard",
+    "@hard": "answer to a flashcard: remembered with difficulty (as in Anki)",
+    "good": "Good",
+    "@good": "answer to a flashcard: remembered (as in Anki)",
+    "easy": "Easy",
+    "@easy": "answer to a flashcard: remembered easily (as in Anki)"
+  },
+  "gaps": {
+    "now": "Now",
+    "@now": "under a flashcard answer button: the card comes back in this session",
+    "days": {
+      "one": "{count} day",
+      "other": "{count} days"
+    },
+    "@days": "under a flashcard answer button: when the card comes back",
+    "weeks": {
+      "one": "{count} wk",
+      "other": "{count} wk"
+    },
+    "@weeks": "under a flashcard answer button: when the card comes back, in weeks (short, the button is narrow)",
+    "months": {
+      "one": "{count} mo",
+      "other": "{count} mo"
+    },
+    "@months": "under a flashcard answer button: when the card comes back, in months (short, the button is narrow)",
+    "years": {
+      "one": "{count} yr",
+      "other": "{count} yr"
+    },
+    "@years": "under a flashcard answer button: when the card comes back, in years (short, the button is narrow); {count} can have a decimal, like 1.5"
+  },
+  "controls": {
+    "filter": "Filter",
+    "@filter": "placeholder of a box that narrows a list as you type",
+    "color": "Color",
+    "@color": "screen-reader name of a row of colour swatches",
+    "custom": "Custom",
+    "@custom": "screen-reader name of the swatch that holds a colour of your own",
+    "customColor": "Custom color",
+    "hueStrength": "Hue {hue}°, strength {strength}%",
+    "@hueStrength": "what a screen reader says for the colour wheel; {hue} is an angle from 0 to 360, {strength} a whole number from 0 to 100"
+  }
+}

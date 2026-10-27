@@ -1,0 +1,89 @@
+{
+  "keys": {
+    "ctrl": "Ctrl",
+    "@ctrl": "the Ctrl key's name as keyboards in this language print it (German: Strg), shown in shortcut hints like Ctrl+K; a Mac shows ⌘ instead",
+    "alt": "Alt",
+    "@alt": "the Alt key's name as keyboards in this language print it, shown in shortcut hints like Alt+click; a Mac shows ⌥ instead"
+  },
+  "empty": {
+    "title": "A clear desk",
+    "@title": "heading of the main area when there are no pages yet (a tidy, empty desk; not an order to clear it)",
+    "body": "Create a page to start writing. Everything stays on this computer.",
+    "newPage": "New page",
+    "@newPage": "button under that heading that creates a page"
+  },
+  "resizeSplit": "Resize split view",
+  "@resizeSplit": "screen-reader name of the divider between the two sides of split view, which is dragged to resize them",
+  "filesAdded": {
+    "=1": "Added “{name}” to Files",
+    "one": "Added {count} file to Files",
+    "other": "Added {count} files to Files"
+  },
+  "@filesAdded": "notice after files are dropped onto the window and added to the Files view; {name} is the file's name (when there is one file), {count} the number of files",
+  "movedToTrash": "Moved “{title}” to Trash",
+  "@movedToTrash": "notice after a page is moved to the Trash (the same name as the Trash view), with an Undo button; {title} is the page's title, or the name shown for a page without one (Untitled)",
+  "confirm": "Confirm",
+  "@confirm": "the usual button of a dialog that asks before doing something (a verb)",
+  "somethingWentWrong": "Something went wrong",
+  "@somethingWentWrong": "a notice shown when an error has no message of its own",
+  "zoom": {
+    "level": "Zoom {level}",
+    "@level": "short notice after zooming in or out; {level} is the zoom as a percentage, like 110%",
+    "reset": "Reset",
+    "@reset": "button in that notice that sets the zoom back to 100% (a verb)"
+  },
+  "updates": {
+    "browserOnly": "Updates are checked in the installed app.",
+    "@browserOnly": "notice when someone checks for updates in the interface running in a web browser (while developing it), not the installed app",
+    "ready": "Thought Desk {version} is ready to install",
+    "@ready": "notice that a newer version was found; {version} is its number, like 0.8.1. Thought Desk is the app's name: keep it as it is",
+    "install": "Update",
+    "@install": "button in that notice that downloads and installs the new version (a verb)",
+    "upToDate": "Thought Desk is up to date.",
+    "@upToDate": "notice after checking for updates when there is no newer version. Thought Desk is the app's name: keep it as it is"
+  },
+  "dataFolder": {
+    "moving": "Moving your notes…",
+    "@moving": "notice while the notes are moved to another folder, before the app restarts",
+    "chooseTitle": "Choose a folder for your notes",
+    "@chooseTitle": "title of the system's folder picker, opened from Settings → Storage",
+    "openExisting": {
+      "title": "Open the notes in that folder?",
+      "@title": "dialog after choosing a folder that already has notes in it. Thought Desk, in these messages, is the app's name: keep it as it is",
+      "message": "{folder} already has Thought Desk notes. Thought Desk will restart with those instead of the notes you have open, which stay where they are. To move the notes you have open, choose an empty folder.",
+      "@message": "the text of that dialog, when the time the folder's notes last changed is unknown; {folder} is the folder's path. Thought Desk is the app's name: keep it as it is",
+      "messageChanged": "{folder} already has Thought Desk notes, last changed {date}. Thought Desk will restart with those instead of the notes you have open, which stay where they are. To move the notes you have open, choose an empty folder.",
+      "@messageChanged": "the text of that dialog, when the time the folder's notes last changed is known; {folder} is the folder's path; {date} is that date and time, already written out (like 10/14/2026, 3:05:09 PM). Thought Desk is the app's name: keep it as it is",
+      "confirm": "Open Those Notes",
+      "@confirm": "button that restarts the app with the notes in that folder"
+    },
+    "move": {
+      "title": "Keep your notes in this folder?",
+      "@title": "dialog after choosing an empty folder to keep the notes in",
+      "message": "Your notes and files are copied to {folder}, and Thought Desk restarts using them. The folder they're in now keeps its copy as a backup. Don't open the same folder from two computers at once.",
+      "@message": "the text of that dialog; {folder} is the chosen folder's path. Thought Desk is the app's name: keep it as it is",
+      "confirm": "Move Notes",
+      "@confirm": "button that copies the notes to that folder and restarts the app"
+    },
+    "keepDefault": {
+      "title": "Keep using this folder?",
+      "@title": "dialog when the folder chosen for notes is missing and the app has opened its own folder instead",
+      "message": "Thought Desk stops looking for the folder you chose and keeps using the notes in its own folder, the ones open now. Nothing in the folder you chose is touched.",
+      "@message": "the text of that dialog. Thought Desk is the app's name: keep it as it is",
+      "confirm": "Use This Folder",
+      "@confirm": "button that keeps the notes in the app's own folder from now on"
+    },
+    "moveBack": {
+      "title": "Go back to Thought Desk's own folder?",
+      "@title": "title of the dialog (Settings → Storage) that moves the notes from a folder of your own back to the app's own folder. Thought Desk is the app's name: keep it as it is",
+      "message": "Your notes and files are copied back to Thought Desk's own folder, and it restarts using them. The folder you chose keeps its copy, and any older notes in Thought Desk's folder are put aside in a \"{replaced}\" folder, not deleted.",
+      "@message": "the text of that dialog; {replaced} is the name of the folder the older notes are put in on disk (Replaced, then a date); the app always names it in English, so it stays as it is",
+      "confirm": "Move Notes Back",
+      "@confirm": "button that copies the notes back to the app's own folder and restarts the app"
+    },
+    "missing": "Your notes folder ({folder}) isn't there, so Thought Desk opened its own folder. Connect the drive and restart.",
+    "@missing": "notice at start-up when the folder chosen for notes can't be found (a drive not plugged in); {folder} is its path",
+    "restart": "Restart",
+    "@restart": "button in that notice that restarts the app (a verb)"
+  }
+}

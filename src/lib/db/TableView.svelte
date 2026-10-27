@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { MOD } from '../platform';
   /**
    * The table: a spreadsheet you can type into.
    *
@@ -24,8 +23,12 @@
   import { keyBetween } from './order';
   import { parse as parseCsv, stringify } from './csv';
   import { calcLabel, pinFirst, type Group } from './query';
-  import { CALC_LABELS, CALC_SHORT, EDITABLE, TYPES, calcsFor, typeInfo } from './schema';
+  import { CALC_LABELS, CALC_SHORT, EDITABLE, TYPES, TYPE_GROUPS, TYPE_GROUP_LABELS, calcsFor, checkboxText, typeInfo } from './schema';
   import { GUTTER, freezeEligibility, planFreeze } from './freeze';
+  import { comboLabel } from '../shortcuts.svelte';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
+  import Rich from '../i18n/Rich.svelte';
   import type { CalcFn, DbRow, DbView, Property, PropertyType } from '../types';
 
   let {
@@ -330,7 +333,9 @@
     const changes: CellSet[] = cellsIn(range)
       .filter((x) => EDITABLE.has(x.prop.type))
       .map((x) => ({ ...x, value: x.prop.type === 'title' ? '' : null }));
-    databases.set(changes, { label: changes.length === 1 ? 'clearing a cell' : `clearing ${changes.length} cells` });
+    databases.set(changes, {
+      label: { undone: t('dbTable.history.clearUndone', { count: changes.length }), redone: t('dbTable.history.clearRedone', { count: changes.length }) },
+    });
   }
 
   function copyText(): string {
@@ -341,7 +346,7 @@
       for (let col = range.c0; col <= range.c1; col++) {
         const row = flat[r];
         const p = columns[col];
-        line.push(row && p ? (p.type === 'checkbox' ? (databases.get(row, p) ? 'Yes' : 'No') : databases.text(row, p)) : '');
+        line.push(row && p ? (p.type === 'checkbox' ? checkboxText(!!databases.get(row, p)) : databases.text(row, p)) : '');
       }
       table.push(line);
     }
@@ -357,7 +362,7 @@
       const value = databases.raw(flat[range.r0], p);
       for (let r = range.r0 + 1; r <= range.r1; r++) changes.push({ row: flat[r], prop: p, value: structuredClone($state.snapshot(value)) });
     }
-    databases.set(changes, { label: 'fill down' });
+    databases.set(changes, { label: { undone: t('dbTable.history.fillDownUndone'), redone: t('dbTable.history.fillDownRedone') } });
   }
 
   async function paste(text: string) {
@@ -370,7 +375,7 @@
       const changes = cellsIn(range)
         .filter((x) => EDITABLE.has(x.prop.type))
         .map((x) => ({ ...x, value: databases.parse(table[0][0], x.prop) }));
-      databases.set(changes, { label: 'paste' });
+      databases.set(changes, { label: { undone: t('dbTable.history.pasteUndone'), redone: t('dbTable.history.pasteRedone') } });
       return;
     }
     const changes: CellSet[] = [];
@@ -386,7 +391,7 @@
         if (p && EDITABLE.has(p.type)) changes.push({ row, prop: p, value: databases.parse(cell, p) });
       });
     });
-    databases.set(changes, { label: 'paste' });
+    databases.set(changes, { label: { undone: t('dbTable.history.pasteUndone'), redone: t('dbTable.history.pasteRedone') } });
     if (extra.length) {
       // Lines past the last row become new rows.
       const made = await databases.addRows(
@@ -404,7 +409,7 @@
         }),
         flat.at(-1)?.id ?? null,
       );
-      if (made.length) ui.toast(`Added ${made.length} row${made.length === 1 ? '' : 's'}`);
+      if (made.length) ui.toast(t('dbTable.addedRows', { count: made.length }));
     }
     anchor = { r: start.r, c: start.c };
     sel = { r: Math.min(flat.length - 1, start.r + table.length - 1), c: Math.min(columns.length - 1, start.c + table.map((l) => l.length).reduce((a, b) => Math.max(a, b), -Infinity) - 1) };
@@ -531,7 +536,12 @@
     bulk = null;
     databases.set(
       list.slice(1).map((row) => ({ row, prop, value: structuredClone($state.snapshot(value)) })),
-      { label: `setting ${prop.name} on ${list.length} rows` },
+      {
+        label: {
+          undone: t('dbTable.history.setManyUndone', { name: prop.name, count: list.length }),
+          redone: t('dbTable.history.setManyRedone', { name: prop.name, count: list.length }),
+        },
+      },
     );
   }
 
@@ -672,7 +682,7 @@
     );
   }
 
-  const groupedTypes = (['Basic', 'Thought Desk', 'Advanced', 'Automatic'] as const).map((g) => ({ g, items: TYPES.filter((t) => t.group === g && t.type !== 'title') }));
+  const groupedTypes = TYPE_GROUPS.map((g) => ({ g, items: TYPES.filter((info) => info.group === g && info.type !== 'title') }));
 </script>
 
 {#snippet rowEl(row: DbRow)}
@@ -696,7 +706,7 @@
           draggable="true"
           role="button"
           tabindex="-1"
-          aria-label="Drag to move"
+          aria-label={t('dbTable.row.dragToMove')}
           ondragstart={(e) => {
             dragRow = row.id;
             e.dataTransfer?.setData('text/plain', databases.title(row));
@@ -707,7 +717,7 @@
           }}
         ><Icon name="grip" size={14} /></span>
       {/if}
-      <button class="pick round" class:on={picked.has(row.id)} onmousedown={(e) => e.preventDefault()} onclick={() => togglePick(row.id)} aria-label="Select row" tabindex="-1"></button>
+      <button class="pick round" class:on={picked.has(row.id)} onmousedown={(e) => e.preventDefault()} onclick={() => togglePick(row.id)} aria-label={t('dbTable.row.select')} tabindex="-1"></button>
     </div>
     {#each columns as p, col (p.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -742,9 +752,9 @@
                 e.stopPropagation();
                 databases.toggleExpanded(row.id);
               }}
-              aria-label={databases.expanded[row.id] ? 'Hide sub-items' : 'Show sub-items'}
+              aria-label={databases.expanded[row.id] ? t('dbTable.row.hideSubItems') : t('dbTable.row.showSubItems')}
               aria-expanded={!!databases.expanded[row.id]}
-              data-tip="{kids} sub-item{kids === 1 ? '' : 's'}"
+              data-tip={t('dbTable.row.subItemCount', { count: kids })}
             ><Icon name="chevron-right" size={12} stroke={2.4} /></button>
           {:else}
             <span class="twisty-space"></span>
@@ -754,12 +764,12 @@
         {#if p.type === 'title'}
           <span class="row-tools">
             {#if sub}
-              <button class="open" tabindex="-1" onmousedown={(e) => e.stopPropagation()} onclick={() => void addSub(row)} data-tip="Add a sub-item" aria-label="Add a sub-item">
+              <button class="open" tabindex="-1" onmousedown={(e) => e.stopPropagation()} onclick={() => void addSub(row)} data-tip={t('dbTable.row.addSubItem')} aria-label={t('dbTable.row.addSubItem')}>
                 <Icon name="corner-down-right" size={12} />
               </button>
             {/if}
-            <button class="open" tabindex="-1" onclick={() => store.open(row.id)} data-tip="Open as a page" data-tip-key="{MOD}+Enter">
-              <Icon name="expand" size={12} /> Open
+            <button class="open" tabindex="-1" onclick={() => store.open(row.id)} data-tip={t('dbTable.row.openAsPage')} data-tip-key={comboLabel('Mod+Enter')}>
+              <Icon name="expand" size={12} /> {t('common.actions.open')}
             </button>
           </span>
         {/if}
@@ -772,11 +782,11 @@
 <div class="table" class:wrap={c.wrap} class:frozen={pinned.pinned.length > 0} style:--table-w="{total}px">
   {#if picked.size}
     <div class="bulk">
-      <span class="count">{picked.size} selected</span>
-      <button class="btn small raised" onclick={bulkEdit}><Icon name="pencil" size={13} /> Set a property</button>
-      <button class="btn small raised" onclick={() => void databases.duplicateRows(pickedRows.map((r) => r.id)).then(() => (picked = new Set()))}><Icon name="copy" size={13} /> Duplicate</button>
-      <button class="btn small raised destructive" onclick={deletePicked}><Icon name="trash" size={13} /> Delete</button>
-      <button class="icon-btn" onclick={() => (picked = new Set())} aria-label="Clear selection"><Icon name="x" size={14} /></button>
+      <span class="count">{t('dbTable.selection.count', { count: picked.size })}</span>
+      <button class="btn small raised" onclick={bulkEdit}><Icon name="pencil" size={13} /> {t('dbTable.selection.setProperty')}</button>
+      <button class="btn small raised" onclick={() => void databases.duplicateRows(pickedRows.map((r) => r.id)).then(() => (picked = new Set()))}><Icon name="copy" size={13} /> {t('common.actions.duplicate')}</button>
+      <button class="btn small raised destructive" onclick={deletePicked}><Icon name="trash" size={13} /> {t('common.actions.delete')}</button>
+      <button class="icon-btn" onclick={() => (picked = new Set())} aria-label={t('dbTable.selection.clear')}><Icon name="x" size={14} /></button>
     </div>
   {/if}
 
@@ -784,7 +794,7 @@
     <div class="head-inner">
     <div class="head" bind:this={head} role="row" style:grid-template-columns={template}>
       <div class="gutter" class:pinned={pinned.pinned.length > 0} style:left="0px">
-        <button class="pick round" class:on={picked.size > 0 && picked.size === flat.length} class:some={picked.size > 0 && picked.size < flat.length} onclick={pickAll} aria-label="Select all rows" tabindex="-1"></button>
+        <button class="pick round" class:on={picked.size > 0 && picked.size === flat.length} class:some={picked.size > 0 && picked.size < flat.length} onclick={pickAll} aria-label={t('dbTable.selection.selectAll')} tabindex="-1"></button>
       </div>
       {#each columns as p (p.id)}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -819,13 +829,13 @@
             <Icon name={(c.sorts ?? []).find((s) => s.prop === p.id)?.dir === 'desc' ? 'arrow-down' : 'arrow-up'} size={12} />
           {/if}
           {#if lastPinned === p.id}
-            <span class="pin-mark" data-tip={pinned.overflow ? 'Frozen columns (wider than this window)' : 'Frozen columns'} aria-label="Frozen columns"><Icon name="pin" size={11} /></span>
+            <span class="pin-mark" data-tip={pinned.overflow ? t('dbTable.freeze.frozenOverflow') : t('dbTable.freeze.frozen')} aria-label={t('dbTable.freeze.frozen')}><Icon name="pin" size={11} /></span>
           {/if}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <span class="resize" onpointerdown={(e) => startResize(e, p)} ondblclick={(e) => (e.stopPropagation(), resetWidth(p))} onclick={(e) => e.stopPropagation()}></span>
         </div>
       {/each}
-      <button class="th add" onclick={(e) => (addAnchor = e.currentTarget as Element)} data-tip="Add a property" aria-label="Add a property"><Icon name="plus" size={15} /></button>
+      <button class="th add" onclick={(e) => (addAnchor = e.currentTarget as Element)} data-tip={t('dbTable.addProperty')} aria-label={t('dbTable.addProperty')}><Icon name="plus" size={15} /></button>
     </div>
     </div>
   </div>
@@ -835,8 +845,8 @@
          when its strip is too wide to show the boundary column. -->
     <div class="freeze-overflow" role="status">
       <Icon name="pin" size={13} />
-      <span class="grow">Frozen columns no longer fit in this window.</span>
-      <button class="btn small" onclick={() => databases.updateView(dbId, view.id, { freezeThrough: null })}>Unfreeze</button>
+      <span class="grow">{t('dbTable.freeze.noLongerFits')}</span>
+      <button class="btn small" onclick={() => databases.updateView(dbId, view.id, { freezeThrough: null })}>{t('dbTable.freeze.unfreeze')}</button>
     </div>
   {/if}
 
@@ -847,7 +857,7 @@
       bind:this={grid}
       role="grid"
       tabindex="0"
-      aria-label="Rows"
+      aria-label={t('dbTable.rows')}
       onkeydown={onKey}
       oncopy={(e) => onCopy(e)}
       oncut={(e) => onCopy(e, true)}
@@ -858,10 +868,10 @@
         {#each shownGroups as g (g.key)}
           {#if !g.rows.length || g.rows.some((r) => shownIds.has(r.id)) || collapsed.has(g.key)}
             <div class="group-row" style:left={pinned.pinned.length ? `${pinned.width}px` : null}>
-              <button class="chev" class:closed={collapsed.has(g.key)} onclick={() => toggleGroup(g.key)} aria-label={collapsed.has(g.key) ? 'Show group' : 'Hide group'}><Icon name="chevron-down" size={13} stroke={2.2} /></button>
+              <button class="chev" class:closed={collapsed.has(g.key)} onclick={() => toggleGroup(g.key)} aria-label={collapsed.has(g.key) ? t('dbTable.group.show') : t('dbTable.group.hide')}><Icon name="chevron-down" size={13} stroke={2.2} /></button>
               {#if g.key && g.color}<span class="pill" class:status={databases.prop(dbId, c.group)?.type === 'status'} style:--pill={g.color}><span>{g.label}</span></span>{:else}<span class="g-label">{g.label}</span>{/if}
-              <span class="g-count">{g.total ?? g.rows.length}</span>
-              <button class="icon-btn g-add" onclick={() => newRow(g)} aria-label="New row in {g.label}" data-tip="New row here"><Icon name="plus" size={14} /></button>
+              <span class="g-count">{fmt.number(g.total ?? g.rows.length)}</span>
+              <button class="icon-btn g-add" onclick={() => newRow(g)} aria-label={t('dbTable.group.newRowIn', { group: g.label })} data-tip={t('dbTable.group.newRowHere')}><Icon name="plus" size={14} /></button>
             </div>
             {#if !collapsed.has(g.key)}
               {#each g.rows.filter((r) => shownIds.has(r.id)) as row (row.id)}{@render rowEl(row)}{/each}
@@ -876,14 +886,14 @@
       {#if !flat.length}
         <div class="empty-row">
           {#if databases.rowsOf(dbId).length}
-            No rows match this view.
+            {t('dbTable.empty.noMatches')}
           {:else}
-            No rows yet. Click <strong>New</strong>, or paste rows from a spreadsheet.
+            <Rich key="dbTable.empty.noRows" />
           {/if}
         </div>
       {/if}
 
-      <button class="add-row" onclick={() => newRow(undefined, undefined, true)}><Icon name="plus" size={14} /> New</button>
+      <button class="add-row" onclick={() => newRow(undefined, undefined, true)}><Icon name="plus" size={14} /> {t('common.actions.new')}</button>
 
       <div class="calc" style:grid-template-columns={template}>
         <div class="calc-gutter" class:pinned={pinned.pinned.length > 0} style:left="0px"></div>
@@ -905,7 +915,7 @@
               <span class="calc-label" data-tip={calcLabel(fn)}>{CALC_SHORT[fn]}</span>
               <span class="calc-value">{databases.calc(dbId, rows, p, fn)}</span>
             {:else}
-              <span class="calc-label hover">Calculate</span>
+              <span class="calc-label hover">{t('dbTable.calculate')}</span>
             {/if}
           </button>
         {/each}
@@ -931,13 +941,13 @@
 {/if}
 
 {#if addAnchor}
-  <Popover anchor={addAnchor} align="end" width={260} onclose={() => (addAnchor = null)} label="Add a property">
+  <Popover anchor={addAnchor} align="end" width={260} onclose={() => (addAnchor = null)} label={t('dbTable.addProperty')}>
     {#each groupedTypes as group (group.g)}
-      <div class="pop-head">{group.g}</div>
-      {#each group.items as t (t.type)}
-        <button class="pop-item" onclick={() => addColumn(t.type)}>
-          <Icon name={t.icon} size={15} />
-          <span class="grow">{t.label}</span>
+      <div class="pop-head">{TYPE_GROUP_LABELS[group.g]}</div>
+      {#each group.items as info (info.type)}
+        <button class="pop-item" onclick={() => addColumn(info.type)}>
+          <Icon name={info.icon} size={15} />
+          <span class="grow">{info.label}</span>
         </button>
       {/each}
     {/each}

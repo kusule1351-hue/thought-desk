@@ -1,0 +1,922 @@
+{
+  "typeGroups": {
+    "basic": "Basic",
+    "@basic": "heading of a section in the list of property types (Text, Number, Select…): the everyday ones",
+    "app": "Thought Desk",
+    "@app": "heading of a section in the list of property types: those tied to the app itself (Course, Tags, Files). It's the app's name, usually kept as it is",
+    "advanced": "Advanced",
+    "@advanced": "heading of a section in the list of property types: Relation, Rollup, Formula, Button",
+    "automatic": "Automatic",
+    "@automatic": "heading of a section in the list of property types: those filled in by the app (ID, Created time, Last edited)"
+  },
+  "types": {
+    "title": "Title",
+    "@title": "property type: a row's name. Also the name a new property of this type gets, written into the database",
+    "text": "Text",
+    "@text": "property type: free text. Also the name a new property of this type gets, written into the database",
+    "number": "Number",
+    "@number": "property type: a number. Also the name a new property of this type gets, written into the database",
+    "select": "Select",
+    "@select": "property type: one choice from a list of options (a noun). Also the name a new property of this type gets, written into the database",
+    "multiSelect": "Multi-select",
+    "@multiSelect": "property type: several choices from a list of options (a noun). Also the name a new property of this type gets, written into the database",
+    "status": "Status",
+    "@status": "property type: a stage like Not started, In progress, Done. Also the name a new property of this type gets (and the one a board makes when it needs one), written into the database",
+    "date": "Date",
+    "@date": "property type: a day, maybe with a time. Also the name a new property of this type gets (and the one a calendar makes when it needs one), written into the database",
+    "checkbox": "Checkbox",
+    "@checkbox": "property type: a box ticked or not. Also the name a new property of this type gets, written into the database",
+    "url": "URL",
+    "@url": "property type: a web address. Also the name a new property of this type gets, written into the database",
+    "email": "Email",
+    "@email": "property type: an email address. Also the name a new property of this type gets, written into the database",
+    "phone": "Phone",
+    "@phone": "property type: a phone number. Also the name a new property of this type gets, written into the database",
+    "files": "Files",
+    "@files": "property type: files from the app's library. Also the name a new property of this type gets, written into the database",
+    "relation": "Relation",
+    "@relation": "property type: links to rows of a database. Also the name a new property of this type gets, written into the database",
+    "rollup": "Rollup",
+    "@rollup": "property type: a total worked out from related rows (a noun). Also the name a new property of this type gets, written into the database",
+    "formula": "Formula",
+    "@formula": "property type: a value calculated from other properties. Also the name a new property of this type gets, written into the database",
+    "button": "Button",
+    "@button": "property type: a button in each row that does something when clicked. Also the name a new property of this type gets, written into the database",
+    "id": "ID",
+    "@id": "property type: a number the app gives each row (TASK-12). Also the name a new property of this type gets, written into the database",
+    "created": "Created time",
+    "@created": "property type: when the row was added. Also the name a new property of this type gets, written into the database",
+    "edited": "Last edited",
+    "@edited": "property type: when the row last changed. Also the name a new property of this type gets, written into the database"
+  },
+  "typeHints": {
+    "title": "The row’s name",
+    "text": "Notes, names, anything",
+    "number": "Amounts, prices, scores",
+    "select": "One choice from a list",
+    "multiSelect": "Several choices",
+    "status": "To do, in progress, done",
+    "date": "A day, with a time if you like",
+    "checkbox": "Yes or no",
+    "url": "A web address",
+    "email": "An email address",
+    "phone": "A phone number",
+    "course": "One of your courses",
+    "tags": "Your tags, shared with pages",
+    "files": "Files from your library",
+    "relation": "Links to rows of a database",
+    "rollup": "Totals from related rows",
+    "formula": "Calculated from other properties",
+    "button": "Does something in one click",
+    "id": "A number for each row (TASK-12)",
+    "created": "When the row was added",
+    "edited": "When the row last changed"
+  },
+  "statusOptions": {
+    "todo": "Not started",
+    "@todo": "name of a status option: the work hasn't begun. Written into the database when a status property is made",
+    "doing": "In progress",
+    "@doing": "name of a status option: the work has begun. Written into the database when a status property is made",
+    "done": "Done",
+    "@done": "name of a status option: the work is finished. Written into the database when a status property is made"
+  },
+  "statusGroups": {
+    "todo": "To do",
+    "@todo": "a stage of a status property's options (headings in its option list): the options that mean the work hasn't begun",
+    "doing": "In progress",
+    "@doing": "a stage of a status property's options (headings in its option list): the options that mean the work has begun",
+    "done": "Complete",
+    "@done": "a stage of a status property's options (headings in its option list): the options that mean the work is finished"
+  },
+  "numberFormats": {
+    "number": "Number",
+    "@number": "a number property's format: plain, no thousands separators (shown with an example: 1234.5)",
+    "comma": "With commas",
+    "@comma": "a number property's format: with thousands separators, shown with an example written the locale's way (1,234.5 in English, 1.234,5 in German)",
+    "percent": "Percent",
+    "@percent": "a number property's format: a percentage (shown with an example: 45%)",
+    "dollar": "Dollar",
+    "@dollar": "a number property's format: an amount in US dollars",
+    "euro": "Euro",
+    "@euro": "a number property's format: an amount in euros",
+    "pound": "Pound",
+    "@pound": "a number property's format: an amount in British pounds",
+    "yen": "Yen",
+    "@yen": "a number property's format: an amount in Japanese yen",
+    "rupee": "Rupee",
+    "@rupee": "a number property's format: an amount in Indian rupees"
+  },
+  "rollup": {
+    "show": "Show values",
+    "count": "Count rows",
+    "countValues": "Count values",
+    "sum": "Sum",
+    "@sum": "what a rollup works out from related rows: their total",
+    "average": "Average",
+    "@average": "what a rollup works out from related rows: their average",
+    "min": "Smallest",
+    "@min": "what a rollup works out from related rows: the smallest value",
+    "max": "Largest",
+    "@max": "what a rollup works out from related rows: the largest value",
+    "percentChecked": "Percent checked",
+    "percentDone": "Percent complete (status)",
+    "earliest": "Earliest date",
+    "latest": "Latest date"
+  },
+  "calc": {
+    "none": "None",
+    "@none": "a column summary choice: show no summary under the column",
+    "count": "Count all",
+    "countValues": "Count values",
+    "countEmpty": "Count empty",
+    "countUnique": "Count unique",
+    "percentFilled": "Percent filled",
+    "percentEmpty": "Percent empty",
+    "sum": "Sum",
+    "@sum": "a column summary: the total of its numbers",
+    "average": "Average",
+    "@average": "a column summary: the average of its numbers",
+    "median": "Median",
+    "@median": "a column summary: the median of its numbers",
+    "min": "Smallest",
+    "@min": "a column summary: the smallest number",
+    "max": "Largest",
+    "@max": "a column summary: the largest number",
+    "range": "Range",
+    "@range": "a column summary: the gap between the largest and smallest number, or the earliest and latest date",
+    "checked": "Checked",
+    "@checked": "a column summary: how many boxes are ticked",
+    "unchecked": "Unchecked",
+    "@unchecked": "a column summary: how many boxes aren't ticked",
+    "percentChecked": "Percent checked",
+    "earliest": "Earliest",
+    "@earliest": "a column summary: the earliest date",
+    "latest": "Latest",
+    "@latest": "a column summary: the latest date"
+  },
+  "calcShort": {
+    "count": "Count",
+    "@count": "short label before a column's summary (under a narrow column, keep it short): how many rows",
+    "countValues": "Values",
+    "@countValues": "short label before a column's summary (keep it short): how many rows have a value",
+    "countEmpty": "Empty",
+    "@countEmpty": "short label before a column's summary (keep it short): how many rows are empty",
+    "countUnique": "Unique",
+    "@countUnique": "short label before a column's summary (keep it short): how many different values",
+    "percentFilled": "Filled",
+    "@percentFilled": "short label before a column's summary (keep it short): the share of rows with a value, as a percentage",
+    "percentEmpty": "Empty",
+    "@percentEmpty": "short label before a column's summary (keep it short): the share of empty rows, as a percentage",
+    "sum": "Sum",
+    "@sum": "short label before a column's summary (keep it short): the total",
+    "average": "Avg",
+    "@average": "short label before a column's summary (keep it short): the average",
+    "median": "Median",
+    "@median": "short label before a column's summary (keep it short): the median",
+    "min": "Min",
+    "@min": "short label before a column's summary (keep it short): the smallest number",
+    "max": "Max",
+    "@max": "short label before a column's summary (keep it short): the largest number",
+    "range": "Range",
+    "@range": "short label before a column's summary (keep it short): the gap between the largest and smallest",
+    "checked": "Checked",
+    "@checked": "short label before a column's summary (keep it short): how many boxes are ticked",
+    "unchecked": "Unchecked",
+    "@unchecked": "short label before a column's summary (keep it short): how many boxes aren't ticked",
+    "percentChecked": "Done",
+    "@percentChecked": "short label before a column's summary (keep it short): the share of ticked boxes, as a percentage",
+    "earliest": "From",
+    "@earliest": "short label before a column's summary (keep it short): the earliest date",
+    "latest": "To",
+    "@latest": "short label before a column's summary (keep it short): the latest date"
+  },
+  "dateRange": "{start} → {end}",
+  "@dateRange": "a date property's value from one day to another; {start} and {end} are dates already written out (Oct 14, Oct 16). Typed ranges are read back too, so keep an arrow (→ or ←) or a dash",
+  "ops": {
+    "isEmpty": "is empty",
+    "isNotEmpty": "is not empty",
+    "text": {
+      "contains": "contains",
+      "@contains": "a filter's condition on a text property, between the property and the text typed (Name contains “exam”)",
+      "notContains": "does not contain",
+      "is": "is",
+      "@is": "a filter's condition on a text property, between the property and the text typed: the text is exactly this",
+      "isNot": "is not",
+      "startsWith": "starts with",
+      "endsWith": "ends with"
+    },
+    "option": {
+      "is": "is",
+      "@is": "a filter's condition on a select or status property, between the property and the options picked (Status is Done)",
+      "isNot": "is not"
+    },
+    "options": {
+      "hasAny": "has any of",
+      "hasAll": "has all of",
+      "hasNone": "has none of"
+    },
+    "list": {
+      "hasAny": "includes",
+      "@hasAny": "a filter's condition on a relation or files property, between the property and the rows or files picked",
+      "hasNone": "does not include"
+    },
+    "date": {
+      "is": "is",
+      "@is": "a filter's condition on a date property, between the property and the day picked (Due is today)",
+      "before": "is before",
+      "after": "is after",
+      "onOrBefore": "is on or before",
+      "onOrAfter": "is on or after",
+      "pastDays": "is within the past",
+      "nextDays": "is within the next",
+      "thisWeek": "is this week",
+      "thisMonth": "is this month"
+    },
+    "checkbox": {
+      "checked": "is checked",
+      "unchecked": "is not checked"
+    }
+  },
+  "relativeDays": {
+    "oneWeekAgo": "One week ago",
+    "oneWeekFromNow": "One week from now"
+  },
+  "rule": {
+    "isEmpty": "{name} is empty",
+    "@isEmpty": "a filter as its chip above the rows says it; {name} is the property's name",
+    "isNotEmpty": "{name} is not empty",
+    "@isNotEmpty": "a filter as its chip says it; {name} is the property's name",
+    "text": {
+      "contains": "{name} contains {value}",
+      "@contains": "a filter as its chip says it; {name} is a text property's name, {value} the text typed",
+      "notContains": "{name} does not contain {value}",
+      "@notContains": "a filter as its chip says it; {name} is a text property's name, {value} the text typed",
+      "is": "{name} is {value}",
+      "@is": "a filter as its chip says it; {name} is a text property's name, {value} the text it must be exactly",
+      "isNot": "{name} is not {value}",
+      "@isNot": "a filter as its chip says it; {name} is a text property's name, {value} the text it mustn't be",
+      "startsWith": "{name} starts with {value}",
+      "@startsWith": "a filter as its chip says it; {name} is a text property's name, {value} the text typed",
+      "endsWith": "{name} ends with {value}",
+      "@endsWith": "a filter as its chip says it; {name} is a text property's name, {value} the text typed"
+    },
+    "number": {
+      "eq": "{name} = {value}",
+      "@eq": "a filter as its chip says it; {name} is a number property's name, {value} the number typed",
+      "neq": "{name} ≠ {value}",
+      "@neq": "a filter as its chip says it; {name} is a number property's name, {value} the number typed",
+      "gt": "{name} > {value}",
+      "@gt": "a filter as its chip says it; {name} is a number property's name, {value} the number typed",
+      "lt": "{name} < {value}",
+      "@lt": "a filter as its chip says it; {name} is a number property's name, {value} the number typed",
+      "gte": "{name} ≥ {value}",
+      "@gte": "a filter as its chip says it; {name} is a number property's name, {value} the number typed",
+      "lte": "{name} ≤ {value}",
+      "@lte": "a filter as its chip says it; {name} is a number property's name, {value} the number typed"
+    },
+    "option": {
+      "is": "{name} is {values}",
+      "@is": "a filter as its chip says it; {name} is a select or status property's name, {values} the options picked: any of them matches (a list written the language’s way, which in some languages puts “and” before the last one: word the condition so it still reads right)",
+      "isNot": "{name} is not {values}",
+      "@isNot": "a filter as its chip says it; {name} is a select or status property's name, {values} the options picked: none of them may match (a list written the language’s way, which in some languages puts “and” before the last one: word the condition so it still reads right)"
+    },
+    "options": {
+      "hasAny": "{name} has any of {values}",
+      "@hasAny": "a filter as its chip says it; {name} is a multi-select or tags property's name, {values} the options picked: a row with any of them matches (a list written the language’s way, which in some languages puts “and” before the last one: word the condition so it still reads right)",
+      "hasAll": "{name} has all of {values}",
+      "@hasAll": "a filter as its chip says it; {name} is a multi-select or tags property's name, {values} the options picked as a list (Done, Doing): a row must have every one",
+      "hasNone": "{name} has none of {values}",
+      "@hasNone": "a filter as its chip says it; {name} is a multi-select or tags property's name, {values} the options picked: a row with any of them is left out (a list written the language’s way, which in some languages puts “and” before the last one: word the condition so it still reads right)"
+    },
+    "list": {
+      "hasAny": "{name} includes {values}",
+      "@hasAny": "a filter as its chip says it; {name} is a relation or files property's name, {values} the rows or files picked: any of them matches (a list written the language’s way, which in some languages puts “and” before the last one: word the condition so it still reads right)",
+      "hasNone": "{name} does not include {values}",
+      "@hasNone": "a filter as its chip says it; {name} is a relation or files property's name, {values} the rows or files picked: a row linking any of them is left out (a list written the language’s way, which in some languages puts “and” before the last one: word the condition so it still reads right)"
+    },
+    "date": {
+      "is": {
+        "date": "{name} is {date}",
+        "@date": "a filter as its chip says it; {name} is a date property's name, {date} the day picked as stored (2026-10-14)",
+        "today": "{name} is today",
+        "@today": "a filter as its chip says it; {name} is a date property's name",
+        "tomorrow": "{name} is tomorrow",
+        "@tomorrow": "a filter as its chip says it; {name} is a date property's name",
+        "yesterday": "{name} is yesterday",
+        "@yesterday": "a filter as its chip says it; {name} is a date property's name",
+        "oneWeekAgo": "{name} is one week ago",
+        "@oneWeekAgo": "a filter as its chip says it; {name} is a date property's name: the date is the day a week before today",
+        "oneWeekFromNow": "{name} is one week from now",
+        "@oneWeekFromNow": "a filter as its chip says it; {name} is a date property's name: the date is the day a week after today"
+      },
+      "before": {
+        "date": "{name} is before {date}",
+        "@date": "a filter as its chip says it; {name} is a date property's name, {date} the day picked as stored (2026-10-14)",
+        "today": "{name} is before today",
+        "@today": "a filter as its chip says it; {name} is a date property's name",
+        "tomorrow": "{name} is before tomorrow",
+        "@tomorrow": "a filter as its chip says it; {name} is a date property's name",
+        "yesterday": "{name} is before yesterday",
+        "@yesterday": "a filter as its chip says it; {name} is a date property's name",
+        "oneWeekAgo": "{name} is before one week ago",
+        "@oneWeekAgo": "a filter as its chip says it; {name} is a date property's name: the date is before the day a week before today",
+        "oneWeekFromNow": "{name} is before one week from now",
+        "@oneWeekFromNow": "a filter as its chip says it; {name} is a date property's name: the date is before the day a week after today"
+      },
+      "after": {
+        "date": "{name} is after {date}",
+        "@date": "a filter as its chip says it; {name} is a date property's name, {date} the day picked as stored (2026-10-14)",
+        "today": "{name} is after today",
+        "@today": "a filter as its chip says it; {name} is a date property's name",
+        "tomorrow": "{name} is after tomorrow",
+        "@tomorrow": "a filter as its chip says it; {name} is a date property's name",
+        "yesterday": "{name} is after yesterday",
+        "@yesterday": "a filter as its chip says it; {name} is a date property's name",
+        "oneWeekAgo": "{name} is after one week ago",
+        "@oneWeekAgo": "a filter as its chip says it; {name} is a date property's name: the date is after the day a week before today",
+        "oneWeekFromNow": "{name} is after one week from now",
+        "@oneWeekFromNow": "a filter as its chip says it; {name} is a date property's name: the date is after the day a week after today"
+      },
+      "onOrBefore": {
+        "date": "{name} is on or before {date}",
+        "@date": "a filter as its chip says it; {name} is a date property's name, {date} the day picked as stored (2026-10-14)",
+        "today": "{name} is on or before today",
+        "@today": "a filter as its chip says it; {name} is a date property's name",
+        "tomorrow": "{name} is on or before tomorrow",
+        "@tomorrow": "a filter as its chip says it; {name} is a date property's name",
+        "yesterday": "{name} is on or before yesterday",
+        "@yesterday": "a filter as its chip says it; {name} is a date property's name",
+        "oneWeekAgo": "{name} is on or before one week ago",
+        "@oneWeekAgo": "a filter as its chip says it; {name} is a date property's name: the date is on or before the day a week before today",
+        "oneWeekFromNow": "{name} is on or before one week from now",
+        "@oneWeekFromNow": "a filter as its chip says it; {name} is a date property's name: the date is on or before the day a week after today"
+      },
+      "onOrAfter": {
+        "date": "{name} is on or after {date}",
+        "@date": "a filter as its chip says it; {name} is a date property's name, {date} the day picked as stored (2026-10-14)",
+        "today": "{name} is on or after today",
+        "@today": "a filter as its chip says it; {name} is a date property's name",
+        "tomorrow": "{name} is on or after tomorrow",
+        "@tomorrow": "a filter as its chip says it; {name} is a date property's name",
+        "yesterday": "{name} is on or after yesterday",
+        "@yesterday": "a filter as its chip says it; {name} is a date property's name",
+        "oneWeekAgo": "{name} is on or after one week ago",
+        "@oneWeekAgo": "a filter as its chip says it; {name} is a date property's name: the date is on or after the day a week before today",
+        "oneWeekFromNow": "{name} is on or after one week from now",
+        "@oneWeekFromNow": "a filter as its chip says it; {name} is a date property's name: the date is on or after the day a week after today"
+      },
+      "pastDays": {
+        "one": "{name} is within the past {count} days",
+        "other": "{name} is within the past {count} days"
+      },
+      "@pastDays": "a filter as its chip says it; {name} is a date property's name, {count} a number of days: the date falls in the last {count} days up to today",
+      "nextDays": {
+        "one": "{name} is within the next {count} days",
+        "other": "{name} is within the next {count} days"
+      },
+      "@nextDays": "a filter as its chip says it; {name} is a date property's name, {count} a number of days: the date falls in the coming {count} days from today",
+      "thisWeek": "{name} is this week",
+      "@thisWeek": "a filter as its chip says it; {name} is a date property's name",
+      "thisMonth": "{name} is this month",
+      "@thisMonth": "a filter as its chip says it; {name} is a date property's name"
+    },
+    "checkbox": {
+      "checked": "{name} is checked",
+      "@checked": "a filter as its chip says it; {name} is a checkbox property's name: the box is ticked",
+      "unchecked": "{name} is not checked",
+      "@unchecked": "a filter as its chip says it; {name} is a checkbox property's name: the box isn't ticked"
+    }
+  },
+  "group": {
+    "empty": "No {name}",
+    "@empty": "heading of the group of rows with no value for the property the view is grouped by; {name} is that property's name",
+    "emptyUnnamed": "No value",
+    "@emptyUnnamed": "heading of the group of rows with no value, when the property the view is grouped by has no name",
+    "unchecked": "Not checked",
+    "@unchecked": "heading of the group of rows whose checkbox isn't ticked (a view grouped by a checkbox)",
+    "checked": "Checked",
+    "@checked": "heading of the group of rows whose checkbox is ticked (a view grouped by a checkbox)"
+  },
+  "calcDays": {
+    "one": "{count} day",
+    "other": "{count} days"
+  },
+  "@calcDays": "a date column's summary: how many days lie between its earliest and latest date; {count} is that number",
+  "deletedOption": "Deleted option",
+  "@deletedOption": "shown in place of an option's name (a group heading, a value) when the option was deleted but rows still have it",
+  "deletedCourse": "Deleted course",
+  "@deletedCourse": "shown in place of a course's name (a group heading, a value) when the course was deleted but rows still have it",
+  "viewNames": {
+    "table": "Table",
+    "@table": "a view layout: rows and columns. Also the name a new view of this layout gets, written into the database",
+    "board": "Board",
+    "@board": "a view layout: cards in columns (by status…). Also the name a new view of this layout gets, written into the database",
+    "gallery": "Gallery",
+    "@gallery": "a view layout: cards with pictures. Also the name a new view of this layout gets, written into the database",
+    "list": "List",
+    "@list": "a view layout: a simple list of rows. Also the name a new view of this layout gets, written into the database",
+    "calendar": "Calendar",
+    "@calendar": "a view layout: rows on a calendar by date. Also the name a new view of this layout gets, written into the database",
+    "chart": "Chart",
+    "@chart": "a view layout: a chart of totals. Also the name a new view of this layout gets, written into the database",
+    "timeline": "Timeline",
+    "@timeline": "a view layout: dates as bars along a timeline. Also the name a new view of this layout gets, written into the database",
+    "form": "Form",
+    "@form": "a view layout: a form people fill in to add rows. Also the name a new view of this layout gets, written into the database"
+  },
+  "names": {
+    "numbered": "{name} {number}",
+    "@numbered": "a default name with a number added so it differs from one already there (Text 2, Table 3); {name} is the name, {number} the number. Written into the database",
+    "copy": "{name} copy",
+    "@copy": "the name given to a copy of a property or a view; {name} is the original's name. Written into the database",
+    "column": "Column {number}",
+    "@column": "the name of a property made from a spreadsheet column that has no heading; {number} is the column's position (1, 2, 3…). Written into the database",
+    "parentItem": "Parent item",
+    "@parentItem": "name of the relation property holding the row a row is nested under. Written into the database when sub-items are turned on",
+    "subItems": "Sub-items",
+    "@subItems": "name of the property that lists a row's sub-items (rows nested under it). Written into the database when sub-items are turned on",
+    "related": "Related",
+    "@related": "name of the property that shows a two-way relation's links in the other database, when this database has no title to name it after. Written into the database",
+    "dates": "Dates",
+    "@dates": "name of the date property a timeline view makes when the database has none (start and end dates). Written into the database"
+  },
+  "history": {
+    "editUndone": "Undid edit",
+    "editRedone": "Redid edit",
+    "cellUndone": "Undid “{name}”",
+    "@cellUndone": "toast after undoing a change to a value; {name} is the name of the property that changed",
+    "cellRedone": "Redid “{name}”",
+    "@cellRedone": "toast after redoing a change to a value; {name} is the name of the property that changed",
+    "buttonUndone": "Undid “{name}”",
+    "@buttonUndone": "toast after undoing what a button in a row did; {name} is the button's label",
+    "buttonRedone": "Redid “{name}”",
+    "@buttonRedone": "toast after redoing what a button in a row did; {name} is the button's label",
+    "newRowUndone": "Undid new row",
+    "newRowRedone": "Redid new row",
+    "newRowsUndone": {
+      "=1": "Undid a new row",
+      "one": "Undid {count} new row",
+      "other": "Undid {count} new rows"
+    },
+    "@newRowsUndone": "toast after undoing adding rows (pasted or imported); {count} is how many",
+    "newRowsRedone": {
+      "=1": "Redid a new row",
+      "one": "Redid {count} new row",
+      "other": "Redid {count} new rows"
+    },
+    "@newRowsRedone": "toast after redoing adding rows (pasted or imported); {count} is how many",
+    "deleteRowUndone": "Undid deleting “{title}”",
+    "@deleteRowUndone": "toast after undoing deleting a row; {title} is the row's title",
+    "deleteRowRedone": "Redid deleting “{title}”",
+    "@deleteRowRedone": "toast after redoing deleting a row; {title} is the row's title",
+    "deleteRowsUndone": {
+      "one": "Undid deleting {count} row",
+      "other": "Undid deleting {count} rows"
+    },
+    "@deleteRowsUndone": "toast after undoing deleting several rows; {count} is how many",
+    "deleteRowsRedone": {
+      "one": "Redid deleting {count} row",
+      "other": "Redid deleting {count} rows"
+    },
+    "@deleteRowsRedone": "toast after redoing deleting several rows; {count} is how many",
+    "moveRowUndone": "Undid moving a row",
+    "moveRowRedone": "Redid moving a row",
+    "propertyUndone": "Undid changes to “{name}”",
+    "@propertyUndone": "toast after undoing a change to a property's name or settings; {name} is the property's name before the change",
+    "propertyRedone": "Redid changes to “{name}”",
+    "@propertyRedone": "toast after redoing a change to a property's name or settings; {name} is the property's name before the change",
+    "addPropertyUndone": "Undid adding “{name}”",
+    "@addPropertyUndone": "toast after undoing adding a property; {name} is the property's name",
+    "addPropertyRedone": "Redid adding “{name}”",
+    "@addPropertyRedone": "toast after redoing adding a property; {name} is the property's name",
+    "deletePropertyUndone": "Undid deleting “{name}”",
+    "@deletePropertyUndone": "toast after undoing deleting a property; {name} is the property's name",
+    "deletePropertyRedone": "Redid deleting “{name}”",
+    "@deletePropertyRedone": "toast after redoing deleting a property; {name} is the property's name",
+    "changeType": {
+      "text": {
+        "undone": "Undid changing “{name}” to Text",
+        "@undone": "toast after undoing turning a property into a Text property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Text",
+        "@redone": "toast after redoing turning a property into a Text property; {name} is the property's name"
+      },
+      "number": {
+        "undone": "Undid changing “{name}” to Number",
+        "@undone": "toast after undoing turning a property into a Number property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Number",
+        "@redone": "toast after redoing turning a property into a Number property; {name} is the property's name"
+      },
+      "select": {
+        "undone": "Undid changing “{name}” to Select",
+        "@undone": "toast after undoing turning a property into a Select property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Select",
+        "@redone": "toast after redoing turning a property into a Select property; {name} is the property's name"
+      },
+      "multiSelect": {
+        "undone": "Undid changing “{name}” to Multi-select",
+        "@undone": "toast after undoing turning a property into a Multi-select property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Multi-select",
+        "@redone": "toast after redoing turning a property into a Multi-select property; {name} is the property's name"
+      },
+      "status": {
+        "undone": "Undid changing “{name}” to Status",
+        "@undone": "toast after undoing turning a property into a Status property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Status",
+        "@redone": "toast after redoing turning a property into a Status property; {name} is the property's name"
+      },
+      "date": {
+        "undone": "Undid changing “{name}” to Date",
+        "@undone": "toast after undoing turning a property into a Date property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Date",
+        "@redone": "toast after redoing turning a property into a Date property; {name} is the property's name"
+      },
+      "checkbox": {
+        "undone": "Undid changing “{name}” to Checkbox",
+        "@undone": "toast after undoing turning a property into a Checkbox property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Checkbox",
+        "@redone": "toast after redoing turning a property into a Checkbox property; {name} is the property's name"
+      },
+      "url": {
+        "undone": "Undid changing “{name}” to URL",
+        "@undone": "toast after undoing turning a property into a URL property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to URL",
+        "@redone": "toast after redoing turning a property into a URL property; {name} is the property's name"
+      },
+      "email": {
+        "undone": "Undid changing “{name}” to Email",
+        "@undone": "toast after undoing turning a property into an Email property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Email",
+        "@redone": "toast after redoing turning a property into an Email property; {name} is the property's name"
+      },
+      "phone": {
+        "undone": "Undid changing “{name}” to Phone",
+        "@undone": "toast after undoing turning a property into a Phone property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Phone",
+        "@redone": "toast after redoing turning a property into a Phone property; {name} is the property's name"
+      },
+      "course": {
+        "undone": "Undid changing “{name}” to Course",
+        "@undone": "toast after undoing turning a property into a Course property (school courses); {name} is the property's name",
+        "redone": "Redid changing “{name}” to Course",
+        "@redone": "toast after redoing turning a property into a Course property (school courses); {name} is the property's name"
+      },
+      "tags": {
+        "undone": "Undid changing “{name}” to Tags",
+        "@undone": "toast after undoing turning a property into a Tags property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Tags",
+        "@redone": "toast after redoing turning a property into a Tags property; {name} is the property's name"
+      },
+      "files": {
+        "undone": "Undid changing “{name}” to Files",
+        "@undone": "toast after undoing turning a property into a Files property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Files",
+        "@redone": "toast after redoing turning a property into a Files property; {name} is the property's name"
+      },
+      "relation": {
+        "undone": "Undid changing “{name}” to Relation",
+        "@undone": "toast after undoing turning a property into a Relation property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Relation",
+        "@redone": "toast after redoing turning a property into a Relation property; {name} is the property's name"
+      },
+      "rollup": {
+        "undone": "Undid changing “{name}” to Rollup",
+        "@undone": "toast after undoing turning a property into a Rollup property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Rollup",
+        "@redone": "toast after redoing turning a property into a Rollup property; {name} is the property's name"
+      },
+      "formula": {
+        "undone": "Undid changing “{name}” to Formula",
+        "@undone": "toast after undoing turning a property into a Formula property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Formula",
+        "@redone": "toast after redoing turning a property into a Formula property; {name} is the property's name"
+      },
+      "button": {
+        "undone": "Undid changing “{name}” to Button",
+        "@undone": "toast after undoing turning a property into a Button property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Button",
+        "@redone": "toast after redoing turning a property into a Button property; {name} is the property's name"
+      },
+      "id": {
+        "undone": "Undid changing “{name}” to ID",
+        "@undone": "toast after undoing turning a property into an ID property (a number for each row); {name} is the property's name",
+        "redone": "Redid changing “{name}” to ID",
+        "@redone": "toast after redoing turning a property into an ID property (a number for each row); {name} is the property's name"
+      },
+      "created": {
+        "undone": "Undid changing “{name}” to Created time",
+        "@undone": "toast after undoing turning a property into a Created time property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Created time",
+        "@redone": "toast after redoing turning a property into a Created time property; {name} is the property's name"
+      },
+      "edited": {
+        "undone": "Undid changing “{name}” to Last edited",
+        "@undone": "toast after undoing turning a property into a Last edited property; {name} is the property's name",
+        "redone": "Redid changing “{name}” to Last edited",
+        "@redone": "toast after redoing turning a property into a Last edited property; {name} is the property's name"
+      }
+    }
+  },
+  "formula": {
+    "loop": "These formulas refer to each other in a loop",
+    "propertyProblem": "{property} has a problem: {message}",
+    "@propertyProblem": "a formula's error when a property it uses has one; {property} is that property as a formula writes it, in braces ({Price}), {message} that property's own error"
+  },
+  "savedAsTemplate": "Saved “{title}” as a template",
+  "@savedAsTemplate": "toast after a row is copied as a template for new rows; {title} is the row's title",
+  "addedRowTo": "Added a row to {database}",
+  "@addedRowTo": "toast after a button or automation added a row to another database; {database} is that database's title",
+  "buttonHasNoActions": "This button doesn’t do anything yet: add actions in its settings",
+  "deletedRow": "Deleted “{title}”",
+  "@deletedRow": "toast after a row is moved to the Trash; {title} is the row's title",
+  "deletedRows": {
+    "one": "Deleted {count} row",
+    "other": "Deleted {count} rows"
+  },
+  "@deletedRows": "toast after several rows are moved to the Trash; {count} is how many",
+  "deletedProperty": "Deleted “{name}”",
+  "@deletedProperty": "toast after a property (a column) is deleted; {name} is its name",
+  "turnOffSubItems": {
+    "title": "Turn off sub-items?",
+    "message": "“{parent}” and “{children}” are deleted, so rows stop being nested. Undo brings them back.",
+    "@message": "asked before turning sub-items off; {parent} is the name of the property holding each row's parent, {children} that of the property listing its sub-items",
+    "confirm": "Turn off",
+    "@confirm": "button that confirms turning sub-items off"
+  },
+  "import": {
+    "noRows": "That file has no rows to import",
+    "imported": {
+      "one": "Imported {count} row into “{name}”",
+      "other": "Imported {count} rows into “{name}”"
+    },
+    "@imported": "toast after a spreadsheet becomes a new database; {count} is how many rows, {name} the new database's name",
+    "added": {
+      "one": "Added {count} row from the file",
+      "other": "Added {count} rows from the file"
+    },
+    "@added": "toast after a spreadsheet's rows are added to a database; {count} is how many"
+  },
+  "export": {
+    "fileName": "{database} - {view}",
+    "@fileName": "the name of a CSV file a view is saved as (without .csv); {database} is the database's title, {view} the view's name",
+    "saved": "Saved {file} to Downloads",
+    "@saved": "toast after a view is saved as a CSV file; {file} is the file's name, Downloads the computer's Downloads folder"
+  },
+  "templates": {
+    "priority": {
+      "low": "Low",
+      "@low": "an option of the Priority property in the Tasks and Projects templates. Written into the database",
+      "medium": "Medium",
+      "@medium": "an option of the Priority property in the Tasks and Projects templates. Written into the database",
+      "high": "High",
+      "@high": "an option of the Priority property in the Tasks and Projects templates. Written into the database"
+    },
+    "blank": {
+      "name": "Empty database",
+      "description": "A table to shape however you like"
+    },
+    "tasks": {
+      "name": "Tasks",
+      "@name": "a database template's name: a list of tasks to do. Also the title of a database made from it",
+      "description": "To-dos on a board, with due dates on your calendar",
+      "props": {
+        "title": "Task",
+        "@title": "Tasks template: name of the property holding each row's title (the task). Written into the database",
+        "status": "Status",
+        "@status": "Tasks template: name of the property holding the task's status. Written into the database",
+        "due": "Due",
+        "@due": "Tasks template: name of the date property for when the task is due. Written into the database",
+        "priority": "Priority",
+        "@priority": "Tasks template: name of the property for how important the task is (Low, Medium, High). Written into the database"
+      },
+      "views": {
+        "allTasks": "All tasks"
+      }
+    },
+    "projects": {
+      "name": "Projects",
+      "@name": "a database template's name: projects and how far along they are. Also the title of a database made from it",
+      "description": "Bigger pieces of work, how far along they are, and when they’re due",
+      "props": {
+        "title": "Project",
+        "@title": "Projects template: name of the property holding each row's title (the project). Written into the database",
+        "status": "Status",
+        "@status": "Projects template: name of the property holding the project's status. Written into the database",
+        "dates": "Dates",
+        "@dates": "Projects template: name of the date property holding the project's start and end. Written into the database",
+        "progress": "Progress",
+        "@progress": "Projects template: name of the percentage property for how far along the project is. Written into the database",
+        "priority": "Priority",
+        "@priority": "Projects template: name of the property for how important the project is (Low, Medium, High). Written into the database"
+      },
+      "views": {
+        "allProjects": "All projects",
+        "byStatus": "By status"
+      }
+    },
+    "reading": {
+      "name": "Reading list",
+      "description": "Books and articles: what you’re reading, what you thought",
+      "props": {
+        "title": "Title",
+        "@title": "Reading list template: name of the property holding each book's or article's title. Written into the database",
+        "author": "Author",
+        "@author": "Reading list template: name of the property for who wrote it. Written into the database",
+        "status": "Status",
+        "@status": "Reading list template: name of the property for whether it's to read, being read or finished. Written into the database",
+        "rating": "Rating",
+        "@rating": "Reading list template: name of the property for a rating out of five stars. Written into the database",
+        "genre": "Genre",
+        "@genre": "Reading list template: name of the property for the kind of book (Fiction, Science…). Written into the database",
+        "pages": "Pages",
+        "@pages": "Reading list template: name of the property for how many pages it has. Written into the database",
+        "finished": "Finished",
+        "@finished": "Reading list template: name of the date property for the day it was finished. Written into the database"
+      },
+      "options": {
+        "want": "Want to read",
+        "reading": "Reading",
+        "@reading": "Reading list template: a Status option, being read now. Written into the database",
+        "finished": "Finished",
+        "@finished": "Reading list template: a Status option, read to the end. Written into the database",
+        "fiction": "Fiction",
+        "@fiction": "Reading list template: a Genre option. Written into the database",
+        "science": "Science",
+        "@science": "Reading list template: a Genre option. Written into the database",
+        "history": "History",
+        "@history": "Reading list template: a Genre option (the subject). Written into the database",
+        "forClass": "For class",
+        "@forClass": "Reading list template: a Genre option, reading for a school class. Written into the database"
+      },
+      "views": {
+        "shelf": "Shelf",
+        "@shelf": "Reading list template: name of the gallery view showing the books as covers on a shelf. Written into the database",
+        "byStatus": "By status"
+      }
+    },
+    "habits": {
+      "name": "Habit tracker",
+      "description": "One row a day: tick what you did and watch the streak",
+      "props": {
+        "title": "Day",
+        "@title": "Habit tracker template: name of the property holding each row's title (the day). Written into the database",
+        "date": "Date",
+        "@date": "Habit tracker template: name of the property for the day's date. Written into the database",
+        "exercise": "Exercise",
+        "@exercise": "Habit tracker template: name of a checkbox property, ticked on days with exercise. Written into the database and used in the template's Score formula, so no { or }",
+        "read": "Read 20 min",
+        "@read": "Habit tracker template: name of a checkbox property, ticked on days with 20 minutes of reading. Written into the database and used in the template's Score formula, so no { or }",
+        "sleep": "Slept 8h",
+        "@sleep": "Habit tracker template: name of a checkbox property, ticked on days with 8 hours of sleep. Written into the database and used in the template's Score formula, so no { or }",
+        "water": "Water",
+        "@water": "Habit tracker template: name of a checkbox property, ticked on days with enough water drunk. Written into the database and used in the template's Score formula, so no { or }",
+        "score": "Score",
+        "@score": "Habit tracker template: name of the formula property for the share of habits done that day. Written into the database"
+      },
+      "views": {
+        "thisMonth": "This month",
+        "allDays": "All days"
+      }
+    },
+    "study": {
+      "name": "Study log",
+      "description": "Time spent per course, adding up as you go",
+      "props": {
+        "title": "Topic",
+        "@title": "Study log template: name of the property holding each row's title (what was studied). Written into the database",
+        "date": "Date",
+        "@date": "Study log template: name of the property for the day studied. Written into the database",
+        "minutes": "Minutes",
+        "@minutes": "Study log template: name of the number property for how many minutes were spent. Written into the database",
+        "focus": "Focus",
+        "@focus": "Study log template: name of the property for how focused the session was (Distracted, Okay, Deep focus). Written into the database"
+      },
+      "options": {
+        "low": "Distracted",
+        "@low": "Study log template: a Focus option. Written into the database",
+        "ok": "Okay",
+        "@ok": "Study log template: a Focus option, focus that was fine. Written into the database",
+        "deep": "Deep focus"
+      },
+      "views": {
+        "log": "Log",
+        "@log": "Study log template: name of the table view listing the study sessions. Written into the database",
+        "minutesPerCourse": "Minutes per course"
+      }
+    },
+    "expenses": {
+      "name": "Budget",
+      "@name": "a database template's name: spending, by category. Also the title of a database made from it",
+      "description": "Spending by category, with totals",
+      "props": {
+        "title": "Expense",
+        "@title": "Budget template: name of the property holding each row's title (what was bought). Written into the database",
+        "amount": "Amount",
+        "@amount": "Budget template: name of the property for how much was spent. Written into the database",
+        "category": "Category",
+        "@category": "Budget template: name of the property for the kind of spending (Food, Rent…). Written into the database",
+        "date": "Date",
+        "@date": "Budget template: name of the property for the day of the spending. Written into the database",
+        "paid": "Paid",
+        "@paid": "Budget template: name of a checkbox property, ticked once it's paid. Written into the database"
+      },
+      "options": {
+        "food": "Food",
+        "@food": "Budget template: a Category option. Written into the database",
+        "rent": "Rent",
+        "@rent": "Budget template: a Category option (the rent for a home). Written into the database",
+        "transport": "Transport",
+        "@transport": "Budget template: a Category option (buses, trains, fuel). Written into the database",
+        "books": "Books & supplies",
+        "fun": "Fun",
+        "@fun": "Budget template: a Category option (going out, games). Written into the database",
+        "otherCategory": "Other",
+        "@otherCategory": "Budget template: a Category option for anything else. Written into the database"
+      },
+      "views": {
+        "allSpending": "All spending",
+        "byCategory": "By category",
+        "thisMonth": "This month"
+      }
+    },
+    "applications": {
+      "name": "Applications",
+      "@name": "a database template's name: job, internship or program applications. Also the title of a database made from it",
+      "description": "Jobs, internships or programs: where each one stands",
+      "props": {
+        "title": "Role",
+        "@title": "Applications template: name of the property holding each row's title (the job or role applied for). Written into the database",
+        "company": "Company",
+        "@company": "Applications template: name of the property for the company or school applied to. Written into the database",
+        "stage": "Stage",
+        "@stage": "Applications template: name of the property for how far the application has got (Applied, Interview…). Written into the database",
+        "appliedOn": "Applied on",
+        "deadline": "Deadline",
+        "@deadline": "Applications template: name of the date property for the last day to apply. Written into the database",
+        "link": "Link",
+        "@link": "Applications template: name of the web address property (the job posting). Written into the database",
+        "contact": "Contact",
+        "@contact": "Applications template: name of the email property for the person to write to. Written into the database"
+      },
+      "options": {
+        "wish": "Wishlist",
+        "@wish": "Applications template: a Stage option, not applied yet but wanting to. Written into the database",
+        "applied": "Applied",
+        "@applied": "Applications template: a Stage option, the application is sent. Written into the database",
+        "interview": "Interview",
+        "@interview": "Applications template: a Stage option, invited to an interview. Written into the database",
+        "offer": "Offer",
+        "@offer": "Applications template: a Stage option, an offer was made. Written into the database",
+        "no": "Not this time"
+      },
+      "views": {
+        "pipeline": "Pipeline",
+        "@pipeline": "Applications template: name of the board view showing applications by stage. Written into the database"
+      }
+    },
+    "contacts": {
+      "name": "People",
+      "@name": "a database template's name: classmates, teachers and other contacts. Also the title of a database made from it",
+      "description": "Classmates, teachers and contacts in one place",
+      "props": {
+        "email": "Email",
+        "@email": "People template: name of the property for the person's email address. Written into the database",
+        "phone": "Phone",
+        "@phone": "People template: name of the property for the person's phone number. Written into the database",
+        "birthday": "Birthday",
+        "@birthday": "People template: name of the date property for the person's birthday. Written into the database"
+      },
+      "views": {
+        "everyone": "Everyone",
+        "@everyone": "People template: name of the table view listing every person. Written into the database",
+        "cards": "Cards",
+        "@cards": "People template: name of the gallery view showing people as cards. Written into the database"
+      }
+    },
+    "recipes": {
+      "name": "Recipes",
+      "@name": "a database template's name: a collection of recipes. Also the title of a database made from it",
+      "description": "A gallery of dishes, with the recipe in each page",
+      "props": {
+        "title": "Dish",
+        "@title": "Recipes template: name of the property holding each row's title (the dish). Written into the database",
+        "meal": "Meal",
+        "@meal": "Recipes template: name of the property for which meal the dish is for (Breakfast, Lunch…). Written into the database",
+        "minutes": "Minutes",
+        "@minutes": "Recipes template: name of the number property for how many minutes the dish takes. Written into the database",
+        "tried": "Tried it",
+        "source": "Source",
+        "@source": "Recipes template: name of the web address property for where the recipe comes from. Written into the database"
+      },
+      "options": {
+        "breakfast": "Breakfast",
+        "@breakfast": "Recipes template: a Meal option. Written into the database",
+        "lunch": "Lunch",
+        "@lunch": "Recipes template: a Meal option. Written into the database",
+        "dinner": "Dinner",
+        "@dinner": "Recipes template: a Meal option. Written into the database",
+        "snack": "Snack",
+        "@snack": "Recipes template: a Meal option. Written into the database"
+      }
+    }
+  }
+}

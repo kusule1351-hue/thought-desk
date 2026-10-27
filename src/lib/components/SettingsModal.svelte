@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { isMac } from '../platform';
+  import { MOD, isMac } from '../platform';
   import { onMount } from 'svelte';
   import Icon from './Icon.svelte';
   import Modal from './Modal.svelte';
@@ -19,15 +19,24 @@
   import { account } from '../account.svelte';
   import Avatar from './Avatar.svelte';
   import { chooseDataFolder, useDefaultDataFolder } from '../data-folder';
-  import { SIDEBAR_ITEMS, setShownInSidebar, shownInSidebar } from '../sidebar-items';
+  import { SIDEBAR_ITEMS, setShownInSidebar, shownInSidebar, type SidebarItem } from '../sidebar-items';
   import { changeLook } from '../look-transition';
   import { ui } from '../ui.svelte';
   import { updates } from '../updates.svelte';
   import { MAX_ZOOM, MIN_ZOOM, zoomIn, zoomLabel, zoomOut, zoomReset } from '../zoom.svelte';
   import { formatBytes } from '../time';
+  import { LANGUAGES, i18n, t, type MessageKey, type PluralKey } from '../i18n';
+  import { fmt } from '../i18n/format';
+  import Rich from '../i18n/Rich.svelte';
   import type { DataInfo } from '../types';
 
   let info = $state<DataInfo | null>(null);
+
+  /** A new language takes a restart of the window: App saves everything, then reloads. */
+  function chooseLanguage(next: string) {
+    if (next === i18n.choice || !i18n.choose(next)) return;
+    window.dispatchEvent(new Event('td:reload'));
+  }
 
   onMount(() => {
     api.dataInfo().then((d) => (info = d), ui.error);
@@ -41,43 +50,60 @@
   });
 
   const themes: { value: Theme; label: string; icon: string }[] = [
-    { value: 'light', label: 'Light', icon: 'sun' },
-    { value: 'dark', label: 'Dark', icon: 'moon' },
-    { value: 'system', label: 'Auto', icon: 'monitor' },
+    { value: 'light', label: t('settings.appearance.themes.light'), icon: 'sun' },
+    { value: 'dark', label: t('settings.appearance.themes.dark'), icon: 'moon' },
+    { value: 'system', label: t('settings.appearance.themes.auto'), icon: 'monitor' },
   ];
   const fonts: { value: Font; label: string }[] = [
-    { value: 'sans', label: 'Default' },
-    { value: 'serif', label: 'Serif' },
-    { value: 'mono', label: 'Mono' },
+    { value: 'sans', label: t('settings.appearance.fonts.sans') },
+    { value: 'serif', label: t('settings.appearance.fonts.serif') },
+    { value: 'mono', label: t('settings.appearance.fonts.mono') },
   ];
   const textSizes: { value: TextSize; label: string }[] = [
-    { value: 'small', label: 'Small' },
-    { value: 'default', label: 'Default' },
-    { value: 'large', label: 'Large' },
-    { value: 'xlarge', label: 'Larger' },
+    { value: 'small', label: t('settings.appearance.textSizes.small') },
+    { value: 'default', label: t('settings.appearance.textSizes.default') },
+    { value: 'large', label: t('settings.appearance.textSizes.large') },
+    { value: 'xlarge', label: t('settings.appearance.textSizes.xlarge') },
   ];
+  const weekdays = fmt.weekdayNames('long');
   const weekStarts: { value: WeekStart; label: string }[] = [
-    { value: 0, label: 'Sunday' },
-    { value: 1, label: 'Monday' },
+    { value: 0, label: weekdays[0] },
+    { value: 1, label: weekdays[1] },
   ];
   const remindAssignments: { value: RemindAssignments; label: string }[] = [
-    { value: 'off', label: 'Off' },
-    { value: 'evening', label: 'Evening Before' },
-    { value: 'morning', label: 'That Morning' },
+    { value: 'off', label: t('settings.reminders.assignmentsOff') },
+    { value: 'evening', label: t('settings.reminders.eveningBefore') },
+    { value: 'morning', label: t('settings.reminders.thatMorning') },
   ];
   const remindEvents: { value: RemindEvents; label: string }[] = [
-    { value: 0, label: 'Off' },
-    { value: 5, label: '5 min' },
-    { value: 10, label: '10 min' },
-    { value: 15, label: '15 min' },
-    { value: 30, label: '30 min' },
+    { value: 0, label: t('settings.reminders.eventsOff') },
+    { value: 5, label: t('settings.reminders.minutes', { count: 5 }) },
+    { value: 10, label: t('settings.reminders.minutes', { count: 10 }) },
+    { value: 15, label: t('settings.reminders.minutes', { count: 15 }) },
+    { value: 30, label: t('settings.reminders.minutes', { count: 30 }) },
   ];
+
+  /** Each sidebar item's switch, by its key (sidebar-items.ts): a new item needs its sentence here. */
+  const SHOW_IN_SIDEBAR = {
+    home: 'settings.sidebar.show.home',
+    assignments: 'settings.sidebar.show.assignments',
+    calendar: 'settings.sidebar.show.calendar',
+    files: 'settings.sidebar.show.files',
+    cards: 'settings.sidebar.show.cards',
+    friends: 'settings.sidebar.show.friends',
+    favorites: 'settings.sidebar.show.favorites',
+    courses: 'settings.sidebar.show.courses',
+    databases: 'settings.sidebar.show.databases',
+    tags: 'settings.sidebar.show.tags',
+  } as const satisfies Record<SidebarItem, MessageKey>;
 
   /** The wheel's rim is this much chroma (as vivid as sRGB gets for most hues). */
   const MAX_CHROMA = 0.3;
   const customAccentHex = $derived(oklchHex(prefs.customAccent.lightness, prefs.customAccent.chroma, prefs.customAccent.hue));
   const accentLabel = $derived(
-    prefs.accent === 'custom' ? `Custom · ${customAccentHex.toUpperCase()}` : (ACCENTS.find((a) => a.key === prefs.accent)?.label ?? 'Graphite'),
+    prefs.accent === 'custom'
+      ? t('settings.appearance.customAccent', { hex: customAccentHex.toUpperCase() })
+      : (ACCENTS.find((a) => a.key === prefs.accent)?.label ?? ACCENTS[0].label),
   );
   let hexDraft = $state('');
   $effect(() => {
@@ -96,20 +122,20 @@
 
   /** The custom theme's sidebar, page and text, for its preview tile and the wheel's knob. */
   const customTheme = $derived.by(() => {
-    const { hue: h, tint: t } = prefs.customTheme;
+    const { hue: h, tint } = prefs.customTheme;
     return prefs.resolvedTheme === 'dark'
-      ? { bg: oklchHex(0.17, 0.028 * t, h), side: oklchHex(0.2, 0.032 * t, h), ink: oklchHex(0.95, 0.018 * t, h), knob: oklchHex(0.5, 0.12 * t, h) }
-      : { bg: oklchHex(0.982, 0.028 * t, h), side: oklchHex(0.952, 0.042 * t, h), ink: oklchHex(0.25, 0.045 * t, h), knob: oklchHex(0.8, 0.12 * t, h) };
+      ? { bg: oklchHex(0.17, 0.028 * tint, h), side: oklchHex(0.2, 0.032 * tint, h), ink: oklchHex(0.95, 0.018 * tint, h), knob: oklchHex(0.5, 0.12 * tint, h) }
+      : { bg: oklchHex(0.982, 0.028 * tint, h), side: oklchHex(0.952, 0.042 * tint, h), ink: oklchHex(0.25, 0.045 * tint, h), knob: oklchHex(0.8, 0.12 * tint, h) };
   });
 
   /** Starting points for a custom theme. */
   const themeIdeas = [
-    { label: 'Ocean', hue: 235, tint: 0.7 },
-    { label: 'Forest', hue: 150, tint: 0.6 },
-    { label: 'Sand', hue: 75, tint: 0.65 },
-    { label: 'Blush', hue: 15, tint: 0.55 },
-    { label: 'Lavender', hue: 295, tint: 0.65 },
-    { label: 'Mint', hue: 175, tint: 0.5 },
+    { label: t('settings.appearance.themeIdeas.ocean'), hue: 235, tint: 0.7 },
+    { label: t('settings.appearance.themeIdeas.forest'), hue: 150, tint: 0.6 },
+    { label: t('settings.appearance.themeIdeas.sand'), hue: 75, tint: 0.65 },
+    { label: t('settings.appearance.themeIdeas.blush'), hue: 15, tint: 0.55 },
+    { label: t('settings.appearance.themeIdeas.lavender'), hue: 295, tint: 0.65 },
+    { label: t('settings.appearance.themeIdeas.mint'), hue: 175, tint: 0.5 },
   ];
 
   /** The account sheet replaces Settings (Escape then closes just that). */
@@ -122,7 +148,7 @@
     if (!info) return;
     try {
       await navigator.clipboard.writeText(info.dataDir);
-      ui.toast('Folder path copied');
+      ui.toast(t('settings.storage.pathCopied'));
     } catch (e) {
       ui.error(e);
     }
@@ -131,7 +157,7 @@
   const addCourse = () => planner.promptCourse();
 
   async function renameCourse(id: string, name: string) {
-    const res = await ui.prompt({ title: 'Rename Course', value: name, confirmLabel: 'Rename', icon: 'book' });
+    const res = await ui.prompt({ title: t('settings.courses.renameTitle'), value: name, confirmLabel: t('common.actions.rename'), icon: 'book' });
     if (res) void planner.updateCourse(id, { name: res.value });
   }
 
@@ -147,46 +173,55 @@
     );
   }
 
-  const stats = $derived(
+  /** How many of each there are: a big number with its word under it (the message's <num> and <noun>). */
+  const stats = $derived<{ n: number; key: PluralKey }[]>(
     info
       ? [
-          { n: info.pageCount, one: 'Page', many: 'Pages' },
-          { n: info.assignmentCount, one: 'Assignment', many: 'Assignments' },
-          { n: info.eventCount, one: 'Event', many: 'Events' },
-          { n: info.fileCount, one: 'File', many: 'Files' },
+          { n: info.pageCount, key: 'settings.storage.pages' },
+          { n: info.assignmentCount, key: 'settings.storage.assignments' },
+          { n: info.eventCount, key: 'settings.storage.events' },
+          { n: info.fileCount, key: 'settings.storage.files' },
         ]
       : [],
   );
+
+  /** The account's username as a handle, and its email, as far as there are any. */
+  const accountLine = $derived.by(() => {
+    const username = account.profile?.username;
+    const email = account.user?.email;
+    if (username) return email ? t('settings.account.usernameEmail', { username, email }) : t('settings.account.username', { username });
+    return email ? t('settings.account.noUsernameEmail', { email }) : t('settings.account.noUsername');
+  });
 </script>
 
-<Modal onclose={() => (ui.settingsOpen = false)} label="Settings">
+<Modal onclose={() => (ui.settingsOpen = false)} label={t('common.views.settings')}>
   <header class="modal-head">
-    <h2>Settings</h2>
-    <button class="icon-btn" onclick={() => (ui.settingsOpen = false)} aria-label="Close"><Icon name="x" /></button>
+    <h2>{t('common.views.settings')}</h2>
+    <button class="icon-btn" onclick={() => (ui.settingsOpen = false)} aria-label={t('common.actions.close')}><Icon name="x" /></button>
   </header>
 
   <div class="modal-body fade">
-    <h3 class="group-title">You</h3>
+    <h3 class="group-title">{t('settings.you.title')}</h3>
     <div class="group">
       <div class="group-row">
         <div class="row-label">
-          Name
-          <small>Home greets you by it</small>
+          {t('settings.you.name')}
+          <small>{t('settings.you.nameHint')}</small>
         </div>
         <input
           class="field name-field"
           value={prefs.name}
-          placeholder="Your name"
+          placeholder={t('settings.you.yourName')}
           maxlength="40"
           spellcheck="false"
-          aria-label="Your name"
+          aria-label={t('settings.you.yourName')}
           onchange={(e) => (prefs.name = e.currentTarget.value.trim())}
           onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
       </div>
     </div>
 
-    <h3 class="group-title">Account</h3>
+    <h3 class="group-title">{t('settings.account.title')}</h3>
     <div class="group">
       {#if account.user}
         <div class="group-row">
@@ -194,34 +229,34 @@
             <Avatar name={account.name} url={account.profile?.avatarUrl} seed={account.user.id} size={32} />
             <div class="row-label">
               {account.name}
-              <small>{account.profile?.username ? `@${account.profile.username}` : 'No username yet'}{account.user.email ? ` · ${account.user.email}` : ''}</small>
+              <small>{accountLine}</small>
             </div>
           </div>
-          <button class="btn small raised" onclick={openAccount}>Edit Profile…</button>
+          <button class="btn small raised" onclick={openAccount}>{t('settings.account.editProfile')}</button>
         </div>
       {:else}
         <div class="group-row">
           <div class="row-label">
-            Not signed in
-            <small>Sign in to add friends and write together. Your notes stay on this computer.</small>
+            {t('settings.account.signedOut')}
+            <small>{t('settings.account.signedOutHint')}</small>
           </div>
-          <button class="btn small raised" disabled={!account.ready} onclick={openAccount}>Sign In…</button>
+          <button class="btn small raised" disabled={!account.ready} onclick={openAccount}>{t('settings.account.signIn')}</button>
         </div>
       {/if}
     </div>
 
-    <h3 class="group-title">Appearance</h3>
+    <h3 class="group-title">{t('settings.appearance.title')}</h3>
     <div class="group">
       <div class="group-row">
-        <div class="row-label">Theme</div>
-        <Segmented options={themes} value={prefs.theme} onchange={(v) => changeLook(() => (prefs.theme = v))} label="Theme" />
+        <div class="row-label">{t('settings.appearance.theme')}</div>
+        <Segmented options={themes} value={prefs.theme} onchange={(v) => changeLook(() => (prefs.theme = v))} label={t('settings.appearance.theme')} />
       </div>
       <div class="group-row stack">
         <div class="row-label">
-          Color theme
-          <small>Backgrounds and text, in light and dark</small>
+          {t('settings.appearance.colorTheme')}
+          <small>{t('settings.appearance.colorThemeHint')}</small>
         </div>
-        <div class="palettes" role="radiogroup" aria-label="Color theme">
+        <div class="palettes" role="radiogroup" aria-label={t('settings.appearance.colorTheme')}>
           {#each PALETTES as p (p.key)}
             {@const [bg, side, ink] = prefs.resolvedTheme === 'dark' ? p.dark : p.light}
             <button class="palette" class:on={prefs.palette === p.key} role="radio" aria-checked={prefs.palette === p.key} onclick={() => (prefs.palette = p.key)}>
@@ -238,14 +273,14 @@
               <span class="mini-page"><b></b><i></i><i></i><i class="short"></i></span>
               <span class="mini-wheel round"></span>
             </span>
-            <span class="pname">Custom</span>
+            <span class="pname">{t('settings.appearance.customTheme')}</span>
           </button>
         </div>
         {#if prefs.palette === 'custom'}
           <div class="picker">
             <ColorWheel
               kind="theme"
-              label="Theme color"
+              label={t('settings.appearance.themeColor')}
               hue={prefs.customTheme.hue}
               amount={prefs.customTheme.tint}
               knob={customTheme.knob}
@@ -253,11 +288,11 @@
             />
             <div class="picker-side">
               <div class="picker-text">
-                <strong>Your own theme</strong>
-                <span>Turn the wheel to choose a color, and move out toward the edge for a stronger tint. Light and dark versions are made to match, with text kept easy to read.</span>
+                <strong>{t('settings.appearance.ownTheme')}</strong>
+                <span>{t('settings.appearance.ownThemeHint')}</span>
               </div>
               <label class="slider">
-                <span>Tint</span>
+                <span>{t('settings.appearance.tint')}</span>
                 <input
                   class="range"
                   type="range"
@@ -270,7 +305,7 @@
                 />
               </label>
               <div class="ideas">
-                {#each themeIdeas as idea (idea.label)}
+                {#each themeIdeas as idea (idea.hue)}
                   <button
                     class="chip idea"
                     style:--c={oklchHex(0.8, 0.1, idea.hue)}
@@ -284,17 +319,17 @@
       </div>
       <div class="group-row">
         <div class="row-label">
-          Accent color
+          {t('settings.appearance.accentColor')}
           <small>{accentLabel}</small>
         </div>
-        <Swatches keys={[...ACCENTS]} value={prefs.accent} onchange={(k) => (prefs.accent = k as Accent)} label="Accent color" custom={customAccentHex} />
+        <Swatches keys={[...ACCENTS]} value={prefs.accent} onchange={(k) => (prefs.accent = k as Accent)} label={t('settings.appearance.accentColor')} custom={customAccentHex} />
       </div>
       {#if prefs.accent === 'custom'}
         <div class="group-row stack">
           <div class="picker">
             <ColorWheel
               kind="accent"
-              label="Accent color"
+              label={t('settings.appearance.accentColor')}
               hue={prefs.customAccent.hue}
               amount={Math.min(1, prefs.customAccent.chroma / MAX_CHROMA)}
               knob={customAccentHex}
@@ -302,7 +337,7 @@
             />
             <div class="picker-side">
               <label class="slider">
-                <span>Brightness</span>
+                <span>{t('settings.appearance.brightness')}</span>
                 <input
                   class="range"
                   type="range"
@@ -320,7 +355,7 @@
                   <input
                     value={hexDraft}
                     spellcheck="false"
-                    aria-label="Hex color"
+                    aria-label={t('settings.appearance.hexColor')}
                     maxlength="7"
                     oninput={(e) => (hexDraft = e.currentTarget.value)}
                     onchange={(e) => setAccentHex(e.currentTarget.value)}
@@ -328,9 +363,9 @@
                   />
                 </label>
                 <div class="accent-preview" aria-hidden="true">
-                  <span class="pv-btn">Button</span>
+                  <span class="pv-btn">{t('settings.appearance.previewButton')}</span>
                   <span class="pv-check round"></span>
-                  <span class="pv-sel">selected</span>
+                  <span class="pv-sel">{t('settings.appearance.previewSelected')}</span>
                 </div>
               </div>
             </div>
@@ -339,13 +374,13 @@
       {/if}
       <div class="group-row tall">
         <div class="row-label">
-          Page font
-          <small>Titles and writing</small>
+          {t('settings.appearance.pageFont')}
+          <small>{t('settings.appearance.pageFontHint')}</small>
         </div>
-        <div class="fonts" role="radiogroup" aria-label="Page font">
+        <div class="fonts" role="radiogroup" aria-label={t('settings.appearance.pageFont')}>
           {#each fonts as f}
             <button class="font" class:on={prefs.font === f.value} data-font={f.value} role="radio" aria-checked={prefs.font === f.value} onclick={() => (prefs.font = f.value)}>
-              <span class="ag">Ag</span>
+              <span class="ag">{t('settings.appearance.fontSample')}</span>
               <span class="fname">{f.label}</span>
             </button>
           {/each}
@@ -353,184 +388,208 @@
       </div>
       <div class="group-row">
         <div class="row-label">
-          Zoom
-          <small>Everything bigger or smaller, also with {isMac ? 'a pinch on the trackpad' : 'Ctrl and the scroll wheel'}</small>
+          {t('settings.appearance.zoom')}
+          <small>{isMac ? t('settings.appearance.zoomHintMac') : t('settings.appearance.zoomHint', { mod: MOD })}</small>
         </div>
-        <div class="stepper" role="group" aria-label="Zoom">
-          <button onclick={zoomOut} disabled={prefs.zoom <= MIN_ZOOM} aria-label="Zoom out" data-tip="Zoom out" data-tip-key={shortcuts.label('zoomOut')}><Icon name="minus" size={14} stroke={2} /></button>
-          <button class="level" onclick={zoomReset} disabled={prefs.zoom === 1} aria-label="Zoom {zoomLabel(prefs.zoom)}, reset to 100%" data-tip="Actual size" data-tip-key={shortcuts.label('zoomReset')}>{zoomLabel(prefs.zoom)}</button>
-          <button onclick={zoomIn} disabled={prefs.zoom >= MAX_ZOOM} aria-label="Zoom in" data-tip="Zoom in" data-tip-key={shortcuts.label('zoomIn')}><Icon name="plus" size={14} stroke={2} /></button>
+        <div class="stepper" role="group" aria-label={t('settings.appearance.zoom')}>
+          <button onclick={zoomOut} disabled={prefs.zoom <= MIN_ZOOM} aria-label={t('settings.commands.zoomOut')} data-tip={t('settings.commands.zoomOut')} data-tip-key={shortcuts.label('zoomOut')}><Icon name="minus" size={14} stroke={2} /></button>
+          <button class="level" onclick={zoomReset} disabled={prefs.zoom === 1} aria-label={t('settings.appearance.zoomLevel', { level: zoomLabel(prefs.zoom), normal: zoomLabel(1) })} data-tip={t('settings.commands.zoomReset')} data-tip-key={shortcuts.label('zoomReset')}>{zoomLabel(prefs.zoom)}</button>
+          <button onclick={zoomIn} disabled={prefs.zoom >= MAX_ZOOM} aria-label={t('settings.commands.zoomIn')} data-tip={t('settings.commands.zoomIn')} data-tip-key={shortcuts.label('zoomIn')}><Icon name="plus" size={14} stroke={2} /></button>
         </div>
       </div>
       <div class="group-row">
         <div class="row-label">
-          Text size
-          <small>How big writing is on pages</small>
+          {t('settings.appearance.textSize')}
+          <small>{t('settings.appearance.textSizeHint')}</small>
         </div>
-        <Segmented options={textSizes} value={prefs.textSize} onchange={(v) => (prefs.textSize = v)} label="Text size" />
+        <Segmented options={textSizes} value={prefs.textSize} onchange={(v) => (prefs.textSize = v)} label={t('settings.appearance.textSize')} />
       </div>
+      {#if LANGUAGES.length > 1}
+        <div class="group-row">
+          <div class="row-label">
+            {t('settings.language.label')}
+            <small>{t('settings.language.hint')}</small>
+          </div>
+          <select class="field language" value={i18n.choice} onchange={(e) => chooseLanguage(e.currentTarget.value)} aria-label={t('settings.language.label')}>
+            <option value="system">{t('settings.language.system', { language: LANGUAGES.find((l) => l.code === i18n.systemLanguage)?.name ?? 'English' })}</option>
+            {#each LANGUAGES as l (l.code)}
+              <option value={l.code}>{l.name === l.english ? l.name : `${l.name} (${l.english})`}</option>
+            {/each}
+          </select>
+        </div>
+      {/if}
     </div>
 
-    <h3 class="group-title">Sidebar</h3>
+    <h3 class="group-title">{t('settings.sidebar.title')}</h3>
     <div class="group">
       {#each SIDEBAR_ITEMS as item (item.key)}
         <div class="group-row">
           <div class="row-label">{item.label}</div>
-          <Switch on={shownInSidebar(item.key)} label="Show {item.label} in the sidebar" onchange={() => setShownInSidebar(item.key, !shownInSidebar(item.key))} />
+          <Switch on={shownInSidebar(item.key)} label={t(SHOW_IN_SIDEBAR[item.key])} onchange={() => setShownInSidebar(item.key, !shownInSidebar(item.key))} />
         </div>
       {/each}
     </div>
-    <p class="group-note">Hidden ones are still a shortcut or a search away. Right-click an item in the sidebar to hide it from there.</p>
+    <p class="group-note">{t('settings.sidebar.note')}</p>
 
-    <h3 class="group-title">Writing</h3>
+    <h3 class="group-title">{t('settings.writing.title')}</h3>
     <div class="group">
       <div class="group-row">
         <div class="row-label">
-          Check spelling
-          <small>Underline words that look misspelled</small>
+          {t('settings.writing.spellcheck')}
+          <small>{t('settings.writing.spellcheckHint')}</small>
         </div>
-        <Switch on={prefs.spellcheck} label="Check spelling" onchange={() => (prefs.spellcheck = !prefs.spellcheck)} />
+        <Switch on={prefs.spellcheck} label={t('settings.writing.spellcheck')} onchange={() => (prefs.spellcheck = !prefs.spellcheck)} />
       </div>
     </div>
 
-    <h3 class="group-title">Quick Capture</h3>
+    <h3 class="group-title">{t('settings.capture.title')}</h3>
     <div class="group">
       <div class="group-row">
         <div class="row-label">
-          Capture from anywhere
-          <small>{shortcuts.label('capture') || 'Its shortcut'} opens Quick Capture even when Thought Desk is in the background</small>
+          {t('settings.capture.anywhere')}
+          <small
+            >{shortcuts.label('capture')
+              ? t('settings.capture.anywhereHint', { shortcut: shortcuts.label('capture') })
+              : t('settings.capture.anywhereHintNoShortcut')}</small
+          >
         </div>
-        <Switch on={prefs.globalCapture} label="Capture from anywhere" onchange={() => (prefs.globalCapture = !prefs.globalCapture)} />
+        <Switch on={prefs.globalCapture} label={t('settings.capture.anywhere')} onchange={() => (prefs.globalCapture = !prefs.globalCapture)} />
       </div>
     </div>
 
-    <h3 class="group-title">Calendar</h3>
+    <h3 class="group-title">{t('settings.calendar.title')}</h3>
     <div class="group">
       <div class="group-row">
-        <div class="row-label">Week starts on</div>
-        <Segmented options={weekStarts} value={prefs.weekStart} onchange={(v) => (prefs.weekStart = v)} label="Week starts on" />
+        <div class="row-label">{t('settings.calendar.weekStart')}</div>
+        <Segmented options={weekStarts} value={prefs.weekStart} onchange={(v) => (prefs.weekStart = v)} label={t('settings.calendar.weekStart')} />
       </div>
       <div class="group-row">
         <div class="row-label">
-          Import a calendar
-          <small>Class schedules and due dates from a .ics file (Canvas, Google, Outlook)</small>
+          {t('settings.calendar.import')}
+          <small>{t('settings.calendar.importHint')}</small>
         </div>
-        <button class="btn small raised" onclick={importCalendar}><Icon name="download" size={13} stroke={2.2} /> Import…</button>
+        <button class="btn small raised" onclick={importCalendar}><Icon name="download" size={13} stroke={2.2} /> {t('settings.calendar.importButton')}</button>
       </div>
     </div>
 
-    <h3 class="group-title">Reminders</h3>
+    <h3 class="group-title">{t('settings.reminders.title')}</h3>
     <div class="group">
       <div class="group-row">
         <div class="row-label">
-          Assignments
-          <small>Plus one an hour before anything with a due time</small>
+          {t('settings.reminders.assignments')}
+          <small>{t('settings.reminders.assignmentsHint')}</small>
         </div>
-        <Segmented options={remindAssignments} value={prefs.remindAssignments} onchange={(v) => (prefs.remindAssignments = v)} label="Assignment reminders" />
+        <Segmented options={remindAssignments} value={prefs.remindAssignments} onchange={(v) => (prefs.remindAssignments = v)} label={t('settings.reminders.assignmentReminders')} />
       </div>
       <div class="group-row">
         <div class="row-label">
-          Before events
-          <small>Only events with a start time</small>
+          {t('settings.reminders.events')}
+          <small>{t('settings.reminders.eventsHint')}</small>
         </div>
-        <Segmented options={remindEvents} value={prefs.remindEvents} onchange={(v) => (prefs.remindEvents = v)} label="Event reminders" />
+        <Segmented options={remindEvents} value={prefs.remindEvents} onchange={(v) => (prefs.remindEvents = v)} label={t('settings.reminders.eventReminders')} />
       </div>
     </div>
 
     <h3 class="group-title">
-      <span>Courses</span>
-      <button class="btn small raised" onclick={addCourse}><Icon name="plus" size={13} stroke={2.2} /> Add Course</button>
+      <span>{t('settings.courses.title')}</span>
+      <button class="btn small raised" onclick={addCourse}><Icon name="plus" size={13} stroke={2.2} /> {t('settings.courses.add')}</button>
     </h3>
     <div class="group">
       {#each planner.courses as c (c.id)}
         {@const used = planner.live.filter((a) => a.courseId === c.id).length}
         <div class="group-row compact course">
-          <button class="course-color" onclick={(e) => colorMenu(e, c.id, c.color)} data-tip="Change color" aria-label="Change color">
+          <button class="course-color" onclick={(e) => colorMenu(e, c.id, c.color)} data-tip={t('settings.courses.changeColor')} aria-label={t('settings.courses.changeColor')}>
             <span class="dot" style:--dot={colorVar(c.color)}></span>
           </button>
           <div class="row-label course-name">
-            {c.name || 'Untitled'}
-            <small>{used} assignment{used === 1 ? '' : 's'}</small>
+            {c.name || t('common.untitled')}
+            <small>{t('settings.courses.assignmentCount', { count: used })}</small>
           </div>
           <div class="course-actions">
-            <button class="icon-btn" onclick={() => renameCourse(c.id, c.name)} data-tip="Rename" aria-label="Rename"><Icon name="pencil" size={15} /></button>
-            <button class="icon-btn" onclick={() => planner.deleteCourse(c.id)} data-tip="Delete" aria-label="Delete"><Icon name="trash" size={15} /></button>
+            <button class="icon-btn" onclick={() => renameCourse(c.id, c.name)} data-tip={t('common.actions.rename')} aria-label={t('common.actions.rename')}><Icon name="pencil" size={15} /></button>
+            <button class="icon-btn" onclick={() => planner.deleteCourse(c.id)} data-tip={t('common.actions.delete')} aria-label={t('common.actions.delete')}><Icon name="trash" size={15} /></button>
           </div>
         </div>
       {:else}
-        <div class="group-row"><div class="row-label"><small>Courses group assignments and events and give them a color.</small></div></div>
+        <div class="group-row"><div class="row-label"><small>{t('settings.courses.empty')}</small></div></div>
       {/each}
     </div>
 
-    <h3 class="group-title">Storage</h3>
+    <h3 class="group-title">{t('settings.storage.title')}</h3>
     <div class="group">
       {#if info}
         <div class="group-row stats">
           {#each stats as st}
-            <div class="stat"><strong>{st.n}</strong><span>{st.n === 1 ? st.one : st.many}</span></div>
+            <div class="stat"
+              ><Rich key={st.key} params={{ count: st.n }}
+                >{#snippet num(text: string)}<strong>{text}</strong>{/snippet}{#snippet noun(text: string)}<span>{text}</span>{/snippet}</Rich
+              ></div
+            >
           {/each}
         </div>
         <div class="group-row">
-          <div class="row-label">Size</div>
-          <span class="value">{formatBytes(info.dbBytes)} database · {formatBytes(info.fileBytes)} files</span>
+          <div class="row-label">{t('settings.storage.size')}</div>
+          <span class="value">{t('settings.storage.sizes', { database: formatBytes(info.dbBytes), files: formatBytes(info.fileBytes) })}</span>
         </div>
         <div class="group-row">
           <div class="row-label path-label">
-            Location
+            {t('settings.storage.location')}
             <small class="path" data-tip={info.dataDir}>{info.dataDir}</small>
           </div>
-          <button class="btn small raised" onclick={copyPath}>Copy Path</button>
+          <button class="btn small raised" onclick={copyPath}>{t('settings.storage.copyPath')}</button>
           {#if !info.envDir}
-            <button class="btn small raised" onclick={() => void chooseDataFolder()}>Change…</button>
+            <button class="btn small raised" onclick={() => void chooseDataFolder()}>{t('settings.storage.change')}</button>
           {/if}
         </div>
         {#if info.missingDir}
           <div class="group-row">
             <div class="row-label path-label">
-              Chosen folder not found
-              <small class="path" data-tip={info.missingDir}>{info.missingDir} wasn't there when Thought Desk started, so these are the notes in its own folder. Connect the drive and restart, or keep using this folder.</small>
+              {t('settings.storage.missing')}
+              <small class="path" data-tip={info.missingDir}>{t('settings.storage.missingHint', { path: info.missingDir })}</small>
             </div>
-            <button class="btn small raised" onclick={() => void useDefaultDataFolder(true)}>Use This Folder</button>
+            <button class="btn small raised" onclick={() => void useDefaultDataFolder(true)}>{t('settings.storage.useThisFolder')}</button>
           </div>
         {:else if info.chosenDir && !info.envDir}
           <div class="group-row">
             <div class="row-label path-label">
-              Thought Desk's own folder
+              {t('settings.storage.ownFolder')}
               <small class="path" data-tip={info.defaultDir}>{info.defaultDir}</small>
             </div>
-            <button class="btn small raised" onclick={() => void useDefaultDataFolder()}>Use Default</button>
+            <button class="btn small raised" onclick={() => void useDefaultDataFolder()}>{t('settings.storage.useDefault')}</button>
           </div>
         {/if}
         <div class="group-row">
           <div class="row-label">
-            Export All Notes
-            <small>Every page as a Markdown file, in folders like the sidebar, with databases as CSV and the files they use.</small>
+            {t('settings.storage.export')}
+            <small>{t('settings.storage.exportHint')}</small>
           </div>
-          <button class="btn small raised" onclick={() => void exportWorkspace()}>Export…</button>
+          <button class="btn small raised" onclick={() => void exportWorkspace()}>{t('settings.storage.exportButton')}</button>
         </div>
       {:else}
-        <div class="group-row"><div class="row-label"><small>Loading…</small></div></div>
+        <div class="group-row"><div class="row-label"><small>{t('common.loading')}</small></div></div>
       {/if}
     </div>
-    <p class="group-note">Everything is stored in one SQLite file plus a files folder, in the folder above. Back it up to keep your work safe, or keep it in a folder that's backed up already (Change…).</p>
+    <p class="group-note">{t('settings.storage.note')}</p>
 
     <ShortcutsEditor />
 
     <p class="about">
-      Thought Desk {info?.version ?? ''} ·
+      {t('settings.about.version', { version: info?.version ?? '' })} ·
       {#if updates.progress !== null}
-        Updating{updates.progress ? ` ${Math.round(updates.progress * 100)}%` : ''}… ·
+        {updates.progress
+          ? t('settings.about.updatingPercent', { percent: fmt.number(Math.round(updates.progress * 100) / 100, { style: 'percent' }) })
+          : t('settings.about.updating')} ·
       {:else if updates.available}
-        <button class="link" onclick={() => void updates.install()}>Install {updates.available.version}</button> ·
+        <button class="link" onclick={() => void updates.install()}>{t('settings.about.install', { version: updates.available.version })}</button> ·
       {:else}
-        <button class="link" disabled={updates.checking} onclick={() => void updates.check(false)}>{updates.checking ? 'Checking…' : 'Check for updates'}</button> ·
+        <button class="link" disabled={updates.checking} onclick={() => void updates.check(false)}>{updates.checking ? t('settings.about.checking') : t('settings.about.check')}</button> ·
       {/if}
       <button
         class="link"
         onclick={() => {
           ui.settingsOpen = false;
           prefs.welcomed = false;
-        }}>Show the welcome again</button
+        }}>{t('settings.about.showWelcome')}</button
       >
     </p>
   </div>
@@ -689,6 +748,10 @@
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+  .field.language {
+    max-width: 220px;
+    cursor: pointer;
   }
   .field.hex {
     width: 128px;

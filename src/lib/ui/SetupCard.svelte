@@ -6,6 +6,7 @@
    */
   import Icon from '../components/Icon.svelte';
   import { cards } from '../cards.svelte';
+  import { t } from '../i18n';
   import { importCalendar } from '../ics-import.svelte';
   import { planner } from '../planner.svelte';
   import { prefs } from '../prefs.svelte';
@@ -17,34 +18,34 @@
   const steps = $derived([
     {
       key: 'courses',
-      title: 'Add your courses',
-      text: 'Each gets a colour, a page of its own and its grade.',
+      title: t('sheets.setup.courses.title'),
+      text: t('sheets.setup.courses.text'),
       done: planner.courses.length > 0,
-      action: 'Add a course',
+      action: t('sheets.setup.courses.action'),
       run: () => void planner.promptCourse(),
     },
     {
       key: 'schedule',
-      title: 'Bring in your class schedule',
-      text: 'Import the .ics calendar from Canvas, Google or Outlook, or add a class yourself.',
+      title: t('sheets.setup.schedule.title'),
+      text: t('sheets.setup.schedule.text'),
       done: planner.events.some((e) => !e.deletedAt),
-      action: 'Import a calendar',
+      action: t('sheets.setup.schedule.action'),
       run: () => void importCalendar(),
     },
     {
       key: 'assignment',
-      title: 'Add an assignment',
-      text: 'Due dates show on Home and the calendar, with a reminder the evening before.',
+      title: t('sheets.setup.assignment.title'),
+      text: t('sheets.setup.assignment.text'),
       done: planner.assignments.some((a) => !a.deletedAt),
-      action: 'New assignment',
+      action: t('sheets.setup.assignment.action'),
       run: () => planner.newAssignment(),
     },
     {
       key: 'cards',
-      title: 'Make a flashcard deck',
-      text: 'Cards come back just before you’d forget them.',
+      title: t('sheets.setup.cards.title'),
+      text: t('sheets.setup.cards.text'),
       done: cards.total > 0,
-      action: 'Start a deck',
+      action: t('sheets.setup.cards.action'),
       run: () => void store.create(null, { title: deck.title(''), icon: deck.icon, content: deck.content() }),
     },
   ]);
@@ -53,19 +54,19 @@
 </script>
 
 {#if !prefs.setupHidden && next}
-  <section class="setup" aria-label="Get set up">
+  <section class="setup" aria-label={t('sheets.setup.label')}>
     <div class="head">
       <div>
-        <h2>Get set up for the semester</h2>
-        <p>{doneCount} of {steps.length} done</p>
+        <h2>{t('sheets.setup.title')}</h2>
+        <p>{t('sheets.setup.progress', { count: doneCount, total: steps.length })}</p>
       </div>
       <div class="bar" aria-hidden="true"><span style:width="{(doneCount / steps.length) * 100}%"></span></div>
-      <button class="icon-btn" onclick={() => (prefs.setupHidden = true)} aria-label="Hide" data-tip="Hide (it won’t come back)"><Icon name="x" size={14} /></button>
+      <button class="icon-btn" onclick={() => (prefs.setupHidden = true)} aria-label={t('sheets.setup.hide')} data-tip={t('sheets.setup.hideTip')}><Icon name="x" size={14} /></button>
     </div>
     <ol class="steps">
       {#each steps as s (s.key)}
         <li class="step" class:done={s.done} class:next={s === next}>
-          <span class="mark round" aria-label={s.done ? 'Done' : 'Not done yet'}>
+          <span class="mark round" aria-label={s.done ? t('sheets.setup.stepDone') : t('sheets.setup.stepNotDone')}>
             {#if s.done}<Icon name="check" size={12} stroke={2.6} />{/if}
           </span>
           <span class="copy">

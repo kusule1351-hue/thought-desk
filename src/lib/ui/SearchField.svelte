@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Icon from '../components/Icon.svelte';
+  import { t } from '../i18n';
 
   let {
     value = $bindable(''),
-    placeholder = 'Filter',
+    placeholder = t('library.controls.filter'),
     autofocus = false,
     width,
     small = false,
@@ -40,7 +41,7 @@
     }}
   />
   {#if value}
-    <button class="clear round" onclick={() => (value = '')} aria-label="Clear"><Icon name="x" size={11} stroke={2.6} /></button>
+    <button class="clear round" onclick={() => (value = '')} aria-label={t('common.actions.clear')}><Icon name="x" size={11} stroke={2.6} /></button>
   {/if}
 </label>
 

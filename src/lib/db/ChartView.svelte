@@ -9,7 +9,9 @@
   import Icon from '../components/Icon.svelte';
   import { databases } from '../databases.svelte';
   import { groupRows } from './query';
-  import { formatNumber } from './schema';
+  import { formatNumber, toDate } from './schema';
+  import { i18n, t } from '../i18n';
+  import { fmt } from '../i18n/format';
   import type { DbRow, DbView } from '../types';
 
   let { dbId, view, rows, onsettings }: { dbId: string; view: DbView; rows: DbRow[]; onsettings: () => void } = $props();
@@ -41,8 +43,24 @@
       .filter((d) => d.count > 0 || d.key !== '');
   });
 
-  const fmt = (n: number) => (agg === 'count' || !yProp ? n.toLocaleString() : formatNumber(n, yProp.config));
-  const measure = $derived(agg === 'count' ? 'Rows' : `${agg === 'sum' ? 'Total' : 'Average'} ${yProp?.name ?? ''}`);
+  const num = (n: number) => (agg === 'count' || !yProp ? fmt.number(n) : formatNumber(n, yProp.config));
+  /** A share of the donut, as a whole percentage. */
+  const pct = (v: number) => fmt.number(Math.round((v / (sliceTotal || 1)) * 100) / 100, { style: 'percent' });
+  const groupBy = $derived(xProp?.name ?? '');
+  const property = $derived(yProp?.name ?? '');
+  /** Under the headline, and the chart's name: what's counted, summed or averaged, and by what. */
+  const summary = $derived(
+    agg === 'count'
+      ? t('dbViews.chart.summaryCount', { groupBy })
+      : agg === 'sum'
+        ? t('dbViews.chart.summarySum', { property, groupBy })
+        : t('dbViews.chart.summaryAverage', { property, groupBy }),
+  );
+  const chartName = $derived(
+    agg === 'count' ? t('dbViews.chart.nameCount', { groupBy }) : agg === 'sum' ? t('dbViews.chart.nameSum', { property, groupBy }) : t('dbViews.chart.nameAverage', { property, groupBy }),
+  );
+  /** Names inside a sentence are written in lower case ("rows with a status"). */
+  const lower = (name: string) => name.toLocaleLowerCase(i18n.language);
   /** The headline: all rows counted, summed or averaged. */
   const overall = $derived.by(() => {
     if (agg === 'count' || !yProp) return rows.length;
@@ -60,7 +78,7 @@
     const list = data.filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
     if (list.length <= 6) return list;
     const rest = list.slice(5);
-    return [...list.slice(0, 5), { key: '__other', label: `Other (${rest.length})`, color: 'var(--c-gray)', value: rest.reduce((n, d) => n + d.value, 0), count: rest.reduce((n, d) => n + d.count, 0) }];
+    return [...list.slice(0, 5), { key: '__other', label: t('dbViews.chart.otherSlice', { count: rest.length }), color: 'var(--c-gray)', value: rest.reduce((n, d) => n + d.value, 0), count: rest.reduce((n, d) => n + d.count, 0) }];
   });
   const sliceTotal = $derived(slices.reduce((n, d) => n + d.value, 0));
   /** Fixed-order fallbacks for groups without a colour of their own. */
@@ -105,7 +123,14 @@
   const px = (i: number) => PAD.l + (points.length < 2 ? (W - PAD.l - PAD.r) / 2 : (i / (points.length - 1)) * (W - PAD.l - PAD.r));
   const py = (v: number) => PAD.t + (1 - v / yMax) * (H - PAD.t - PAD.b);
   const path = $derived(points.map((d, i) => `${i ? 'L' : 'M'}${px(i).toFixed(1)},${py(d.value).toFixed(1)}`).join(' '));
-  const ticks = $derived([0, 0.25, 0.5, 0.75, 1].map((t) => t * yMax));
+  const ticks = $derived([0, 0.25, 0.5, 0.75, 1].map((f) => f * yMax));
+  const caption = $derived(
+    agg === 'count'
+      ? t('dbViews.chart.captionCount', { count: points.length })
+      : agg === 'sum'
+        ? t('dbViews.chart.captionSum', { count: points.length, property: lower(property) })
+        : t('dbViews.chart.captionAverage', { count: points.length, property: lower(property) }),
+  );
 
   let hover = $state<{ i: number; x: number; y: number } | null>(null);
   let plot = $state<SVGSVGElement>();
@@ -122,39 +147,39 @@
 
 {#if !chart || !xProp}
   <div class="setup">
-    <p>Choose what to count: a status, a select, a course or a date along the bottom.</p>
-    <button class="btn small raised" onclick={onsettings}><Icon name="sliders" size={14} /> Set up the chart</button>
+    <p>{t('dbViews.chart.setupHint')}</p>
+    <button class="btn small raised" onclick={onsettings}><Icon name="sliders" size={14} /> {t('dbViews.chart.setUp')}</button>
   </div>
 {:else}
   <div class="chart">
     <div class="summary">
       <div class="hero">
-        <span class="hero-value">{fmt(overall)}</span>
-        <span class="hero-label">{measure} · by {xProp.name}</span>
+        <span class="hero-value">{num(overall)}</span>
+        <span class="hero-label">{summary}</span>
       </div>
-      <button class="icon-btn" onclick={onsettings} data-tip="Chart settings"><Icon name="sliders" size={15} /></button>
+      <button class="icon-btn" onclick={onsettings} data-tip={t('dbViews.chart.settings')}><Icon name="sliders" size={15} /></button>
     </div>
 
     {#if !data.length || data.every((d) => d.value === 0)}
-      <p class="none">Nothing to chart yet. Rows with a {xProp.name.toLowerCase()} will show here.</p>
+      <p class="none">{t('dbViews.chart.empty', { property: lower(xProp.name) })}</p>
     {:else if kind === 'donut'}
       <div class="donut-wrap">
-        <svg class="donut" viewBox="0 0 200 200" role="img" aria-label="{measure} by {xProp.name}">
+        <svg class="donut" viewBox="0 0 200 200" role="img" aria-label={chartName}>
           {#each arcs as a, i (a.d.key)}
-            <path d={a.path} fill={a.color} class="slice" role="img" aria-label="{a.d.label}: {fmt(a.d.value)}" class:dim={hover !== null && hover.i !== i} onpointerenter={() => (hover = { i, x: 0, y: 0 })} onpointerleave={() => (hover = null)}>
-              <title>{a.d.label}: {fmt(a.d.value)}</title>
+            <path d={a.path} fill={a.color} class="slice" role="img" aria-label={t('dbViews.chart.value', { label: a.d.label, value: num(a.d.value) })} class:dim={hover !== null && hover.i !== i} onpointerenter={() => (hover = { i, x: 0, y: 0 })} onpointerleave={() => (hover = null)}>
+              <title>{t('dbViews.chart.value', { label: a.d.label, value: num(a.d.value) })}</title>
             </path>
           {/each}
-          <text x="100" y="98" class="center-value">{hover !== null && arcs[hover.i] ? `${Math.round((arcs[hover.i].d.value / (sliceTotal || 1)) * 100)}%` : fmt(sliceTotal)}</text>
-          <text x="100" y="116" class="center-label">{hover !== null && arcs[hover.i] ? arcs[hover.i].d.label : 'in all'}</text>
+          <text x="100" y="98" class="center-value">{hover !== null && arcs[hover.i] ? pct(arcs[hover.i].d.value) : num(sliceTotal)}</text>
+          <text x="100" y="116" class="center-label">{hover !== null && arcs[hover.i] ? arcs[hover.i].d.label : t('dbViews.chart.inAll')}</text>
         </svg>
         <div class="legend" role="list">
           {#each arcs as a, i (a.d.key)}
             <div class="legend-row" role="listitem" class:dim={hover !== null && hover.i !== i} onpointerenter={() => (hover = { i, x: 0, y: 0 })} onpointerleave={() => (hover = null)}>
               <span class="swatch" style:background={a.color}></span>
               <span class="l-label">{a.d.label}</span>
-              <span class="l-value">{fmt(a.d.value)}</span>
-              <span class="l-pct">{Math.round((a.d.value / (sliceTotal || 1)) * 100)}%</span>
+              <span class="l-value">{num(a.d.value)}</span>
+              <span class="l-pct">{pct(a.d.value)}</span>
             </div>
           {/each}
         </div>
@@ -168,18 +193,18 @@
           height={H}
           viewBox="0 0 {W} {H}"
           role="img"
-          aria-label="{measure} by {xProp.name}"
+          aria-label={chartName}
           onpointermove={onMove}
           onpointerleave={() => (hover = null)}
         >
-          {#each ticks as t (t)}
-            <line x1={PAD.l} x2={W - PAD.r} y1={py(t)} y2={py(t)} class="grid" />
-            <text x={PAD.l - 8} y={py(t) + 4} class="tick" text-anchor="end">{fmt(Math.round(t * 100) / 100)}</text>
+          {#each ticks as y (y)}
+            <line x1={PAD.l} x2={W - PAD.r} y1={py(y)} y2={py(y)} class="grid" />
+            <text x={PAD.l - 8} y={py(y) + 4} class="tick" text-anchor="end">{num(Math.round(y * 100) / 100)}</text>
           {/each}
           <path d={path} class="stroke" />
           {#each points as d, i (d.key)}
             {#if points.length <= 24 || i === 0 || i === points.length - 1}
-              <text x={px(i)} y={H - 8} class="tick" text-anchor="middle">{d.label.replace(/ \d{4}$/, '')}</text>
+              <text x={px(i)} y={H - 8} class="tick" text-anchor="middle">{fmt.date(toDate(`${d.key}-01`), { month: 'long' })}</text>
             {/if}
           {/each}
           {#if hover && points[hover.i]}
@@ -190,21 +215,21 @@
         {#if hover && points[hover.i]}
           <div class="tip" style:left="{hover.x}px" style:top="{hover.y}px">
             <strong>{points[hover.i].label}</strong>
-            <span>{fmt(points[hover.i].value)}</span>
+            <span>{num(points[hover.i].value)}</span>
           </div>
         {/if}
       </div>
-      <p class="caption">{points.length} month{points.length === 1 ? '' : 's'} · {measure.toLowerCase()} per month</p>
+      <p class="caption">{caption}</p>
     {:else}
-      <div class="bars" role="list" aria-label="{measure} by {xProp.name}">
+      <div class="bars" role="list" aria-label={chartName}>
         {#each data as d (d.key)}
-          <div class="bar-row" role="listitem" data-tip="{d.label}: {fmt(d.value)} ({d.count} row{d.count === 1 ? '' : 's'})">
+          <div class="bar-row" role="listitem" data-tip={t('dbViews.chart.barTip', { label: d.label, value: num(d.value), count: d.count })}>
             <span class="b-label">
               {#if d.color}<span class="dot" style:--dot={d.color}></span>{/if}
               <span class="t">{d.label}</span>
             </span>
             <span class="b-track"><span class="b-fill" style:width="{(d.value / max) * 100}%"></span></span>
-            <span class="b-value">{fmt(d.value)}</span>
+            <span class="b-value">{num(d.value)}</span>
           </div>
         {/each}
       </div>

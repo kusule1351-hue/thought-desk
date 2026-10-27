@@ -1,6 +1,7 @@
 /** One Trash for everything: pages, assignments, events and files. */
 
 import { api } from './api';
+import { t, type MessageKey } from './i18n';
 import { library } from './library.svelte';
 import { planner } from './planner.svelte';
 import { store } from './store.svelte';
@@ -20,12 +21,13 @@ export interface TrashItem {
   deletedAt: number;
 }
 
-export const TABLE_LABELS: Record<TrashTable, { one: string; many: string }> = {
-  pages: { one: 'Page', many: 'Pages' },
-  assignments: { one: 'Assignment', many: 'Assignments' },
-  events: { one: 'Event', many: 'Events' },
-  files: { one: 'File', many: 'Files' },
-};
+/** What each kind is called: `item` beside one deleted item ("Page"), `filter` on the button that shows only that kind ("Pages"). */
+export const TABLE_LABELS = {
+  pages: { item: 'onboarding.trash.kinds.page', filter: 'onboarding.trash.chips.pages' },
+  assignments: { item: 'onboarding.trash.kinds.assignment', filter: 'onboarding.trash.chips.assignments' },
+  events: { item: 'onboarding.trash.kinds.event', filter: 'onboarding.trash.chips.events' },
+  files: { item: 'onboarding.trash.kinds.file', filter: 'onboarding.trash.chips.files' },
+} as const satisfies Record<TrashTable, { item: MessageKey; filter: MessageKey }>;
 
 /** Everything in the trash, most recently deleted first. */
 export function trashItems(): TrashItem[] {
@@ -35,8 +37,8 @@ export function trashItems(): TrashItem[] {
     items.push({
       table: 'pages',
       id: p.id,
-      title: p.title || 'Untitled',
-      origin: path.length ? path.map((a) => a.title || 'Untitled').join(' › ') : null,
+      title: p.title || t('common.untitled'),
+      origin: path.length ? path.map((a) => a.title || t('common.untitled')).join(' › ') : null,
       emoji: p.icon || undefined,
       icon: 'page',
       deletedAt: p.deletedAt ?? 0,
@@ -47,7 +49,7 @@ export function trashItems(): TrashItem[] {
     items.push({
       table: 'assignments',
       id: a.id,
-      title: a.title || 'Untitled',
+      title: a.title || t('common.untitled'),
       origin: a.courseId ? (planner.courseById.get(a.courseId)?.name ?? null) : null,
       icon: 'assignment',
       color: planner.courseColor(a.courseId),
@@ -59,7 +61,7 @@ export function trashItems(): TrashItem[] {
     items.push({
       table: 'events',
       id: e.id,
-      title: e.title || 'Untitled',
+      title: e.title || t('common.untitled'),
       origin: null,
       icon: 'calendar',
       color: planner.eventColor(e),
@@ -80,11 +82,13 @@ export async function restoreItem(item: TrashItem) {
 }
 
 export async function deleteItem(item: TrashItem) {
-  const extra = item.table === 'pages' ? ' and its sub-pages' : '';
   const ok = await ui.confirm({
-    title: 'Delete Permanently?',
-    message: `“${item.title}”${extra} will be deleted. You can’t undo this.`,
-    confirmLabel: 'Delete',
+    title: t('onboarding.trash.deleteTitle'),
+    message:
+      item.table === 'pages'
+        ? t('onboarding.trash.deletePage', { title: item.title })
+        : t('onboarding.trash.deleteItem', { title: item.title }),
+    confirmLabel: t('common.actions.delete'),
     danger: true,
   });
   if (!ok) return;
@@ -96,9 +100,9 @@ export async function deleteItem(item: TrashItem) {
 export async function emptyTrash(count: number) {
   if (count === 0) return;
   const ok = await ui.confirm({
-    title: 'Empty the Trash?',
-    message: `${count} item${count === 1 ? '' : 's'} will be deleted, files included. You can’t undo this.`,
-    confirmLabel: 'Empty Trash',
+    title: t('onboarding.trash.emptyTitle'),
+    message: t('onboarding.trash.emptyMessage', { count }),
+    confirmLabel: t('onboarding.trash.emptyTrash'),
     danger: true,
   });
   if (!ok) return;

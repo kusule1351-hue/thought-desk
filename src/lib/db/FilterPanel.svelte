@@ -10,6 +10,8 @@
   import { tags } from '../tags.svelte';
   import { OPS, RELATIVE_DAYS } from './query';
   import { shortId, typeInfo } from './schema';
+  import { t } from '../i18n';
+  import Rich from '../i18n/Rich.svelte';
   import type { DbView, FilterRule, Property } from '../types';
 
   let { dbId, view }: { dbId: string; view: DbView } = $props();
@@ -42,9 +44,9 @@
 
   /** Choices a filter value can be (options, courses, tags, linked rows). */
   function choices(p: Property): { key: string; label: string; color?: string }[] {
-    if (p.type === 'tags') return tags.used.map((t) => ({ key: t, label: `#${t}`, color: tags.color(t) }));
+    if (p.type === 'tags') return tags.used.map((tag) => ({ key: tag, label: `#${tag}`, color: tags.color(tag) }));
     if (p.type === 'relation' && p.config.database) {
-      return databases.rowsOf(p.config.database).slice(0, 60).map((r) => ({ key: r.id, label: store.byId.get(r.id)?.title || 'Untitled' }));
+      return databases.rowsOf(p.config.database).slice(0, 60).map((r) => ({ key: r.id, label: store.byId.get(r.id)?.title || t('common.untitled') }));
     }
     return databases.groupsFor(p);
   }
@@ -60,29 +62,30 @@
     {@const p = databases.prop(dbId, rule.prop)}
     {@const info = opsFor(p).find((o) => o.op === rule.op)}
     <div class="rule">
-      <span class="lead">{i === 0 ? 'Where' : (view.config.match ?? 'all') === 'all' ? 'and' : 'or'}</span>
-      <select class="pop-input" value={rule.prop} onchange={(e) => setProp(rule, (e.currentTarget as HTMLSelectElement).value)} aria-label="Property">
-        {#if !p}<option value={rule.prop} disabled>Deleted property</option>{/if}
+      <span class="lead">{i === 0 ? t('dbEdit.filter.where') : (view.config.match ?? 'all') === 'all' ? t('dbEdit.filter.and') : t('dbEdit.filter.or')}</span>
+      <select class="pop-input" value={rule.prop} onchange={(e) => setProp(rule, (e.currentTarget as HTMLSelectElement).value)} aria-label={t('dbEdit.filter.property')}>
+        {#if !p}<option value={rule.prop} disabled>{t('dbEdit.filter.deletedProperty')}</option>{/if}
         {#each allProps as q (q.id)}<option value={q.id}>{q.name || typeInfo(q.type).label}</option>{/each}
       </select>
-      <select class="pop-input op" value={rule.op} onchange={(e) => patch(rule.id, { op: (e.currentTarget as HTMLSelectElement).value })} aria-label="Test">
+      <select class="pop-input op" value={rule.op} onchange={(e) => patch(rule.id, { op: (e.currentTarget as HTMLSelectElement).value })} aria-label={t('dbEdit.filter.test')}>
         {#each opsFor(p) as o (o.op)}<option value={o.op}>{o.label}</option>{/each}
       </select>
-      <button class="icon-btn small" onclick={() => save(rules.filter((r) => r.id !== rule.id))} aria-label="Remove filter" data-tip="Remove"><Icon name="x" size={13} /></button>
+      <button class="icon-btn small" onclick={() => save(rules.filter((r) => r.id !== rule.id))} aria-label={t('dbEdit.filter.remove')} data-tip={t('common.actions.remove')}><Icon name="x" size={13} /></button>
     </div>
     {#if p && info && info.input !== 'none'}
       <div class="value">
         {#if info.input === 'text'}
-          <input class="pop-input" value={(rule.value as string) ?? ''} placeholder="Type a value" oninput={(e) => patch(rule.id, { value: (e.currentTarget as HTMLInputElement).value })} aria-label="Value" />
+          <input class="pop-input" value={(rule.value as string) ?? ''} placeholder={t('dbEdit.filter.typeValue')} oninput={(e) => patch(rule.id, { value: (e.currentTarget as HTMLInputElement).value })} aria-label={t('dbEdit.filter.value')} />
         {:else if info.input === 'number'}
-          <input class="pop-input" type="number" value={(rule.value as number) ?? ''} placeholder="A number" oninput={(e) => {
+          <input class="pop-input" type="number" value={(rule.value as number) ?? ''} placeholder={t('dbEdit.filter.aNumber')} oninput={(e) => {
             const v = (e.currentTarget as HTMLInputElement).value;
             patch(rule.id, { value: v === '' ? undefined : Number(v) });
-          }} aria-label="Value" />
+          }} aria-label={t('dbEdit.filter.value')} />
         {:else if info.input === 'days'}
           <div class="days">
-            <input class="pop-input" type="number" min="0" value={(rule.value as number) ?? 7} oninput={(e) => patch(rule.id, { value: Number((e.currentTarget as HTMLInputElement).value) })} aria-label="Days" />
-            <span>days</span>
+            <Rich key="dbEdit.filter.days" params={{ count: typeof rule.value === 'number' ? rule.value : 7 }}>
+              {#snippet input()}<input class="pop-input" type="number" min="0" value={(rule.value as number) ?? 7} oninput={(e) => patch(rule.id, { value: Number((e.currentTarget as HTMLInputElement).value) })} aria-label={t('dbEdit.filter.daysLabel')} />{/snippet}
+            </Rich>
           </div>
         {:else if info.input === 'date'}
           {@const rel = RELATIVE_DAYS.some((r) => r.key === rule.value)}
@@ -90,13 +93,13 @@
             <select class="pop-input" value={rel ? (rule.value as string) : rule.value ? 'exact' : ''} onchange={(e) => {
               const v = (e.currentTarget as HTMLSelectElement).value;
               patch(rule.id, { value: v === 'exact' ? databases.ctx(dbId).today : v || undefined });
-            }} aria-label="Day">
-              <option value="" disabled>Choose a day</option>
+            }} aria-label={t('dbEdit.filter.day')}>
+              <option value="" disabled>{t('dbEdit.filter.chooseDay')}</option>
               {#each RELATIVE_DAYS as r (r.key)}<option value={r.key}>{r.label}</option>{/each}
-              <option value="exact">A date…</option>
+              <option value="exact">{t('dbEdit.filter.exactDate')}</option>
             </select>
             {#if rule.value && !rel}
-              <input class="pop-input" type="date" value={rule.value as string} onchange={(e) => patch(rule.id, { value: (e.currentTarget as HTMLInputElement).value })} aria-label="Date" />
+              <input class="pop-input" type="date" value={rule.value as string} onchange={(e) => patch(rule.id, { value: (e.currentTarget as HTMLInputElement).value })} aria-label={t('dbEdit.date.field')} />
             {/if}
           </div>
         {:else if info.input === 'options'}
@@ -107,25 +110,25 @@
                 {#if on}<Icon name="check" size={11} stroke={2.6} />{/if}<span>{c.label}</span>
               </button>
             {:else}
-              <span class="none">Nothing to choose from yet</span>
+              <span class="none">{t('dbEdit.filter.nothingToChoose')}</span>
             {/each}
           </div>
         {/if}
       </div>
     {/if}
   {:else}
-    <p class="empty">Show only the rows you need: “Status is Done”, “Due is within the next 7 days”…</p>
+    <p class="empty">{t('dbEdit.filter.empty')}</p>
   {/each}
 
   <div class="foot">
-    <button class="pop-item add" onclick={() => add()}><Icon name="plus" size={14} /><span class="grow">Add a filter</span></button>
+    <button class="pop-item add" onclick={() => add()}><Icon name="plus" size={14} /><span class="grow">{t('dbEdit.filter.add')}</span></button>
     {#if rules.length > 1}
       <Segmented
-        label="Rows must match"
+        label={t('dbEdit.filter.match')}
         value={view.config.match ?? 'all'}
         options={[
-          { value: 'all', label: 'All' },
-          { value: 'any', label: 'Any' },
+          { value: 'all', label: t('dbEdit.filter.matchAll') },
+          { value: 'any', label: t('dbEdit.filter.matchAny') },
         ]}
         onchange={(v) => databases.updateView(dbId, view.id, { match: v as 'all' | 'any' })}
       />

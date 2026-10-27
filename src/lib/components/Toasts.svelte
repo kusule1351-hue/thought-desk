@@ -2,22 +2,23 @@
   import Icon from './Icon.svelte';
   import { fadeOut, pop } from '../motion';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
 </script>
 
 <div class="toasts" aria-live="polite">
-  {#each ui.toasts as t (t.id)}
+  {#each ui.toasts as toast (toast.id)}
     <div class="toast round" in:pop|global={{ y: 10, scale: 0.94, duration: 320 }} out:fadeOut|global={{ duration: 160 }}>
-      <span class="msg">{t.message}</span>
-      {#if t.action}
+      <span class="msg">{toast.message}</span>
+      {#if toast.action}
         <button
           class="act round"
           onclick={() => {
-            t.action?.();
-            ui.dismissToast(t.id);
-          }}>{t.actionLabel}</button
+            toast.action?.();
+            ui.dismissToast(toast.id);
+          }}>{toast.actionLabel}</button
         >
       {/if}
-      <button class="x round" onclick={() => ui.dismissToast(t.id)} aria-label="Dismiss"><Icon name="x" size={13} stroke={2.2} /></button>
+      <button class="x round" onclick={() => ui.dismissToast(toast.id)} aria-label={t('shell.toasts.dismiss')}><Icon name="x" size={13} stroke={2.2} /></button>
     </div>
   {/each}
 </div>

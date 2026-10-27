@@ -1,11 +1,13 @@
 import { Extension, type Editor } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { fileUrl } from '../api';
+import { t } from '../i18n';
 import { library, pickFiles } from '../library.svelte';
 import { ui } from '../ui.svelte';
 import type { FileMeta } from '../types';
 
-const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+const MAX_IMAGE_MB = 25;
+const MAX_IMAGE_BYTES = MAX_IMAGE_MB * 1024 * 1024;
 
 export async function pickImageFile(): Promise<File | null> {
   return (await pickFiles({ multiple: false, accept: 'image/*' }))[0] ?? null;
@@ -30,7 +32,7 @@ export function insertFiles(editor: Editor, files: FileMeta[], pos?: number) {
 export async function insertUploads(editor: Editor, files: File[], pos?: number) {
   const ok = files.filter((f) => {
     if (f.type.startsWith('image/') && f.size > MAX_IMAGE_BYTES) {
-      ui.toast('Images must be smaller than 25 MB');
+      ui.toast(t('blocks.images.tooLarge', { size: t('common.units.megabytes', { size: MAX_IMAGE_MB }) }));
       return false;
     }
     return true;

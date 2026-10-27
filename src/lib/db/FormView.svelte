@@ -17,6 +17,8 @@
   import { planner } from '../planner.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
   import { formatDateValue, options, typeInfo } from './schema';
   import type { CellValue, DateValue, DbRow, DbView, Property } from '../types';
 
@@ -30,7 +32,7 @@
       return p && FORM_TYPES.has(p.type) ? [{ prop: p, required: !!f.required }] : [];
     }),
   );
-  const dbTitle = $derived(store.byId.get(dbId)?.title || 'Untitled database');
+  const dbTitle = $derived(store.byId.get(dbId)?.title || t('common.untitledDatabase'));
 
   /** Typed answers (text, numbers, links, tags) and picked ones (choices, dates…). */
   let texts = $state<Record<string, string>>({});
@@ -58,7 +60,7 @@
     let tagList: string[] = [];
     for (const { prop: p, required } of fields) {
       if (required && !answered(p) && p.type !== 'checkbox') {
-        next[p.id] = 'Please answer this';
+        next[p.id] = t('dbViews.form.answerRequired');
         continue;
       }
       if (p.type === 'title') title = (texts[p.id] ?? '').trim();
@@ -67,7 +69,7 @@
         const raw = texts[p.id] ?? '';
         if (!raw.trim()) continue;
         const v = databases.parse(raw, p);
-        if (p.type === 'number' && v === null) next[p.id] = `“${raw.trim()}” isn’t a number`;
+        if (p.type === 'number' && v === null) next[p.id] = t('dbViews.form.notANumber', { text: raw.trim() });
         else cells[p.id] = v;
       } else if (answered(p)) cells[p.id] = $state.snapshot(values[p.id]) as CellValue;
     }
@@ -111,7 +113,7 @@
       e.currentTarget as Element,
       unused.length
         ? unused.map((p) => ({ label: p.name, icon: typeInfo(p.type).icon, action: () => patch({ fields: [...form.fields, { prop: p.id }] }) }))
-        : [{ header: 'Every property is already on the form' }],
+        : [{ header: t('dbViews.form.allPropertiesUsed') }],
     );
   }
 
@@ -132,32 +134,52 @@
 
   const inputType = (p: Property) => (p.type === 'email' ? 'email' : p.type === 'url' ? 'url' : p.type === 'phone' ? 'tel' : 'text');
   const placeholder = (p: Property) =>
-    p.type === 'tags' ? 'Tags, separated by commas' : p.type === 'number' ? '0' : p.type === 'url' ? 'https://' : p.type === 'title' ? 'Name' : 'Your answer';
+    p.type === 'tags'
+      ? t('dbViews.form.tagsPlaceholder')
+      : p.type === 'number'
+        ? '0'
+        : p.type === 'url'
+          ? 'https://'
+          : p.type === 'title'
+            ? t('common.name')
+            : t('dbViews.form.answerPlaceholder');
+
+  /** The heading once a row is added: its title, if it was given one. */
+  const addedHeading = (row: DbRow) => {
+    const title = store.byId.get(row.id)?.title;
+    return title ? t('dbViews.form.addedTitle', { title, database: dbTitle }) : t('dbViews.form.added', { database: dbTitle });
+  };
+
+  /** A relation question before rows are picked: the database they come from. */
+  const linkHint = (p: Property) => {
+    const title = store.byId.get(p.config.database ?? '')?.title;
+    return title ? t('dbViews.form.linkTo', { database: title }) : t('dbViews.form.linkToRows');
+  };
 </script>
 
 <div class="form-wrap">
   <div class="form" class:editing>
     <div class="top">
       {#if editing}
-        <input class="f-title-input" value={form.title ?? ''} placeholder={dbTitle} oninput={(e) => patch({ title: (e.currentTarget as HTMLInputElement).value })} aria-label="Form title" />
-        <textarea class="f-intro-input" rows="2" value={form.intro ?? ''} placeholder="A note for whoever fills it in (optional)" oninput={(e) => patch({ intro: (e.currentTarget as HTMLTextAreaElement).value })} aria-label="Introduction"></textarea>
+        <input class="f-title-input" value={form.title ?? ''} placeholder={dbTitle} oninput={(e) => patch({ title: (e.currentTarget as HTMLInputElement).value })} aria-label={t('dbViews.form.titleLabel')} />
+        <textarea class="f-intro-input" rows="2" value={form.intro ?? ''} placeholder={t('dbViews.form.introPlaceholder')} oninput={(e) => patch({ intro: (e.currentTarget as HTMLTextAreaElement).value })} aria-label={t('dbViews.form.introLabel')}></textarea>
       {:else}
         <h2 class="f-title">{form.title || dbTitle}</h2>
         {#if form.intro}<p class="f-intro">{form.intro}</p>{/if}
       {/if}
       <button class="btn small raised edit-btn" onclick={() => (editing = !editing)}>
         <Icon name={editing ? 'check' : 'pencil'} size={13} />
-        {editing ? 'Done' : 'Edit form'}
+        {editing ? t('common.actions.done') : t('dbViews.form.edit')}
       </button>
     </div>
 
     {#if sent && !editing}
       <div class="sent">
         <span class="sent-icon"><Icon name="check" size={20} stroke={2.4} /></span>
-        <h3>Added{store.byId.get(sent.id)?.title ? ` “${store.byId.get(sent.id)?.title}”` : ''} to {dbTitle}</h3>
+        <h3>{addedHeading(sent)}</h3>
         <div class="sent-actions">
-          <button class="btn small primary" onclick={() => (sent = null)}>Add another</button>
-          <button class="btn small raised" onclick={() => sent && store.open(sent.id)}>Open it</button>
+          <button class="btn small primary" onclick={() => (sent = null)}>{t('dbViews.form.addAnother')}</button>
+          <button class="btn small raised" onclick={() => sent && store.open(sent.id)}>{t('dbViews.form.openIt')}</button>
         </div>
       </div>
     {:else}
@@ -173,14 +195,14 @@
           <div class="q" class:bad={!!errors[p.id]}>
             <div class="q-row">
               <label class="q-label" for="ff-{p.id}">
-                {p.name}{#if f.required}<span class="req" aria-label="required">*</span>{/if}
+                {p.name}{#if f.required}<span class="req" aria-label={t('dbViews.form.requiredMark')}>*</span>{/if}
               </label>
               {#if editing}
                 <span class="tools">
-                  <span class="req-switch"><span>Required</span><Switch on={f.required} label="Required" onchange={() => setField(i, { required: !f.required })} /></span>
-                  <button type="button" class="icon-btn" onclick={() => moveField(i, -1)} disabled={i === 0} aria-label="Move up" data-tip="Move up"><Icon name="arrow-up" size={13} /></button>
-                  <button type="button" class="icon-btn" onclick={() => moveField(i, 1)} disabled={i === form.fields.length - 1} aria-label="Move down" data-tip="Move down"><Icon name="arrow-down" size={13} /></button>
-                  <button type="button" class="icon-btn" onclick={() => patch({ fields: form.fields.filter((_, j) => j !== i) })} aria-label="Remove question" data-tip="Remove"><Icon name="x" size={13} /></button>
+                  <span class="req-switch"><span>{t('dbViews.form.required')}</span><Switch on={f.required} label={t('dbViews.form.required')} onchange={() => setField(i, { required: !f.required })} /></span>
+                  <button type="button" class="icon-btn" onclick={() => moveField(i, -1)} disabled={i === 0} aria-label={t('dbViews.form.moveUp')} data-tip={t('dbViews.form.moveUp')}><Icon name="arrow-up" size={13} /></button>
+                  <button type="button" class="icon-btn" onclick={() => moveField(i, 1)} disabled={i === form.fields.length - 1} aria-label={t('dbViews.form.moveDown')} data-tip={t('dbViews.form.moveDown')}><Icon name="arrow-down" size={13} /></button>
+                  <button type="button" class="icon-btn" onclick={() => patch({ fields: form.fields.filter((_, j) => j !== i) })} aria-label={t('dbViews.form.removeQuestion')} data-tip={t('common.actions.remove')}><Icon name="x" size={13} /></button>
                 </span>
               {/if}
             </div>
@@ -207,64 +229,64 @@
                     {#if on}<Icon name="check" size={13} stroke={2.4} />{/if}
                   </button>
                 {:else}
-                  <span class="none">No choices yet: add some in the property’s settings.</span>
+                  <span class="none">{t('dbViews.form.noChoices')}</span>
                 {/each}
               </div>
             {:else if p.type === 'course'}
               <div class="choices" role="radiogroup" aria-label={p.name}>
                 {#each planner.courses as course (course.id)}
                   <button type="button" class="choice" class:on={values[p.id] === course.id} onclick={() => toggle(p, course.id)} role="radio" aria-checked={values[p.id] === course.id}>
-                    <span class="dot" style:--dot={colorVar(course.color)}></span>{course.name || 'Untitled'}
+                    <span class="dot" style:--dot={colorVar(course.color)}></span>{course.name || t('common.untitled')}
                     {#if values[p.id] === course.id}<Icon name="check" size={13} stroke={2.4} />{/if}
                   </button>
                 {:else}
-                  <span class="none">No courses yet.</span>
+                  <span class="none">{t('dbViews.form.noCourses')}</span>
                 {/each}
               </div>
             {:else if p.type === 'checkbox'}
               <div class="check-row">
                 <Switch on={values[p.id] === true} label={p.name} onchange={() => (values[p.id] = values[p.id] !== true)} />
-                <span>{values[p.id] === true ? 'Yes' : 'No'}</span>
+                <span>{values[p.id] === true ? t('common.yes') : t('common.no')}</span>
               </div>
             {:else if p.type === 'date'}
               <button type="button" id="ff-{p.id}" class="input pick" onclick={(e) => (picker = { prop: p, anchor: e.currentTarget as Element })}>
                 <Icon name="calendar" size={14} />
-                {#if values[p.id]}{formatDateValue(values[p.id] as DateValue)}{:else}<span class="ph">Pick a date</span>{/if}
+                {#if values[p.id]}{formatDateValue(values[p.id] as DateValue)}{:else}<span class="ph">{t('dbViews.form.pickDate')}</span>{/if}
               </button>
             {:else if p.type === 'relation'}
               {@const linked = databases.related(draft, p)}
               <button type="button" id="ff-{p.id}" class="input pick" onclick={(e) => (picker = { prop: p, anchor: e.currentTarget as Element })}>
                 <Icon name="relation" size={14} />
                 {#if linked.length}
-                  <span class="linked">{linked.map((r) => databases.title(r)).join(', ')}</span>
-                {:else}<span class="ph">Link to {store.byId.get(p.config.database ?? '')?.title || 'rows'}</span>{/if}
+                  <span class="linked">{fmt.list(linked.map((r) => databases.title(r)), 'conjunction', 'narrow')}</span>
+                {:else}<span class="ph">{linkHint(p)}</span>{/if}
               </button>
             {:else if p.type === 'files'}
               {@const ids = Array.isArray(values[p.id]) ? (values[p.id] as string[]) : []}
               <div class="files">
                 {#each ids as fid (fid)}
-                  <span class="file"><Icon name="paperclip" size={12} />{library.byId.get(fid)?.name ?? 'File'}<button type="button" class="x" onclick={() => (values[p.id] = ids.filter((x) => x !== fid))} aria-label="Remove"><Icon name="x" size={10} /></button></span>
+                  <span class="file"><Icon name="paperclip" size={12} />{library.byId.get(fid)?.name ?? t('dbViews.form.file')}<button type="button" class="x" onclick={() => (values[p.id] = ids.filter((x) => x !== fid))} aria-label={t('common.actions.remove')}><Icon name="x" size={10} /></button></span>
                 {/each}
-                <button type="button" class="btn small raised" onclick={(e) => addFiles(e, p)}><Icon name="plus" size={13} /> Add files</button>
+                <button type="button" class="btn small raised" onclick={(e) => addFiles(e, p)}><Icon name="plus" size={13} /> {t('dbViews.form.addFiles')}</button>
               </div>
             {/if}
             {#if errors[p.id]}<p class="error">{errors[p.id]}</p>{/if}
           </div>
         {:else}
-          <p class="none">This form has no questions yet. {editing ? '' : 'Click Edit form to add some.'}</p>
+          <p class="none">{editing ? t('dbViews.form.noQuestions') : t('dbViews.form.noQuestionsHint')}</p>
         {/each}
 
         {#if editing}
-          <button type="button" class="add-q" onclick={addQuestion}><Icon name="plus" size={14} /> Add a question</button>
+          <button type="button" class="add-q" onclick={addQuestion}><Icon name="plus" size={14} /> {t('dbViews.form.addQuestion')}</button>
           <div class="q">
-            <label class="q-label" for="ff-submit">Button</label>
-            <input id="ff-submit" class="input" value={form.submit ?? ''} placeholder="Submit" oninput={(e) => patch({ submit: (e.currentTarget as HTMLInputElement).value })} />
+            <label class="q-label" for="ff-submit">{t('dbViews.form.button')}</label>
+            <input id="ff-submit" class="input" value={form.submit ?? ''} placeholder={t('dbViews.form.submit')} oninput={(e) => patch({ submit: (e.currentTarget as HTMLInputElement).value })} />
           </div>
         {/if}
 
         <div class="actions">
-          <button type="submit" class="btn primary" disabled={busy || !fields.length}>{form.submit || 'Submit'}</button>
-          <span class="note">Adds a row to {dbTitle}</span>
+          <button type="submit" class="btn primary" disabled={busy || !fields.length}>{form.submit || t('dbViews.form.submit')}</button>
+          <span class="note">{t('dbViews.form.addsRowTo', { database: dbTitle })}</span>
         </div>
       </form>
     {/if}

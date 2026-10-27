@@ -6,6 +6,8 @@
   import RichText from '../ui/RichText.svelte';
   import { cards } from '../cards.svelte';
   import { clock } from '../clock.svelte';
+  import { t } from '../i18n';
+  import { fmt } from '../i18n/format';
   import { prefs } from '../prefs.svelte';
   import { GRADES, gapLabel, schedule, type Grade } from '../srs';
   import { store } from '../store.svelte';
@@ -136,18 +138,29 @@
   // The summary: how much was remembered the first time, and how long it took.
   const tries = $derived(Object.values(firstTry));
   const remembered = $derived(tries.length ? Math.round((tries.filter((g) => g > 1).length / tries.length) * 100) : 0);
-  const breakdown = $derived(GRADES.map((g) => ({ ...g, n: tries.filter((t) => t === g.grade).length })));
-  const nextLine = $derived(
-    [again ? `${again} needed another look.` : '', cards.dueCount ? `${cards.dueCount} more due today.` : 'Nothing else is due today.']
-      .filter(Boolean)
-      .join(' '),
-  );
+  const breakdown = $derived(GRADES.map((g) => ({ ...g, n: tries.filter((tried) => tried === g.grade).length })));
+  // What's left: how many needed another look (if any), then what's still due.
+  const nextLine = $derived.by(() => {
+    const due = t('library.study.moreDue', { count: cards.dueCount });
+    if (!again) return due;
+    return t('library.study.twoSentences', { first: t('library.study.neededAnotherLook', { count: again }), second: due });
+  });
   const duration = $derived.by(() => {
     const s = Math.max(1, Math.round(((finishedAt || Date.now()) - started) / 1000));
-    if (s < 60) return `${s} s`;
+    if (s < 60) return t('library.study.seconds', { count: s });
     const m = Math.round(s / 60);
-    return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+    return m < 60 ? t('library.study.minutes', { count: m }) : t('library.study.hoursMinutes', { hours: Math.floor(m / 60), minutes: m % 60 });
   });
+  /** Above the question: a card seen before or a new one, and whether the sides are swapped. */
+  const eyebrow = $derived(
+    card?.review
+      ? prefs.studyReverse
+        ? t('library.study.reviewAnswerFirst')
+        : t('library.study.review')
+      : prefs.studyReverse
+        ? t('library.study.newAnswerFirst')
+        : t('library.study.new'),
+  );
 </script>
 
 <svelte:window onkeydown={onKey} />
@@ -156,19 +169,19 @@
   {#if nodes.length}<RichText {nodes} />{:else}<span class="missing">{empty}</span>{/if}
 {/snippet}
 
-<Modal onclose={close} width={600} label="Study {title}">
+<Modal onclose={close} width={600} label={t('library.study.label', { title })}>
   <header class="modal-head">
     <h2>{title}</h2>
     <div class="options">
-      <button class="icon-btn" class:on={prefs.studyShuffle} onclick={toggleShuffle} aria-pressed={prefs.studyShuffle} data-tip={prefs.studyShuffle ? 'Shuffled' : 'Shuffle'}>
+      <button class="icon-btn" class:on={prefs.studyShuffle} onclick={toggleShuffle} aria-pressed={prefs.studyShuffle} data-tip={prefs.studyShuffle ? t('library.study.shuffled') : t('library.study.shuffle')}>
         <Icon name="shuffle" size={15} />
       </button>
-      <button class="icon-btn" class:on={prefs.studyReverse} onclick={toggleReverse} aria-pressed={prefs.studyReverse} data-tip={prefs.studyReverse ? 'Answer first (on)' : 'Answer first'}>
+      <button class="icon-btn" class:on={prefs.studyReverse} onclick={toggleReverse} aria-pressed={prefs.studyReverse} data-tip={prefs.studyReverse ? t('library.study.answerFirstOn') : t('library.study.answerFirst')}>
         <Icon name="swap" size={15} />
       </button>
     </div>
-    {#if card}<span class="progress-text">{learned} of {total}</span>{/if}
-    <button class="icon-btn" onclick={close} aria-label="Close"><Icon name="x" /></button>
+    {#if card}<span class="progress-text">{t('library.study.progress', { learned, total })}</span>{/if}
+    <button class="icon-btn" onclick={close} aria-label={t('common.actions.close')}><Icon name="x" /></button>
   </header>
   <div class="bar" class:hidden={!card} role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={learned}>
     <span style:width="{(learned / Math.max(1, total)) * 100}%"></span>
@@ -181,13 +194,13 @@
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
           <div class="flip" class:flipped onclick={() => (flipped = true)}>
             <div class="face" aria-hidden={flipped}>
-              <div class="eyebrow">{card.review ? 'Review' : 'New'}{prefs.studyReverse ? ' · Answer first' : ''}</div>
-              <div class="question">{@render side(question, 'Nothing written on this side')}</div>
+              <div class="eyebrow">{eyebrow}</div>
+              <div class="question">{@render side(question, t('library.study.nothingWritten'))}</div>
             </div>
             <div class="face back" aria-hidden={!flipped}>
               <div class="asked">{@render side(question, '')}</div>
               <div class="divider"></div>
-              <div class="answer">{@render side(answerSide, '(No answer written)')}</div>
+              <div class="answer">{@render side(answerSide, t('library.study.noAnswer'))}</div>
             </div>
           </div>
           {#if source}
@@ -199,7 +212,7 @@
               }}
             >
               {#if source.icon}<span><PageIcon icon={source.icon} /></span>{:else}<Icon name="page" size={12} />{/if}
-              {source.title || 'Untitled'}
+              {source.title || t('common.untitled')}
             </button>
           {/if}
         </div>
@@ -207,14 +220,14 @@
     {:else}
       <div class="done">
         <span class="done-icon"><Icon name="check-circle" size={28} /></span>
-        <h3>Session complete</h3>
+        <h3>{t('library.study.complete')}</h3>
         <p class="summary">
-          {total} card{total === 1 ? '' : 's'} · {remembered}% remembered · {duration}
+          {t('library.study.summary', { count: total, percent: remembered, duration })}
         </p>
-        <div class="breakdown" aria-label="How the cards went the first time">
+        <div class="breakdown" aria-label={t('library.study.breakdown')}>
           {#each breakdown as g (g.grade)}
             <div class="tally g{g.grade}">
-              <strong>{g.n}</strong>
+              <strong>{fmt.number(g.n)}</strong>
               <span>{g.label}</span>
             </div>
           {/each}
@@ -226,18 +239,18 @@
 
   <footer class="modal-foot">
     {#if history.length}
-      <button class="btn small undo" onclick={undo} disabled={busy} data-tip="Take back the last answer" data-tip-key="{MOD} Z">
-        <Icon name="undo" size={14} stroke={2} /> Undo
+      <button class="btn small undo" onclick={undo} disabled={busy} data-tip={t('library.study.undoTip')} data-tip-key="{MOD} Z">
+        <Icon name="undo" size={14} stroke={2} /> {t('library.study.undo')}
       </button>
     {:else if card}
-      <span>{flipped ? 'How well did you know it?' : 'Space to show the answer'}</span>
+      <span>{flipped ? t('library.study.howWell') : t('library.study.spaceToShow')}</span>
     {:else}
       <span></span>
     {/if}
     {#if !card}
-      <div class="actions"><button class="btn small primary" onclick={close}>Done</button></div>
+      <div class="actions"><button class="btn small primary" onclick={close}>{t('library.study.done')}</button></div>
     {:else if !flipped}
-      <div class="actions"><button class="btn small primary" onclick={() => (flipped = true)}>Show Answer</button></div>
+      <div class="actions"><button class="btn small primary" onclick={() => (flipped = true)}>{t('library.study.showAnswer')}</button></div>
     {:else}
       <div class="grades">
         {#each GRADES as g, i (g.grade)}
