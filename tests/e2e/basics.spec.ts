@@ -113,6 +113,27 @@ test('Home, capture, tags and backlinks', async ({ page }) => {
   });
 });
 
+test('every list item shows its bullet or number, not only the one being typed in', async ({ page }) => {
+  await open(page, '?fresh');
+  await page.keyboard.press('Control+n');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('- apples\nbananas\n\n1. first\nsecond\n\nThe caret is down here.');
+  // Items out of the caret's way skip drawing until needed, which clips anything
+  // drawn outside their own box: the marker must sit inside it (#29).
+  const markers = await page.evaluate(() =>
+    [...document.querySelectorAll('.prose > ul:not([data-type]) > li, .prose > ol > li')].map((li) => ({
+      left: parseFloat(getComputedStyle(li, '::before').left),
+      drawn: getComputedStyle(li, '::before').content !== 'none',
+    })),
+  );
+  expect(markers).toHaveLength(4);
+  for (const m of markers) {
+    expect(m.drawn).toBe(true);
+    expect(m.left).toBeGreaterThanOrEqual(0);
+  }
+  await expect(page.locator('.prose > ol > li').first()).toHaveCSS('list-style-type', 'none');
+});
+
 test('keys typed straight after Enter land in order', async ({ page }) => {
   await open(page, '?fresh');
   await page.keyboard.press('Control+n');

@@ -1385,6 +1385,33 @@ html.printing .prose > :is(ul, ol) > li {
 .prose ol ol ol {
   list-style-type: lower-roman;
 }
+/* A top-level list item skips drawing while out of sight (content-visibility
+   above), which also clips anything it draws outside its own box: its bullet
+   or number. So its box reaches back over the list's indent, and the marker
+   is drawn inside it. Nested items sit inside their parent's box already. */
+.prose > :is(ul, ol):not([data-type='taskList']) > li {
+  position: relative;
+  margin-left: -1.625em;
+  padding-left: 1.625em;
+}
+.prose > ul:not([data-type='taskList']) > li::before {
+  left: 0.625em;
+}
+.prose > ol > li {
+  list-style: none;
+}
+.prose > ol > li::before {
+  /* The list's own count, so a list that starts at 3 still does. */
+  content: counter(list-item) '.';
+  position: absolute;
+  top: 1px;
+  left: 0;
+  width: 1.3em;
+  text-align: right;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
 
 /* To-do lists */
 .prose ul[data-type='taskList'] {

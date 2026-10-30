@@ -119,7 +119,9 @@ class HandleView {
     const centerY = (lineEl !== target.dom || target.node.isTextblock ? lineRect.top + padTop : rect.top) + firstLine / 2 + optical;
 
     const top = centerY - hostRect.top - 12;
-    const left = rect.left - hostRect.left - 48 - (ITEM_TYPES.has(target.node.type.name) ? 18 : 0);
+    // A top-level list item's box reaches back over its bullet (app.css), so the handle lines up with its text.
+    const edge = target.node.type.name === 'listItem' ? (target.dom.firstElementChild?.getBoundingClientRect().left ?? rect.left) : rect.left;
+    const left = edge - hostRect.left - 48 - (ITEM_TYPES.has(target.node.type.name) ? 18 : 0);
     this.root.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
     this.root.classList.add('visible');
   }
