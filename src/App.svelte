@@ -61,6 +61,8 @@
   import StudySheet from './lib/sheets/StudySheet.svelte';
   import FlashcardsView from './lib/views/FlashcardsView.svelte';
   import FriendsView from './lib/views/FriendsView.svelte';
+  import GalaxyView from './lib/views/GalaxyView.svelte';
+  import GalaxyIntro from './lib/views/GalaxyIntro.svelte';
   import { cards } from './lib/cards.svelte';
   import { databases } from './lib/databases.svelte';
   import DatabaseView from './lib/db/DatabaseView.svelte';
@@ -127,6 +129,7 @@
     goFiles: () => store.go('files'),
     goCards: () => store.go('cards'),
     goFriends: () => store.go('friends'),
+    goGalaxy: () => store.go('galaxy'),
     zoomIn,
     zoomOut,
     zoomReset,
@@ -372,7 +375,7 @@
     <div class="panes" class:split={showSplit || previewing} style:padding-right={makeRoom ? `${makeRoom}px` : null} bind:clientWidth={panesWidth}>
     <!-- Clicking or focusing a side marks it as the one in use (not an action). -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="scroller" class:active={showSplit && activePane === 'main'} class:targeted={split.preview === 'main'} onfocusin={() => (activePane = 'main')} onpointerdown={() => (activePane = 'main')} data-nav={store.navDirection} bind:this={scroller} use:paneSize onscroll={() => (scrolled = (scroller?.scrollTop ?? 0) > 2)}>
+    <div class="scroller" class:active={showSplit && activePane === 'main'} class:fill={store.view === 'galaxy' && prefs.galaxyOn} class:targeted={split.preview === 'main'} onfocusin={() => (activePane = 'main')} onpointerdown={() => (activePane = 'main')} data-nav={store.navDirection} bind:this={scroller} use:paneSize onscroll={() => (scrolled = (scroller?.scrollTop ?? 0) > 2)}>
       {#if store.view === 'home'}
         {#if planner.loaded && library.loaded}<HomeView />{/if}
       {:else if store.view === 'tag' && store.tag}
@@ -391,6 +394,8 @@
         <FlashcardsView />
       {:else if store.view === 'friends'}
         <FriendsView />
+      {:else if store.view === 'galaxy'}
+        {#if !prefs.galaxyOn}<GalaxyIntro />{:else if planner.loaded}<GalaxyView />{/if}
       {:else if store.view === 'page' && store.current?.kind === 'database'}
         {#if databases.loaded}
           {#key store.currentId}<DatabaseView id={store.current.id} />{/key}
@@ -563,6 +568,11 @@
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-gutter: stable;
+  }
+  /* A view that fills the pane edge to edge (the Galaxy's sky) has nothing to scroll. */
+  .scroller.fill {
+    overflow: hidden;
+    scrollbar-gutter: auto;
   }
   /* Split view, after tiling window managers: each side is a rounded card
      on the sidebar's colour, the gap between them is the divider, and the

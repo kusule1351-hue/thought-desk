@@ -284,6 +284,21 @@ pub fn backlinks(db: State<Db>, id: String) -> Result<Vec<String>> {
 }
 
 #[tauri::command(async)]
+pub fn link_graph(db: State<Db>) -> Result<Vec<(String, String)>> {
+    db.link_graph()
+}
+
+#[tauri::command(async)]
+pub fn page_words(db: State<Db>) -> Result<Vec<(String, u32)>> {
+    db.page_words()
+}
+
+#[tauri::command(async)]
+pub fn galaxy_seed(db: State<Db>) -> Result<u32> {
+    db.galaxy_seed()
+}
+
+#[tauri::command(async)]
 pub fn list_todos(db: State<Db>) -> Result<Vec<Todo>> {
     db.list_todos()
 }

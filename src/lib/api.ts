@@ -110,6 +110,12 @@ export const api = {
   /** Renames a tag everywhere, or deletes it with `to = null`. */
   renameTag: (from: string, to: string | null) => invoke<void>('rename_tag', { from, to }),
   backlinks: (id: string) => invoke<string[]>('backlinks', { id }),
+  /** Every link from one live page to another, as [from, to] page ids. */
+  linkGraph: () => invoke<[string, string][]>('link_graph'),
+  /** How many words each live page has, as [page id, words]; pages with none are left out. */
+  pageWords: () => invoke<[string, number][]>('page_words'),
+  /** A number of this workspace's own that never changes, for the shape of its galaxy. */
+  galaxySeed: () => invoke<number>('galaxy_seed'),
   listTodos: () => invoke<Todo[]>('list_todos'),
   setTodo: (pageId: string, index: number, key: string, checked: boolean) =>
     invoke<number>('set_todo', { pageId, index, key, checked }),

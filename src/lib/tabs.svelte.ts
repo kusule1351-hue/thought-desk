@@ -30,6 +30,7 @@ const VIEW_LABELS: Record<AppView, { title: Exclude<MessageKey, PluralKey>; icon
   files: { title: 'common.views.files', icon: 'files' },
   cards: { title: 'common.views.flashcards', icon: 'cards' },
   friends: { title: 'common.views.friends', icon: 'users' },
+  galaxy: { title: 'common.views.galaxy', icon: 'galaxy' },
 };
 
 const KNOWN_VIEWS = new Set<string>(['page', 'tag', 'course', ...VIEWS]);

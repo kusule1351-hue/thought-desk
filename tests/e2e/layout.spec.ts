@@ -16,6 +16,7 @@ const VIEWS: [string, (page: Page) => Promise<unknown>][] = [
   ],
   ['Files', (p) => p.click('.sidebar >> text=Files')],
   ['Flashcards', (p) => p.click('.sidebar >> text=Flashcards')],
+  ['Galaxy', (p) => p.click('.sidebar >> text=Galaxy')],
   ['a course', (p) => p.click('.sidebar >> text=Biology')],
   ['a tag', (p) => p.click('.sidebar >> text=#exam')],
   ['a database', (p) => p.click('.sidebar .db-row >> text=Reading list')],

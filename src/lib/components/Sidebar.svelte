@@ -88,6 +88,7 @@
     { view: 'files', label: t('common.views.files'), icon: 'files', key: 'goFiles' },
     { view: 'cards', label: t('common.views.flashcards'), icon: 'cards', key: 'goCards' },
     { view: 'friends', label: t('common.views.friends'), icon: 'users', key: 'goFriends' },
+    { view: 'galaxy', label: t('common.views.galaxy'), icon: 'galaxy', key: 'goGalaxy' },
   ];
   const shownNav = $derived(nav.filter((n) => shownInSidebar(n.view)));
   const searchKeys = $derived(shortcuts.combos('search')[0] ? comboKeys(shortcuts.combos('search')[0]).join(' ') : '');

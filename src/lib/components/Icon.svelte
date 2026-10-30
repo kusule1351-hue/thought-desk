@@ -27,6 +27,8 @@
     cards: '<rect x="2" y="7" width="15" height="13" rx="2"/><path d="M7 4h11a2 2 0 0 1 2 2v9"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
     users: '<circle cx="9" cy="8" r="4"/><path d="M17 21a8 8 0 0 0-16 0"/><path d="M16 4.13a4 4 0 0 1 0 7.74"/><path d="M23 21a8 8 0 0 0-4.5-7.2"/>',
+    galaxy:
+      '<circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12.8 14.9C11.7 15.5 10.1 15.5 8.8 14.5C7.5 13.4 6.7 11.4 7.3 9.3C7.9 7.2 10 5.1 13 4.8C15.9 4.4 19.5 6 21.5 9.5"/><path d="M11.2 9.1C12.3 8.5 13.9 8.5 15.2 9.5C16.5 10.6 17.3 12.6 16.7 14.7C16.1 16.8 14 18.9 11 19.2C8.1 19.6 4.5 18 2.5 14.5"/><circle cx="19" cy="19.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="5" cy="4.5" r="1.1" fill="currentColor" stroke="none"/>',
     mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
     copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
     clipboard: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',

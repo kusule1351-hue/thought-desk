@@ -17,6 +17,7 @@ How Thought Desk stays small and fast, and how it was tested. For the short vers
 - **Only one editor is alive at a time.** Opening a page destroys the previous editor; the sidebar only loads page titles, never bodies.
 - **Trims itself when minimized.** The Rust side hides and suspends the WebView and sets WebView2's memory target to *low*. Everything is restored when the window comes back. See `src-tauri/src/memory.rs`.
 - **Size-optimized release profile** (LTO, `opt-level = "s"`, stripped, `panic = "abort"`).
+- **The Galaxy is the one exception.** It draws your whole workspace on the GPU, so while it’s open it adds about 20 MB for a typical workspace and about 210 MB for one of 5,900 pages, given back when you leave. It holds still, so it uses no CPU while you look at it, and it’s off until you turn it on, after it says what it costs.
 
 ## Built for years of notes
 

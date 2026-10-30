@@ -28,6 +28,8 @@
     "@modClick": "hint beside Open in New Tab: the same happens when the page is clicked with this key held; {mod} is the key's name as keyboards in your language print it (Ctrl, Strg in German, or ⌘ on a Mac)",
     "altClick": "Alt+click",
     "@altClick": "hint beside Open to the Side: the same happens when the page is clicked with the Alt key held; write Alt as keyboards in your language print it, and click as in Open in New Tab's hint",
+    "showInGalaxy": "Show in Galaxy",
+    "@showInGalaxy": "page menu command that opens the Galaxy view (every page drawn as a star) centred on this page's star, with the pages it links to lit up",
     "duplicateWithRows": "with its rows",
     "@duplicateWithRows": "hint beside Duplicate in a database's menu: the copy has the database's rows too",
     "exportCsv": "Export as CSV",
@@ -156,5 +158,74 @@
     "@reservedName": "file name in an export for a page whose title Windows keeps for itself (CON, PRN, AUX…); {name} is that title. Avoid / \\ : * ? \" < > |",
     "missingImage": "[{alt}]",
     "@missingImage": "written in an exported Word document in place of a picture that couldn't be loaded; {alt} is the picture's description"
+  },
+  "galaxy": {
+    "stars": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    },
+    "@stars": "how many pages the Galaxy view shows, under its title; each page is drawn as a star, so they are counted as stars",
+    "links": {
+      "=0": "no links yet",
+      "one": "{count} link",
+      "other": "{count} links"
+    },
+    "@links": "how many links between pages the Galaxy view shows, beside the number of stars (lowercase: it follows that number)",
+    "find": "Find a page",
+    "@find": "placeholder of the search field in the Galaxy view; typing lights up the stars (pages) whose titles match",
+    "noMatch": "No page called “{query}”",
+    "@noMatch": "shown under the search field of the Galaxy view when no page title contains what was typed; {query} is what was typed",
+    "zoomIn": "Zoom in",
+    "@zoomIn": "tooltip of the + button in the Galaxy view",
+    "zoomOut": "Zoom out",
+    "@zoomOut": "tooltip of the − button in the Galaxy view",
+    "fit": "Show the whole galaxy",
+    "@fit": "tooltip of the button in the Galaxy view that zooms back out to every star",
+    "around": "Around “{title}”",
+    "@around": "label of the chip shown while the Galaxy view is centred on one page's star (after Show in Galaxy); {title} is that page's title",
+    "clearFocus": "Show every star",
+    "@clearFocus": "tooltip of the × on the Around “…” chip in the Galaxy view: stops lighting up one page and its links",
+    "open": "Open",
+    "@open": "button on the Around “…” chip in the Galaxy view that opens that page (a verb)",
+    "starLinks": {
+      "=0": "not linked yet",
+      "one": "linked with {count} page",
+      "other": "linked with {count} pages"
+    },
+    "@starLinks": "line in the card shown when the pointer is over a star in the Galaxy view: how many other pages this page links to or is linked from",
+    "words": {
+      "=0": "no words yet",
+      "one": "{count} word",
+      "other": "{count} words"
+    },
+    "@words": "line in the card shown when the pointer is over a star in the Galaxy view: how many words the page holds (a database: its rows together); it comes before how many pages it's linked with, so it's lowercase",
+    "starLabel": {
+      "=0": "{title}, not linked yet",
+      "one": "{title}, linked with {count} page",
+      "other": "{title}, linked with {count} pages"
+    },
+    "@starLabel": "what a screen reader says for a star in the Galaxy view's list of stars; {title} is the page's title, {count} how many pages it's linked with",
+    "list": "Stars",
+    "@list": "screen-reader name of the list of stars (pages) in the Galaxy view; each one centres the view on it when focused and opens the page when chosen",
+    "emptyTitle": "Your galaxy is waiting",
+    "@emptyTitle": "title in the Galaxy view when there are no pages yet",
+    "emptyText": "Every page you write becomes a star here.",
+    "@emptyText": "text under the title in the Galaxy view when there are no pages yet",
+    "noLinks": "Mention a page with @ in another to draw a line between their stars.",
+    "@noLinks": "hint at the bottom of the Galaxy view while no page links to another; @ is the key that starts a mention of a page, keep it as is",
+    "askTitle": "See your notes as a galaxy",
+    "@askTitle": "title of the page the Galaxy view shows until it’s turned on",
+    "askText": "Every page becomes a star and every link a line between them, in a galaxy shaped just for your notes. Short notes shine red, long ones blue.",
+    "@askText": "text under the title of the page the Galaxy view shows until it’s turned on: what the Galaxy is",
+    "askCost": "The Galaxy uses more memory than the rest of Thought Desk while it’s open, up to a few hundred MB with thousands of pages. It’s given back when you leave.",
+    "@askCost": "small print under the buttons of the page the Galaxy view shows until it’s turned on; MB is megabytes, written as your language writes it",
+    "turnOn": "Turn on Galaxy",
+    "@turnOn": "button that turns the Galaxy view on (a verb phrase); Galaxy is the view’s name",
+    "hide": "Hide from sidebar",
+    "@hide": "button on the page the Galaxy view shows until it’s turned on: for someone who doesn’t want it, removes Galaxy from the sidebar (it can be shown again in Settings)",
+    "gathering": "Gathering stars…",
+    "@gathering": "shown briefly while the Galaxy view works out where every page goes, in big workspaces",
+    "failed": "Couldn't read the links between your pages",
+    "@failed": "message when the Galaxy view couldn't load which pages link to which; the stars are still shown, without their lines"
   }
 }

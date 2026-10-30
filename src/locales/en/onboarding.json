@@ -124,6 +124,8 @@
       "@filesWords": "search words (never shown) that also find the Files command, separated by spaces",
       "friendsWords": "people account requests invites write together live",
       "@friendsWords": "search words (never shown) that also find the Friends command, separated by spaces",
+      "galaxyWords": "graph map stars links constellation network connections",
+      "@galaxyWords": "search words (never shown) that also find the Galaxy command, separated by spaces",
       "account": "Account",
       "@account": "command in search that opens your account (sign in, profile, username)",
       "accountWords": "sign in log in profile username google github email",

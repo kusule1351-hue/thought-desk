@@ -120,6 +120,7 @@ Tests, where your notes are stored and how the code is laid out: [docs/DEVELOPME
 <td align="center" width="140"><a href="https://github.com/kusule1351-hue"><img src="https://github.com/kusule1351-hue.png?size=120" width="64" height="64" alt=""><br><b>Khuselbayar Enkhmunkh</b></a><br><sub>Creator</sub></td>
 <td align="center" width="140"><a href="https://github.com/brandonrbridges"><img src="https://github.com/brandonrbridges.png?size=120" width="64" height="64" alt=""><br><b>Brandon Bridges</b></a><br><sub>Search, indexes and speed</sub></td>
 <td align="center" width="140"><a href="https://github.com/huy-victor"><img src="https://github.com/huy-victor.png?size=120" width="64" height="64" alt=""><br><b>Victor Huy</b></a><br><sub>Frozen table columns</sub></td>
+<td align="center" width="140"><a href="https://github.com/Kewsito"><img src="https://github.com/Kewsito.png?size=120" width="64" height="64" alt=""><br><b>Kevin Salinas</b></a><br><sub>Spanish translation</sub></td>
 </tr>
 </table>
 

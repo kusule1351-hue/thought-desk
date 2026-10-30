@@ -41,7 +41,7 @@
     }}
   />
   {#if value}
-    <button class="clear round" onclick={() => (value = '')} aria-label={t('common.actions.clear')}><Icon name="x" size={11} stroke={2.6} /></button>
+    <button type="button" class="clear round" onclick={() => (value = '')} aria-label={t('common.actions.clear')}><Icon name="x" size={11} stroke={2.6} /></button>
   {/if}
 </label>
 

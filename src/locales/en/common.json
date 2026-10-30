@@ -35,6 +35,8 @@
     "@flashcards": "the view of flashcard decks to study",
     "friends": "Friends",
     "@friends": "the view of your friends, their requests and invites",
+    "galaxy": "Galaxy",
+    "@galaxy": "the view that shows every page as a star and links between pages as lines, like a map of your notes",
     "trash": "Trash",
     "@trash": "where deleted pages and items go before they're gone for good",
     "settings": "Settings",

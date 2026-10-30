@@ -141,6 +141,103 @@ fn walk_todos(node: &mut Value, f: &mut dyn FnMut(&mut Value)) {
     }
 }
 
+/// Scripts written without spaces between words, where each character
+/// counts as a word: CJK ideographs, Hiragana and Katakana.
+fn spaceless(c: char) -> bool {
+    matches!(
+        c as u32,
+        0x4E00..=0x9FFF | 0x3400..=0x4DBF | 0x20000..=0x2A6DF | 0xF900..=0xFAFF // CJK ideographs
+            | 0x3040..=0x309F // Hiragana
+            | 0x30A0..=0x30FF // Katakana
+    )
+}
+
+/// Scripts also written without spaces, whose words run to several
+/// characters and only a dictionary can find: Thai, Lao, Myanmar and Khmer.
+fn unspaced(c: char) -> bool {
+    matches!(
+        c as u32,
+        0x0E00..=0x0E7F // Thai
+            | 0x0E80..=0x0EFF // Lao
+            | 0x1000..=0x109F // Myanmar
+            | 0x1780..=0x17FF // Khmer
+    )
+}
+
+/// Combining marks: accents written as a character of their own, vowel
+/// signs and viramas, vowel points and tone marks. Each belongs to the
+/// letter before it.
+fn mark(c: char) -> bool {
+    matches!(
+        c as u32,
+        0x0300..=0x036F | 0x1AB0..=0x1AFF | 0x1DC0..=0x1DFF | 0x20D0..=0x20FF | 0xFE20..=0xFE2F // Combining accents
+            | 0x0483..=0x0489 // Cyrillic
+            | 0x0591..=0x05BD | 0x05BF | 0x05C1..=0x05C2 | 0x05C4..=0x05C5 | 0x05C7 // Hebrew points
+            | 0x0610..=0x061A | 0x064B..=0x065F | 0x0670 | 0x06D6..=0x06DC | 0x06DF..=0x06E4 | 0x06E7..=0x06E8
+            | 0x06EA..=0x06ED // Arabic
+            | 0x0900..=0x0903 | 0x093A..=0x093C | 0x093E..=0x094F | 0x0951..=0x0957 | 0x0962..=0x0963 // Devanagari
+            | 0x0981..=0x0983 | 0x09BC | 0x09BE..=0x09CD | 0x09D7 | 0x09E2..=0x09E3 | 0x09FE // Bengali
+            | 0x0A01..=0x0A03 | 0x0A3C | 0x0A3E..=0x0A51 | 0x0A70..=0x0A71 | 0x0A75 // Gurmukhi
+            | 0x0A81..=0x0A83 | 0x0ABC | 0x0ABE..=0x0ACD | 0x0AE2..=0x0AE3 | 0x0AFA..=0x0AFF // Gujarati
+            | 0x0B01..=0x0B03 | 0x0B3C | 0x0B3E..=0x0B4D | 0x0B55..=0x0B57 | 0x0B62..=0x0B63 // Oriya
+            | 0x0B82 | 0x0BBE..=0x0BCD | 0x0BD7 // Tamil
+            | 0x0C00..=0x0C04 | 0x0C3C | 0x0C3E..=0x0C56 | 0x0C62..=0x0C63 // Telugu
+            | 0x0C81..=0x0C83 | 0x0CBC | 0x0CBE..=0x0CD6 | 0x0CE2..=0x0CE3 | 0x0CF3 // Kannada
+            | 0x0D00..=0x0D03 | 0x0D3B..=0x0D3C | 0x0D3E..=0x0D4D | 0x0D57 | 0x0D62..=0x0D63 // Malayalam
+            | 0x0D81..=0x0D83 | 0x0DCA | 0x0DCF..=0x0DDF | 0x0DF2..=0x0DF3 // Sinhala
+            | 0x0E31 | 0x0E34..=0x0E3A | 0x0E47..=0x0E4E // Thai
+            | 0x0EB1 | 0x0EB4..=0x0EBC | 0x0EC8..=0x0ECE // Lao
+            | 0x102B..=0x103E | 0x1056..=0x1059 | 0x105E..=0x1060 | 0x1062..=0x1064 | 0x1067..=0x106D
+            | 0x1071..=0x1074 | 0x1082..=0x108D | 0x108F | 0x109A..=0x109D // Myanmar
+            | 0x17B4..=0x17D3 | 0x17DD // Khmer
+    )
+}
+
+/// Words in a text: runs of letters and digits, except in scripts written
+/// without spaces. There each CJK character is a word of its own, and a run
+/// of Thai, Lao, Myanmar or Khmer is an estimate: one word per 4 letters,
+/// rounded up, since only a dictionary could tell where its words end.
+/// Combining marks belong to the word they're on and are not counted as
+/// letters.
+fn count_words(text: &str) -> u32 {
+    let mut count = 0;
+    let mut in_word = false;
+    // Letters so far in a run of Thai, Lao, Myanmar or Khmer.
+    let mut run = 0;
+    for c in text.chars() {
+        // A mark never starts or ends a word.
+        if mark(c) {
+            continue;
+        }
+        let letter = c.is_alphanumeric();
+        if letter && unspaced(c) {
+            if run % 4 == 0 {
+                count += 1;
+            }
+            run += 1;
+            in_word = false;
+            continue;
+        }
+        run = 0;
+        if !letter {
+            in_word = false;
+        } else if spaceless(c) {
+            count += 1;
+            in_word = false;
+        } else if !in_word {
+            count += 1;
+            in_word = true;
+        }
+    }
+    count
+}
+
+/// 32-bit FNV-1a, written out because std's hasher can change between
+/// Rust releases and this has to give the same number forever.
+fn fnv1a(bytes: &[u8]) -> u32 {
+    bytes.iter().fold(0x811c_9dc5, |h, &b| (h ^ b as u32).wrapping_mul(0x0100_0193))
+}
+
 impl Db {
     pub fn list_tags(&self) -> Result<Vec<Tag>> {
         let conn = self.conn();
@@ -246,6 +343,52 @@ impl Db {
         )?;
         let rows = stmt.query_map([id], |r| r.get(0))?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Every link from one live page to another, as (from, to) page ids.
+    pub fn link_graph(&self) -> Result<Vec<(String, String)>> {
+        let conn = self.reader();
+        // Walking pages first (CROSS JOIN keeps that order) reads only the
+        // links that land on a page, about twice as fast as scanning every
+        // link. Each pair comes out once, as page_links has one row per pair.
+        let mut stmt = conn.prepare(
+            "SELECT s.id, t.id FROM pages t CROSS JOIN page_links l ON l.target = t.id
+             JOIN pages s ON s.rid = l.page_rid
+             WHERE t.deleted_at IS NULL AND s.deleted_at IS NULL AND s.rid != t.rid",
+        )?;
+        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// How many words each live page has, as (page id, words). Pages with
+    /// no words are left out.
+    pub fn page_words(&self) -> Result<Vec<(String, u32)>> {
+        let conn = self.reader();
+        let mut stmt = conn.prepare(
+            "SELECT p.id, f.body FROM pages p JOIN pages_fts f ON f.rowid = p.rid
+             WHERE p.deleted_at IS NULL",
+        )?;
+        let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)))?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (id, body) = row?;
+            let words = count_words(body.as_deref().unwrap_or(""));
+            if words > 0 {
+                out.push((id, words));
+            }
+        }
+        Ok(out)
+    }
+
+    /// A number of this workspace's own that never changes, so each person's
+    /// galaxy has its own shape. It's made from the id this copy was given
+    /// when it was created, which never leaves here. 0 if there is none.
+    pub fn galaxy_seed(&self) -> Result<u32> {
+        let conn = self.reader();
+        let device: Option<String> = conn
+            .query_row("SELECT value FROM sync_meta WHERE key = 'device'", [], |r| r.get(0))
+            .optional()?;
+        Ok(device.map_or(0, |d| fnv1a(d.as_bytes())))
     }
 
     /// Titles of everything a mention can point at.
@@ -387,6 +530,100 @@ mod tests {
         assert!(db.backlinks(&linker.id).unwrap().is_empty());
         db.trash_page(&linker.id).unwrap();
         assert!(db.backlinks(&target.id).unwrap().is_empty(), "trashed pages don't count");
+    }
+
+    #[test]
+    fn link_graph_pairs_live_pages_that_link() {
+        let db = temp_db();
+        let a = db.create_page(None, None, "A", "").unwrap();
+        let b = db.create_page(None, None, "B", "").unwrap();
+        let c = db.create_page(None, None, "C", "").unwrap();
+        let mentions = |ids: &[&str]| {
+            let nodes: Vec<String> =
+                ids.iter().map(|id| format!(r#"{{"type":"mention","attrs":{{"id":"{id}"}}}}"#)).collect();
+            Some(format!(r#"{{"type":"doc","content":[{}]}}"#, nodes.join(",")))
+        };
+        let elsewhere = uuid::Uuid::new_v4().to_string();
+        db.update_page(&a.id, PagePatch { content: mentions(&[&b.id, &b.id, &c.id]), ..Default::default() }).unwrap();
+        db.update_page(&b.id, PagePatch { content: mentions(&[&a.id]), ..Default::default() }).unwrap();
+        db.update_page(&c.id, PagePatch { content: mentions(&[&elsewhere, &c.id]), ..Default::default() }).unwrap();
+        let graph = || {
+            let mut pairs = db.link_graph().unwrap();
+            pairs.sort();
+            pairs
+        };
+        let pair = |from: &str, to: &str| (from.to_string(), to.to_string());
+
+        let mut want = vec![pair(&a.id, &b.id), pair(&a.id, &c.id), pair(&b.id, &a.id)];
+        want.sort();
+        assert_eq!(graph(), want, "one pair per link, none to itself or to things that aren't pages");
+
+        db.trash_page(&c.id).unwrap();
+        let mut want = vec![pair(&a.id, &b.id), pair(&b.id, &a.id)];
+        want.sort();
+        assert_eq!(graph(), want, "trashed pages drop out both ways");
+    }
+
+    #[test]
+    fn words_are_runs_or_single_characters_in_spaceless_scripts() {
+        assert_eq!(count_words("Hello, world! 42 times"), 4);
+        assert_eq!(count_words("Le café était déjà fermé"), 5);
+        assert_eq!(count_words("今日は晴れです"), 7);
+        assert_eq!(count_words("Rust と Svelte"), 3);
+        assert_eq!(count_words("Rustは速い"), 4);
+        assert_eq!(count_words(""), 0);
+        assert_eq!(count_words("  ... — !? "), 0);
+        // Combining marks stay in their word, wherever they fall in it.
+        assert_eq!(count_words("cafe\u{0301} noir"), 2);
+        assert_eq!(count_words("de\u{0301}ja\u{0300} vu"), 2);
+        assert_eq!(count_words("नमस्ते दुनिया"), 2);
+        assert_eq!(count_words("مَرْحَبًا بِكَ"), 2);
+        assert_eq!(count_words("\u{0301} \u{093F}"), 0, "a mark on its own is no word");
+        // Thai is estimated: 10 characters, 3 of them marks, so 7 letters is
+        // 2 words (7 / 4 rounded up). It happens to be right: สวัสดี ครับ.
+        assert_eq!(count_words("สวัสดีครับ"), 2);
+        assert_eq!(count_words("Rust กับ Svelte"), 3);
+    }
+
+    #[test]
+    fn page_words_counts_live_pages_with_words() {
+        let db = temp_db();
+        let a = db.create_page(None, None, "A", "").unwrap();
+        let b = db.create_page(None, None, "B", "").unwrap();
+        let c = db.create_page(None, None, "C", "").unwrap();
+        let body = |text: &str| PagePatch {
+            content: Some(format!(
+                r#"{{"type":"doc","content":[{{"type":"paragraph","content":[{{"type":"text","text":"{text}"}}]}}]}}"#
+            )),
+            text: Some(text.to_string()),
+            ..Default::default()
+        };
+        db.update_page(&a.id, body("one two three")).unwrap();
+        db.update_page(&c.id, body("four five")).unwrap();
+        // The welcome page has words too; only these three matter here.
+        let words = || {
+            let mut words: Vec<(String, u32)> =
+                db.page_words().unwrap().into_iter().filter(|(id, _)| [&a.id, &b.id, &c.id].contains(&id)).collect();
+            words.sort();
+            words
+        };
+
+        let mut want = vec![(a.id.clone(), 3), (c.id.clone(), 2)];
+        want.sort();
+        assert_eq!(words(), want, "pages with no words are left out");
+
+        db.trash_page(&c.id).unwrap();
+        assert_eq!(words(), vec![(a.id.clone(), 3)], "trashed pages drop out");
+    }
+
+    #[test]
+    fn galaxy_seed_is_fixed_per_workspace() {
+        assert_eq!(fnv1a(b"a"), 0xe40c_292c, "plain FNV-1a, so seeds never change");
+        let one = temp_db();
+        let other = temp_db();
+        let seed = one.galaxy_seed().unwrap();
+        assert_eq!(one.galaxy_seed().unwrap(), seed, "the same every time");
+        assert_ne!(other.galaxy_seed().unwrap(), seed, "another workspace has its own");
     }
 
     #[test]

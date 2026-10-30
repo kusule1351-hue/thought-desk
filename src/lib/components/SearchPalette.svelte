@@ -155,6 +155,7 @@
     command('importCalendar', 'onboarding.search.commands.importCalendar', 'onboarding.search.commands.importCalendarWords', 'download', () => void importCalendar()),
     command('files', 'common.views.files', 'onboarding.search.commands.filesWords', 'files', () => store.go('files')),
     command('friends', 'common.views.friends', 'onboarding.search.commands.friendsWords', 'users', () => store.go('friends')),
+    command('galaxy', 'common.views.galaxy', 'onboarding.search.commands.galaxyWords', 'galaxy', () => store.go('galaxy')),
     command('account', 'onboarding.search.commands.account', 'onboarding.search.commands.accountWords', 'user', () => (ui.accountSheet = true)),
     command('newTab', 'onboarding.search.commands.newTab', 'onboarding.search.commands.newTabWords', 'plus', () => void tabs.newTab()),
     command('export', 'onboarding.search.commands.exportMarkdown', 'onboarding.search.commands.exportMarkdownWords', 'download', () => void exportWorkspace()),

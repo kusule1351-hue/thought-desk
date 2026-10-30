@@ -10,9 +10,9 @@ import type { PageMeta, PagePatch } from './types';
 const SAVE_DELAY = 400;
 
 /** What fills the main area: a page, a tag's items, a course, or an app view. */
-export type View = 'page' | 'tag' | 'course' | 'home' | 'assignments' | 'calendar' | 'files' | 'cards' | 'friends';
+export type View = 'page' | 'tag' | 'course' | 'home' | 'assignments' | 'calendar' | 'files' | 'cards' | 'friends' | 'galaxy';
 export type AppView = Exclude<View, 'page' | 'tag' | 'course'>;
-export const VIEWS: AppView[] = ['home', 'assignments', 'calendar', 'files', 'cards', 'friends'];
+export const VIEWS: AppView[] = ['home', 'assignments', 'calendar', 'files', 'cards', 'friends', 'galaxy'];
 
 /** A place in the app (one step of back/forward history). */
 export interface Entry {

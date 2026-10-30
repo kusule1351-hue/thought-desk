@@ -16,6 +16,7 @@ import { databases } from './databases.svelte';
 import { split } from './split.svelte';
 import { tabs } from './tabs.svelte';
 import { cowork } from './cowork.svelte';
+import { galaxy } from './galaxy/galaxy.svelte';
 import { t } from './i18n';
 import { fmt } from './i18n/format';
 
@@ -119,6 +120,7 @@ function databaseMenuItems(id: string, sidebar: boolean): MenuItem[] {
     { label: page.favorite ? t('pages.menu.removeFromFavorites') : t('pages.menu.addToFavorites'), icon: 'star', action: () => store.toggleFavorite(id) },
     { label: t('pages.menu.openInNewTab'), icon: 'plus', hint: t('pages.menu.modClick', { mod: MOD }), action: () => void tabs.openPage(id) },
     { label: t('common.actions.openToTheSide'), icon: 'split', hint: t('pages.menu.altClick'), action: () => split.show(id) },
+    { label: t('pages.menu.showInGalaxy'), icon: 'galaxy', disabled: store.view === 'galaxy' && galaxy.page === id, action: () => galaxy.show(id) },
     ...(sidebar
       ? [
           {
@@ -153,6 +155,7 @@ export function pageMenuItems(id: string, opts: { words?: number; sidebar?: bool
     },
     { label: t('pages.menu.openInNewTab'), icon: 'plus', hint: t('pages.menu.modClick', { mod: MOD }), action: () => void tabs.openPage(id) },
     { label: t('common.actions.openToTheSide'), icon: 'split', hint: t('pages.menu.altClick'), action: () => split.show(id) },
+    { label: t('pages.menu.showInGalaxy'), icon: 'galaxy', disabled: store.view === 'galaxy' && galaxy.page === id, action: () => galaxy.show(id) },
     cowork.isLive(id)
       ? { label: t('pages.menu.liveSession'), icon: 'user', hint: t('pages.menu.liveSessionHint'), action: () => (ui.liveSheet = id) }
       : { label: t('pages.menu.inviteFriend'), icon: 'user', action: () => (ui.inviteSheet = id) },

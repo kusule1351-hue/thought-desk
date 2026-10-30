@@ -119,6 +119,8 @@
       "files": "Show Files in the sidebar",
       "cards": "Show Flashcards in the sidebar",
       "friends": "Show Friends in the sidebar",
+      "galaxy": "Show Galaxy in the sidebar",
+      "@galaxy": "Settings → Sidebar: switch for the Galaxy view (every page as a star), like the others in this group",
       "favorites": "Show Favorites in the sidebar",
       "courses": "Show Courses in the sidebar",
       "databases": "Show Databases in the sidebar",

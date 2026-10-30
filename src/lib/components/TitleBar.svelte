@@ -45,6 +45,7 @@
     files: { label: t('common.views.files'), icon: 'files' },
     cards: { label: t('common.views.flashcards'), icon: 'cards' },
     friends: { label: t('common.views.friends'), icon: 'users' },
+    galaxy: { label: t('common.views.galaxy'), icon: 'galaxy' },
   };
   const viewCrumb = $derived(
     store.view === 'tag'

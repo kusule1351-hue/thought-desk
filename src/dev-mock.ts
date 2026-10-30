@@ -337,6 +337,59 @@ function itemText(item: any, titles: boolean): string {
   return item.content?.[0] ? run(item.content[0]).split(/\s+/).filter(Boolean).join(' ') : '';
 }
 
+const WORD_CHAR = /[\p{Alphabetic}\p{N}]/u;
+// CJK ideographs, Hiragana and Katakana are written without spaces, so each
+// character counts as a word.
+const SPACELESS = /[一-鿿㐀-䶿\u{20000}-\u{2A6DF}豈-﫿぀-ゟ゠-ヿ]/u;
+
+// Thai, Lao, Myanmar and Khmer are written without spaces too, but only a
+// dictionary can find their words, so a run of them is an estimate.
+const UNSPACED = /[฀-໿က-႟ក-៿]/u;
+// Combining marks (accents, vowel signs, vowel points) belong to the letter before them.
+const MARK = /\p{M}/u;
+
+/** Words in a text, counted as the backend does: runs of letters and digits,
+ *  except that each character in a script without spaces is a word, and a
+ *  run of Thai, Lao, Myanmar or Khmer is one word per 4 letters, rounded up.
+ *  Marks never start or end a word. */
+function countWords(text: string): number {
+  let count = 0;
+  let inWord = false;
+  let run = 0;
+  for (const c of text) {
+    if (MARK.test(c)) continue;
+    const letter = WORD_CHAR.test(c);
+    if (letter && UNSPACED.test(c)) {
+      if (run++ % 4 === 0) count++;
+      inWord = false;
+      continue;
+    }
+    run = 0;
+    if (!letter) inWord = false;
+    else if (SPACELESS.test(c)) {
+      count++;
+      inWord = false;
+    } else if (!inWord) {
+      count++;
+      inWord = true;
+    }
+  }
+  return count;
+}
+
+/** A page's text without its markup, for the sample pages, which were never
+ *  saved from the editor and so have no `text`. Content is editor JSON or HTML. */
+function plainText(content: string): string {
+  try {
+    // Every node but text ends in a space, so words in neighbouring blocks stay apart.
+    const walk = (n: any): string => (n?.type === 'text' ? (n.text ?? '') : (n?.content ?? []).map(walk).join('') + ' ');
+    if (content.startsWith('{')) return walk(JSON.parse(content));
+  } catch {
+    /* an HTML page */
+  }
+  return content.replace(/<[^>]*>|&[#\w]+;/g, ' ');
+}
+
 const patchFields = <T extends object>(target: T, patch: Record<string, any>, keys: (keyof T)[]) => {
   for (const k of keys) if (patch[k as string] !== undefined) (target as any)[k] = patch[k as string];
 };
@@ -721,6 +774,28 @@ mockIPC((cmd, payload) => {
       }
       case 'backlinks':
         return rows.filter((r) => !r.deletedAt && r.id !== a.id && r.content.includes(a.id)).map((r) => r.id);
+      case 'link_graph': {
+        const live = rows.filter((r) => !r.deletedAt);
+        return live.flatMap((r) => live.filter((t) => t.id !== r.id && r.content.includes(t.id)).map((t) => [r.id, t.id]));
+      }
+      case 'page_words':
+        return rows
+          .filter((r) => !r.deletedAt)
+          .map((r): [string, number] => [r.id, countWords(r.text || plainText(r.content))])
+          .filter(([, n]) => n > 0);
+      case 'galaxy_seed': {
+        // `?seed=<number>` in the address shows someone else's galaxy. Otherwise
+        // one is made once and kept (`?fresh` clears it, like a new workspace).
+        const asked = Number(new URLSearchParams(location.search).get('seed') ?? NaN);
+        if (Number.isInteger(asked)) return asked >>> 0;
+        const key = 'thoughtdesk.devmock.seed';
+        let seed = Number(localStorage.getItem(key) ?? NaN);
+        if (!Number.isInteger(seed)) {
+          seed = crypto.getRandomValues(new Uint32Array(1))[0];
+          localStorage.setItem(key, String(seed));
+        }
+        return seed;
+      }
       case 'list_todos': {
         const out: { pageId: string; index: number; text: string; key: string }[] = [];
         for (const r of rows.filter((x) => !x.deletedAt)) {
@@ -820,7 +895,7 @@ mockIPC((cmd, payload) => {
       }
       case 'search': {
         const q = String(a.query ?? '').trim().toLowerCase();
-        const live = rows.filter((r) => !r.deletedAt);
+        const live = rows.filter((r) => !r.deletedAt).map((r) => ({ ...r, text: r.text || plainText(r.content) }));
         const hits = q
           ? live.filter((r) => r.title.toLowerCase().includes(q) || r.text.toLowerCase().includes(q))
           : [...live].sort((x, y) => y.updatedAt - x.updatedAt);

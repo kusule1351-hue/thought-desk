@@ -19,6 +19,7 @@ export type ShortcutId =
   | 'goFiles'
   | 'goCards'
   | 'goFriends'
+  | 'goGalaxy'
   | 'sidebar'
   | 'theme'
   | 'settings'
@@ -82,6 +83,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'goFiles', label: t('common.views.files'), group: 'goTo', defaults: ['Mod+Digit4'] },
   { id: 'goCards', label: t('common.views.flashcards'), group: 'goTo', defaults: ['Mod+Digit5'] },
   { id: 'goFriends', label: t('common.views.friends'), group: 'goTo', defaults: ['Mod+Digit6'] },
+  { id: 'goGalaxy', label: t('common.views.galaxy'), group: 'goTo', defaults: ['Mod+Digit7'] },
   { id: 'calendarPrev', label: t('settings.commands.calendarPrev'), group: 'calendar', defaults: ['ArrowLeft'], bare: true },
   { id: 'calendarNext', label: t('settings.commands.calendarNext'), group: 'calendar', defaults: ['ArrowRight'], bare: true },
   { id: 'calendarToday', label: t('settings.commands.calendarToday'), group: 'calendar', defaults: ['KeyT'], bare: true },

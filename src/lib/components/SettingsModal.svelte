@@ -91,6 +91,7 @@
     files: 'settings.sidebar.show.files',
     cards: 'settings.sidebar.show.cards',
     friends: 'settings.sidebar.show.friends',
+    galaxy: 'settings.sidebar.show.galaxy',
     favorites: 'settings.sidebar.show.favorites',
     courses: 'settings.sidebar.show.courses',
     databases: 'settings.sidebar.show.databases',

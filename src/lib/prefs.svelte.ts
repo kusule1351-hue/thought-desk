@@ -71,6 +71,8 @@ interface Stored {
   inboxId: string | null;
   /** The "Get set up" card on Home was closed. */
   setupHidden: boolean;
+  /** The Galaxy was turned on. It asks first: it's new, and it costs memory while open. */
+  galaxyOn: boolean;
   /** What Home calls you ("Good morning, Sam"); empty for no name. */
   name: string;
   /** The welcome screen has been gone through (or this install predates it). */
@@ -136,6 +138,7 @@ const defaults: Stored = {
   globalCapture: true,
   inboxId: null,
   setupHidden: false,
+  galaxyOn: false,
   name: '',
   welcomed: false,
   splitOpen: false,
@@ -213,6 +216,7 @@ class Prefs {
   globalCapture = $state(this.#initial.globalCapture);
   inboxId = $state<string | null>(this.#initial.inboxId);
   setupHidden = $state(this.#initial.setupHidden);
+  galaxyOn = $state(this.#initial.galaxyOn);
   name = $state(this.#initial.name);
   welcomed = $state(this.#initial.welcomed);
   splitOpen = $state(this.#initial.splitOpen);
@@ -257,6 +261,7 @@ class Prefs {
       globalCapture: this.globalCapture,
       inboxId: this.inboxId,
       setupHidden: this.setupHidden,
+      galaxyOn: this.galaxyOn,
       name: this.name,
       welcomed: this.welcomed,
       splitOpen: this.splitOpen,
