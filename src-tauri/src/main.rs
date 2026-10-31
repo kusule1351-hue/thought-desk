@@ -128,6 +128,7 @@ fn main() {
             commands::export_file,
             commands::list_courses,
             commands::create_course,
+            commands::reorder_courses,
             commands::update_course,
             commands::delete_course,
             commands::list_assignments,

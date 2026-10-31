@@ -494,6 +494,18 @@ impl Db {
         Ok(conn.query_row(&format!("SELECT {COURSE_COLS} FROM courses WHERE id = ?1"), [&id], course_from_row)?)
     }
 
+    /// Puts the courses in this order (the first is position 0), as dragged in
+    /// the sidebar. It's given every course; ids it doesn't know are skipped.
+    pub fn reorder_courses(&self, ids: &[String]) -> Result<()> {
+        let mut conn = self.conn();
+        let tx = conn.transaction()?;
+        for (i, id) in ids.iter().enumerate() {
+            set(&tx, "courses", "position", id, i as i64)?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn update_course(&self, id: &str, patch: CoursePatch) -> Result<Course> {
         let mut conn = self.conn();
         let tx = conn.transaction()?;
@@ -814,5 +826,23 @@ mod tests {
         assert_eq!(list[0].page_id, page.id);
         db.delete_page(&page.id).unwrap();
         assert!(db.list_occurrence_pages().unwrap().is_empty(), "goes away with the page");
+    }
+
+    #[test]
+    fn courses_keep_the_order_they_are_put_in() {
+        let (db, _dir) = temp_db();
+        let names = |db: &Db| db.list_courses().unwrap().into_iter().map(|c| c.name).collect::<Vec<_>>();
+        let a = db.create_course("Biology", "green").unwrap();
+        let b = db.create_course("History", "orange").unwrap();
+        let c = db.create_course("Physics", "blue").unwrap();
+        assert_eq!(names(&db), ["Biology", "History", "Physics"], "in the order they were added");
+
+        db.reorder_courses(&[c.id.clone(), a.id.clone(), b.id.clone()]).unwrap();
+        assert_eq!(names(&db), ["Physics", "Biology", "History"]);
+        let d = db.create_course("Spanish", "pink").unwrap();
+        assert_eq!(names(&db), ["Physics", "Biology", "History", "Spanish"], "a new one goes last");
+
+        db.reorder_courses(&[d.id.clone(), "gone".into(), c.id.clone(), a.id.clone(), b.id.clone()]).unwrap();
+        assert_eq!(names(&db)[0], "Spanish", "an unknown id is skipped");
     }
 }

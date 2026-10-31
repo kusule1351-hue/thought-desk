@@ -138,6 +138,39 @@
     if (c) store.openCourse(c.id);
   }
 
+  // Courses go in any order: dragged, or moved with their menu (which a keyboard reaches too).
+  let courseDrag = $state<string | null>(null);
+  let courseDrop = $state<{ id: string; after: boolean } | null>(null);
+
+  function courseDragOver(e: DragEvent, id: string) {
+    if (!courseDrag) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    courseDrop = { id, after: e.clientY > r.top + r.height / 2 };
+  }
+
+  function courseDropped(e: DragEvent) {
+    e.preventDefault();
+    const [id, at] = [courseDrag, courseDrop];
+    courseDrag = courseDrop = null;
+    if (!id || !at || at.id === id) return;
+    const i = planner.courses.filter((c) => c.id !== id).findIndex((c) => c.id === at.id);
+    planner.moveCourse(id, i + (at.after ? 1 : 0));
+  }
+
+  function courseMenu(e: MouseEvent, id: string) {
+    e.preventDefault();
+    const i = planner.courses.findIndex((c) => c.id === id);
+    const items = [
+      { label: t('shell.sidebar.moveCourseUp'), icon: 'arrow-up', disabled: i <= 0, action: () => planner.moveCourse(id, i - 1) },
+      { label: t('shell.sidebar.moveCourseDown'), icon: 'arrow-down', disabled: i === planner.courses.length - 1, action: () => planner.moveCourse(id, i + 1) },
+    ];
+    // From the keyboard (the menu key) there's no pointer to open at.
+    if (!e.clientX && !e.clientY) ui.openMenuAt(e.currentTarget as Element, items);
+    else ui.openMenu({ x: e.clientX, y: e.clientY, items });
+  }
+
 </script>
 
 <aside class="sidebar" class:resizing style:width="{prefs.sidebarWidth}px">
@@ -207,11 +240,33 @@
           <button class="section-add" onclick={addCourse} data-tip={t('shell.sidebar.newCourse')}><Icon name="plus" size={14} stroke={2} /></button>
         </div>
         {#if !prefs.sections.courses}
-          <div class="tag-list">
+          <div class="tag-list" role="list">
             {#each planner.courses as c (c.id)}
               {@const open = courseOpen.get(c.id) ?? 0}
-              <div class="nav-row" class:active={store.view === 'course' && store.courseId === c.id}>
-                <button class="nav-main" onclick={() => store.openCourse(c.id)}>
+              <div
+                class="nav-row"
+                role="listitem"
+                class:active={store.view === 'course' && store.courseId === c.id}
+                class:dragging={courseDrag === c.id}
+                class:drop-before={courseDrop?.id === c.id && !courseDrop.after}
+                class:drop-after={courseDrop?.id === c.id && courseDrop.after}
+                ondragover={(e) => courseDragOver(e, c.id)}
+                ondrop={courseDropped}
+              >
+                <button
+                  class="nav-main"
+                  draggable="true"
+                  onclick={() => store.openCourse(c.id)}
+                  oncontextmenu={(e) => courseMenu(e, c.id)}
+                  ondragstart={(e) => {
+                    courseDrag = c.id;
+                    if (e.dataTransfer) {
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', c.name || t('common.untitled'));
+                    }
+                  }}
+                  ondragend={() => (courseDrag = courseDrop = null)}
+                >
                   <span class="lead"><span class="dot" style:--dot={colorVar(c.color)}></span></span>
                   <span class="label">{c.name || t('common.untitled')}</span>
                 </button>
@@ -507,6 +562,31 @@
   /* Navigation rows share the tree rows' metrics: a 30px row
      inset 10px from the edges, a 20px icon slot, and trailing accessories
      that sit 4px from the right edge, like a tree row's actions. */
+  .nav-row.dragging {
+    opacity: 0.4;
+  }
+  /* Where a dragged course will go: a line above or below a row, as in the page tree. */
+  .nav-row.drop-before,
+  .nav-row.drop-after {
+    position: relative;
+  }
+  .nav-row.drop-before::before,
+  .nav-row.drop-after::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--text);
+    pointer-events: none;
+  }
+  .nav-row.drop-before::before {
+    top: -1px;
+  }
+  .nav-row.drop-after::after {
+    bottom: -1px;
+  }
   .nav-row {
     display: flex;
     align-items: center;

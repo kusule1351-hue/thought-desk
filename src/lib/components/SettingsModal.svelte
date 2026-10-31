@@ -38,6 +38,22 @@
     window.dispatchEvent(new Event('td:reload'));
   }
 
+  const languageName = (l: (typeof LANGUAGES)[number]) => (l.name === l.english ? l.name : `${l.name} (${l.english})`);
+  const systemLanguage = $derived(t('settings.language.system', { language: LANGUAGES.find((l) => l.code === i18n.systemLanguage)?.name ?? 'English' }));
+  const languageLabel = $derived(i18n.choice === 'system' ? systemLanguage : languageName(LANGUAGES.find((l) => l.code === i18n.choice) ?? LANGUAGES[0]));
+
+  function languageMenu(e: MouseEvent) {
+    ui.openMenuAt(
+      e.currentTarget as Element,
+      [
+        { label: systemLanguage, checked: i18n.choice === 'system', action: () => chooseLanguage('system') },
+        { separator: true },
+        ...LANGUAGES.map((l) => ({ label: languageName(l), checked: i18n.choice === l.code, action: () => chooseLanguage(l.code) })),
+      ],
+      { alignRight: true },
+    );
+  }
+
   onMount(() => {
     api.dataInfo().then((d) => (info = d), ui.error);
     if (ui.settingsSection) {
@@ -411,12 +427,10 @@
             {t('settings.language.label')}
             <small>{t('settings.language.hint')}</small>
           </div>
-          <select class="field language" value={i18n.choice} onchange={(e) => chooseLanguage(e.currentTarget.value)} aria-label={t('settings.language.label')}>
-            <option value="system">{t('settings.language.system', { language: LANGUAGES.find((l) => l.code === i18n.systemLanguage)?.name ?? 'English' })}</option>
-            {#each LANGUAGES as l (l.code)}
-              <option value={l.code}>{l.name === l.english ? l.name : `${l.name} (${l.english})`}</option>
-            {/each}
-          </select>
+          <button class="btn small raised language" onclick={languageMenu} aria-haspopup="menu" aria-label={`${t('settings.language.label')}: ${languageLabel}`}>
+            <span class="language-name">{languageLabel}</span>
+            <Icon name="chevron-down" size={12} stroke={2.2} />
+          </button>
         </div>
       {/if}
     </div>
@@ -750,9 +764,19 @@
     align-items: center;
     gap: 12px;
   }
-  .field.language {
-    max-width: 220px;
-    cursor: pointer;
+  .language {
+    flex: none;
+    gap: 8px;
+    max-width: 240px;
+  }
+  .language-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .language :global(svg) {
+    flex: none;
+    color: var(--text-3);
   }
   .field.hex {
     width: 128px;

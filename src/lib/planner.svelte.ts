@@ -141,6 +141,18 @@ class Planner {
     this.#courseSaver.queue(id, patch, !typing);
   }
 
+  /** Moves a course to place `to` among the others (as dragged in the sidebar), and saves the new order. */
+  moveCourse(id: string, to: number) {
+    const course = this.courseById.get(id);
+    if (!course) return;
+    const next = this.courses.filter((c) => c.id !== id);
+    next.splice(Math.max(0, Math.min(to, next.length)), 0, course);
+    if (next.every((c, i) => c === this.courses[i])) return;
+    next.forEach((c, i) => (c.position = i));
+    this.courses = next;
+    api.reorderCourses(next.map((c) => c.id)).catch(ui.error);
+  }
+
   /** The page that holds a course's notes, created the first time. */
   async courseFolder(courseId: string): Promise<string | null> {
     const c = this.courseById.get(courseId);

@@ -683,6 +683,12 @@ mockIPC((cmd, payload) => {
         planner.courses.push(c);
         return c;
       }
+      case 'reorder_courses': {
+        const at = new Map<string, number>((a.ids as string[]).map((id, i) => [id, i]));
+        for (const c of planner.courses) if (at.has(c.id)) c.position = at.get(c.id)!;
+        planner.courses.sort((x, y) => x.position - y.position);
+        return null;
+      }
       case 'update_course': {
         const c = planner.courses.find((x) => x.id === a.id)!;
         patchFields(c, a.patch, ['name', 'color', 'teacher', 'email', 'officeHours', 'room', 'pageId', 'weights']);

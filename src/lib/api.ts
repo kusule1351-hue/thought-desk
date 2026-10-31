@@ -94,6 +94,8 @@ export const api = {
   listCourses: () => invoke<Course[]>('list_courses'),
   createCourse: (name: string, color: string) => invoke<Course>('create_course', { name, color }),
   updateCourse: (id: string, patch: CoursePatch) => invoke<Course>('update_course', { id, patch }),
+  /** Puts the courses in this order (every course's id). */
+  reorderCourses: (ids: string[]) => invoke<void>('reorder_courses', { ids }),
   deleteCourse: (id: string) => invoke<void>('delete_course', { id }),
 
   listAssignments: () => invoke<Assignment[]>('list_assignments'),

@@ -23,6 +23,8 @@ test('sidebar items can be hidden from Settings or by right-click, and stay hidd
     await expect(sidebar(page).locator('.section-title', { hasText: 'Databases' })).toHaveCount(0);
     await page.locator('.toast', { hasText: 'Databases is hidden' }).getByRole('button', { name: 'Undo' }).click();
     await expect(sidebar(page).locator('.section-title', { hasText: 'Databases' })).toHaveCount(1);
+    // A closed menu fades out for a moment; the next right-click waits for it, or there'd be two.
+    await expect(page.getByRole('menu')).toHaveCount(0);
     await sidebar(page).locator('.section-title', { hasText: 'Tags' }).click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Hide from Sidebar' }).click();
     await expect(sidebar(page).locator('.section-title', { hasText: 'Tags' })).toHaveCount(0);
@@ -37,6 +39,30 @@ test('sidebar items can be hidden from Settings or by right-click, and stay hidd
     await expect(sidebar(page).locator('.section-title', { hasText: 'Tags' })).toHaveCount(0);
     await expect(sidebar(page).locator('.section-title', { hasText: 'Pages' })).toHaveCount(1);
   });
+});
+
+test('courses can be dragged into another order, or moved with their menu, and keep it', async ({ page }) => {
+  await open(page);
+  const courses = sidebar(page).locator('[role=listitem] .label');
+  const row = (name: string) => sidebar(page).locator('[role=listitem]', { hasText: name });
+  await expect(courses).toHaveText(['Biology', 'History', 'Computer Science']);
+
+  // Onto the top half of a row: it goes above it.
+  await row('Computer Science').locator('.nav-main').dragTo(row('Biology'), { targetPosition: { x: 40, y: 4 } });
+  await expect(courses).toHaveText(['Computer Science', 'Biology', 'History']);
+
+  await row('Biology').locator('.nav-main').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Move Down' }).click();
+  await expect(courses).toHaveText(['Computer Science', 'History', 'Biology']);
+  // The first can't go higher. (The last menu fades out first, or there'd be two.)
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await row('Computer Science').locator('.nav-main').click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Move Up' })).toBeDisabled();
+  await page.keyboard.press('Escape');
+
+  await page.reload();
+  await sidebar(page).waitFor();
+  await expect(courses).toHaveText(['Computer Science', 'History', 'Biology']);
 });
 
 test('text can be coloured and highlighted in colour, and keeps it', async ({ page }) => {

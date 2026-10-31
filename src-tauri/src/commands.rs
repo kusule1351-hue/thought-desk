@@ -216,6 +216,11 @@ pub fn create_course(db: State<Db>, name: String, color: String) -> Result<Cours
 }
 
 #[tauri::command(async)]
+pub fn reorder_courses(db: State<Db>, ids: Vec<String>) -> Result<()> {
+    db.reorder_courses(&ids)
+}
+
+#[tauri::command(async)]
 pub fn update_course(db: State<Db>, id: String, patch: CoursePatch) -> Result<Course> {
     db.update_course(&id, patch)
 }
