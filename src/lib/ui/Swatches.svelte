@@ -58,9 +58,11 @@
 </div>
 
 <style>
+  /* A narrow menu wraps the row, so each swatch stays round. */
   .swatches {
     flex: none;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
   }
@@ -68,6 +70,7 @@
     position: relative;
     display: grid;
     place-items: center;
+    flex: none;
     width: var(--h-xs);
     height: var(--h-xs);
     border-radius: 50%;

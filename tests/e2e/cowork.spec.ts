@@ -48,9 +48,9 @@ const title = (page: Page) => page.locator('.scroller h1.title');
 const liveTab = (page: Page) => page.locator('.titlebar [role=tab][aria-selected=true] .tab-live');
 const friendsPage = (page: Page) => page.locator('.friends-view');
 
-/** Opens the Friends page from the sidebar. */
+/** Opens the Cowork page from the sidebar. */
 async function openFriends(page: Page) {
-  await page.locator('.sidebar .views').getByRole('button', { name: 'Friends' }).click();
+  await page.locator('.sidebar .views').getByRole('button', { name: 'Cowork' }).click();
   await expect(friendsPage(page)).toBeVisible();
 }
 
@@ -279,7 +279,7 @@ test('asking to write together: the host picks the page, and closing the tab end
 
   const asked = ana.locator('.toast', { hasText: 'Ben Ito wants to write together' });
   await expect(asked).toBeVisible(LIVE);
-  await asked.getByRole('button', { name: 'Open Friends' }).click();
+  await asked.getByRole('button', { name: 'Open Cowork' }).click();
   await ana.getByRole('button', { name: 'Choose a page for Ben Ito' }).click();
   await ana.getByRole('menuitem', { name: 'A New Page' }).click();
 

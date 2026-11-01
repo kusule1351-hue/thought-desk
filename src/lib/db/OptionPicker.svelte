@@ -1,8 +1,9 @@
 <script lang="ts">
   /**
-   * Picks one choice (select, status) or several (multi-select). Typing
-   * filters the list; Enter picks the highlighted choice, or makes a new one
-   * from what's typed. Each choice can be renamed, recoloured or deleted.
+   * Picks one choice (select, status) or several (multi-select), in a
+   * popover at the anchor. Typing filters the list; Enter picks the
+   * highlighted choice, or makes a new one from what's typed. Each choice
+   * can be renamed, recoloured or deleted in a popover beside this one.
    */
   import { onMount, untrack } from 'svelte';
   import Icon from '../components/Icon.svelte';
@@ -19,6 +20,8 @@
   let {
     dbId,
     prop,
+    anchor,
+    width,
     value,
     onchange,
     onclose,
@@ -27,10 +30,12 @@
   }: {
     dbId: string;
     prop: Property;
+    anchor: Element;
+    width?: number;
     /** An option id (select, status), or ids (multi-select). */
     value: string | string[] | null;
     onchange: (value: string | string[] | null) => void;
-    onclose?: () => void;
+    onclose: () => void;
     allowCreate?: boolean;
     /** What was typed to open the picker. */
     query?: string;
@@ -62,7 +67,7 @@
       query = '';
     } else {
       onchange(picked[0] === o.id ? null : o.id);
-      onclose?.();
+      onclose();
     }
   }
 
@@ -73,7 +78,7 @@
     if (multiple) onchange([...picked, o.id]);
     else {
       onchange(o.id);
-      onclose?.();
+      onclose();
     }
   }
 
@@ -92,7 +97,7 @@
       onchange(picked.slice(0, -1));
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      onclose?.();
+      onclose();
     }
   }
 
@@ -144,62 +149,65 @@
   );
 </script>
 
-<div class="picker">
-  <div class="search">
-    {#if multiple}
-      {#each picked as id (id)}
-        {@const o = all.find((x) => x.id === id)}
-        {#if o}
-          <span class="pill" style:--pill={colorVar(o.color)}>
-            <span>{o.name}</span>
-            <button class="x" onclick={() => onchange(picked.filter((x) => x !== id))} aria-label={t('dbEdit.removeNamed', { name: o.name })}><Icon name="x" size={10} stroke={2.6} /></button>
-          </span>
-        {/if}
-      {/each}
-    {/if}
-    <input
-      bind:this={input}
-      bind:value={query}
-      onkeydown={onKey}
-      placeholder={allowCreate ? (all.length ? t('dbEdit.choices.searchOrAdd') : t('dbEdit.choices.typeFirst')) : t('dbEdit.choices.search')}
-      aria-label={t('dbEdit.choices.searchLabel')}
-    />
-  </div>
-
-  <div class="list" role="listbox" aria-multiselectable={multiple}>
-    {#each groups as g (g.key)}
-      {#if g.label}<div class="pop-head">{g.label}</div>{/if}
-      {#each g.items as o (o.id)}
-        {@const i = shown.indexOf(o)}
-        <div class="opt-row" class:active={i === active} role="option" aria-selected={picked.includes(o.id)}>
-          <button class="opt" onclick={() => pick(o)} onmousemove={() => (active = i)}>
-            <span class="pill" class:status={prop.type === 'status'} style:--pill={colorVar(o.color)}><span>{o.name}</span></span>
-            {#if picked.includes(o.id)}<Icon name="check" size={14} stroke={2.4} />{/if}
-          </button>
-          {#if allowCreate}
-            <button class="more" onclick={(e) => (editing = { id: o.id, anchor: e.currentTarget as Element })} aria-label={t('dbEdit.choices.editNamed', { name: o.name })} data-tip={t('dbEdit.choices.editTip')}>
-              <Icon name="more" size={14} />
-            </button>
+<Popover {anchor} {width} {onclose} label={prop.name}>
+  <div class="picker">
+    <div class="search">
+      {#if multiple}
+        {#each picked as id (id)}
+          {@const o = all.find((x) => x.id === id)}
+          {#if o}
+            <span class="pill" style:--pill={colorVar(o.color)}>
+              <span>{o.name}</span>
+              <button class="x" onclick={() => onchange(picked.filter((x) => x !== id))} aria-label={t('dbEdit.removeNamed', { name: o.name })}><Icon name="x" size={10} stroke={2.6} /></button>
+            </span>
           {/if}
-        </div>
-      {/each}
-    {/each}
-    {#if canCreate}
-      <button class="pop-item create" class:active={active === shown.length} onmousemove={() => (active = shown.length)} onclick={create}>
-        <Icon name="plus" size={14} />
-        <span class="grow"
-          ><Rich key="dbEdit.choices.create" params={{ name: query.trim() }}
-            >{#snippet pill(text: string)}<span class="pill" style:--pill={colorVar(newOption(prop, query).color)}><span>{text}</span></span>{/snippet}</Rich
-          ></span
-        >
-      </button>
-    {/if}
-    {#if !count}
-      <div class="none">{all.length ? t('dbEdit.choices.noMatches') : t('dbEdit.choices.none')}</div>
-    {/if}
-  </div>
-</div>
+        {/each}
+      {/if}
+      <input
+        bind:this={input}
+        bind:value={query}
+        onkeydown={onKey}
+        placeholder={allowCreate ? (all.length ? t('dbEdit.choices.searchOrAdd') : t('dbEdit.choices.typeFirst')) : t('dbEdit.choices.search')}
+        aria-label={t('dbEdit.choices.searchLabel')}
+      />
+    </div>
 
+    <div class="list" role="listbox" aria-multiselectable={multiple}>
+      {#each groups as g (g.key)}
+        {#if g.label}<div class="pop-head">{g.label}</div>{/if}
+        {#each g.items as o (o.id)}
+          {@const i = shown.indexOf(o)}
+          <div class="opt-row" class:active={i === active} role="option" aria-selected={picked.includes(o.id)}>
+            <button class="opt" onclick={() => pick(o)} onmousemove={() => (active = i)}>
+              <span class="pill" class:status={prop.type === 'status'} style:--pill={colorVar(o.color)}><span>{o.name}</span></span>
+              {#if picked.includes(o.id)}<Icon name="check" size={14} stroke={2.4} />{/if}
+            </button>
+            {#if allowCreate}
+              <button class="more" onclick={(e) => (editing = { id: o.id, anchor: e.currentTarget as Element })} aria-label={t('dbEdit.choices.editNamed', { name: o.name })} data-tip={t('dbEdit.choices.editTip')}>
+                <Icon name="more" size={14} />
+              </button>
+            {/if}
+          </div>
+        {/each}
+      {/each}
+      {#if canCreate}
+        <button class="pop-item create" class:active={active === shown.length} onmousemove={() => (active = shown.length)} onclick={create}>
+          <Icon name="plus" size={14} />
+          <span class="grow"
+            ><Rich key="dbEdit.choices.create" params={{ name: query.trim() }}
+              >{#snippet pill(text: string)}<span class="pill" style:--pill={colorVar(newOption(prop, query).color)}><span>{text}</span></span>{/snippet}</Rich
+            ></span
+          >
+        </button>
+      {/if}
+      {#if !count}
+        <div class="none">{all.length ? t('dbEdit.choices.noMatches') : t('dbEdit.choices.none')}</div>
+      {/if}
+    </div>
+  </div>
+</Popover>
+
+<!-- Beside the picker's popover, not inside it (see Popover). -->
 {#if editing && editOpt}
   <Popover anchor={editing.anchor} side="right" width={232} onclose={() => (editing = null)} label={t('dbEdit.choices.edit')}>
     <div class="edit">
@@ -332,7 +340,9 @@
     display: flex;
     flex-direction: column;
   }
+  /* Two even rows of five, with room for the selected one's ring. */
   .swatches {
-    padding: 2px 8px 6px;
+    max-width: calc(5 * var(--h-xs) + 4 * 8px + 16px);
+    padding: 4px 8px 8px;
   }
 </style>
