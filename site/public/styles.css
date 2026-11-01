@@ -282,10 +282,14 @@ code {
 }
 .nav nav {
   display: flex;
+  align-items: center;
   gap: 2px;
   margin-left: auto;
 }
+/* Flex, so a link with an icon or a count sits level with the plain ones. */
 .nav nav a {
+  display: inline-flex;
+  align-items: center;
   padding: 7px 12px;
   border-radius: 999px;
   font-size: 14px;
@@ -299,6 +303,22 @@ code {
 .nav nav a:hover {
   color: var(--text);
   background: var(--fill);
+}
+/* Sponsor: a line-drawn heart that fills in on hover. */
+.nav nav a.sponsor {
+  gap: 6px;
+}
+.heart {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transition: fill 120ms var(--ease);
+}
+.sponsor:hover .heart {
+  fill: currentColor;
 }
 
 /* ------------------------------------------------------------------ hero */
@@ -344,6 +364,10 @@ code {
 }
 .fine + .fine {
   margin-top: 4px;
+}
+.sponsor-line a {
+  color: var(--text-2);
+  text-underline-offset: 3px;
 }
 
 /* A window: a screenshot of the app with the shadow of one. */
