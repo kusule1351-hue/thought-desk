@@ -433,6 +433,14 @@ export function pinFirst(rows: DbRow[], ids: string[]): DbRow[] {
   return top.length ? [...top, ...rows.filter((r) => !at.has(r.id))] : rows;
 }
 
+/** The same at the bottom (oldest first), where new rows are looked for. */
+export function pinLast(rows: DbRow[], ids: string[]): DbRow[] {
+  if (!ids.length) return rows;
+  const at = new Map(ids.map((id, i) => [id, i]));
+  const end = rows.filter((r) => at.has(r.id)).sort((a, b) => at.get(a.id)! - at.get(b.id)!);
+  return end.length ? [...rows.filter((r) => !at.has(r.id)), ...end] : rows;
+}
+
 // ------------------------------------------------------------------ searching
 
 export function searchRows(rows: DbRow[], query: string, props: Property[], ctx: Ctx, hay?: (row: DbRow) => string): DbRow[] {

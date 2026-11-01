@@ -22,7 +22,7 @@
   import { Progressive } from '../progressive.svelte';
   import { keyBetween } from './order';
   import { parse as parseCsv, stringify } from './csv';
-  import { calcLabel, pinFirst, type Group } from './query';
+  import { calcLabel, pinFirst, pinLast, type Group } from './query';
   import { CALC_LABELS, CALC_SHORT, EDITABLE, TYPES, TYPE_GROUPS, TYPE_GROUP_LABELS, calcsFor, checkboxText, typeInfo } from './schema';
   import { GUTTER, freezeEligibility, planFreeze } from './freeze';
   import { comboLabel } from '../shortcuts.svelte';
@@ -158,11 +158,12 @@
       kids,
     };
   });
-  /** Rows added here, shown first until the view is left. */
+  /** Rows added here, shown last (or first, see newRow) until the view is left. */
   let fresh = $state<string[]>([]);
-  const listRows = $derived(pinFirst(tree?.rows ?? rows, fresh));
+  let freshLast = $state<string[]>([]);
+  const listRows = $derived(pinLast(pinFirst(tree?.rows ?? rows, fresh), freshLast));
   const listGroups = $derived<(Group & { total?: number })[] | null>(
-    (tree?.groups ?? groups)?.map((g) => ({ total: g.rows.length, ...g, rows: pinFirst(g.rows, fresh) })) ?? null,
+    (tree?.groups ?? groups)?.map((g) => ({ total: g.rows.length, ...g, rows: pinLast(pinFirst(g.rows, fresh), freshLast) })) ?? null,
   );
 
   const shownGroups = $derived(listGroups ? listGroups.filter((g) => g.rows.length || (!c.hideEmptyGroups && g.key !== '')) : null);
@@ -710,24 +711,30 @@
 
   // ------------------------------------------------------------ adding
 
-  /** Adds a row at the end and starts typing its title (the toolbar's New). */
+  /** Adds a row where the view puts new ones and starts typing its title (the toolbar's New). */
   export function addRow(template?: string): Promise<void> {
     return newRow(undefined, template);
   }
 
   /**
-   * Adds a row where it can be seen straight away: at the top (stored there
-   * too when the view has its own order), or, from the button under the
-   * rows, after the last one showing. Never by drawing every row down to
-   * the end of a long table.
+   * Adds a row where the view's New rows setting says: at the bottom (the
+   * default), or at the top, where it shows straight away. It's stored
+   * there when the view keeps its own order (from the button under the
+   * rows, after the last one showing), or, when a sort, groups or sub-items
+   * order the view, shown there until the view is left. A table too long to
+   * draw down to its end (as with a jump, see select) gets it at the top.
    */
   async function newRow(group?: Group, template?: string, below = false) {
     const last = visible.at(-1);
     const placed = manual && !groups && !sub;
-    const where = below && placed && last ? { after: last.id } : placed && listRows[0] ? { before: listRows[0].id } : {};
+    const bottom = c.newRows !== 'top' && flat.length <= lazy.limit + 500;
+    const where = !placed ? {} : below && last ? { after: last.id } : bottom || !listRows[0] ? {} : { before: listRows[0].id };
     const made = await databases.addRow(dbId, { view, template, ...where, group: group && c.group ? { prop: c.group, key: group.key } : undefined });
     if (!made) return;
-    if (!(below && placed)) fresh = [made.id, ...fresh];
+    if (!placed) {
+      if (bottom) freshLast = [...freshLast, made.id];
+      else fresh = [made.id, ...fresh];
+    }
     await tick();
     const r = flat.findIndex((x) => x.id === made.id);
     if (r >= 0) {

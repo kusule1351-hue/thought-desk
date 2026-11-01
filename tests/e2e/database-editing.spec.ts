@@ -46,6 +46,8 @@ test('a new task database: rows, status, dates and priority', async ({ page }) =
     await page.keyboard.press('Tab');
     await expect(page.locator('.td[data-c="0"]', { hasText: 'Essay on Middlemarch' })).toBeVisible();
     await expect(page.locator('.td[data-c="0"]', { hasText: 'Lab report' })).toBeVisible();
+    const titles = await page.locator('.td[data-c="0"]').allInnerTexts();
+    expect(titles.at(-1), 'New adds rows at the bottom').toContain('Lab report');
   });
 
   await test.step('the status picker sets a status', async () => {
@@ -88,6 +90,18 @@ test('a new task database: rows, status, dates and priority', async ({ page }) =
     await edit.locator('.danger').click();
     await page.click('button[type=submit]:has-text("Delete")');
     await expect(cell(page, 0, 3)).not.toContainText('Later');
+  });
+
+  await test.step('a view can put new rows at the top instead', async () => {
+    await page.click('.tools .icon-btn[aria-label="View settings"]');
+    await page.getByRole('radiogroup', { name: 'New rows' }).getByRole('radio', { name: 'Top' }).click();
+    await page.keyboard.press('Escape');
+    await page.click('button.new');
+    await page.waitForTimeout(300);
+    await page.keyboard.type('Reading notes');
+    await page.keyboard.press('Enter');
+    const titles = await page.locator('.td[data-c="0"]').allInnerTexts();
+    expect(titles[0]).toContain('Reading notes');
   });
 });
 

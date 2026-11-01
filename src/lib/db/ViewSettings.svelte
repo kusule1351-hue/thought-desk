@@ -210,6 +210,18 @@
       <span class="label">{t('dbTable.view.wrap')}</span>
       <Switch on={!!c.wrap} label={t('dbTable.view.wrap')} onchange={() => set({ wrap: !c.wrap })} />
     </div>
+    <div class="pop-row">
+      <span class="label">{t('dbTable.view.newRows')}</span>
+      <Segmented
+        label={t('dbTable.view.newRows')}
+        value={c.newRows ?? 'bottom'}
+        options={[
+          { value: 'bottom', label: t('dbTable.view.newRowsBottom') },
+          { value: 'top', label: t('dbTable.view.newRowsTop') },
+        ]}
+        onchange={(v) => set({ newRows: v as 'top' | 'bottom' })}
+      />
+    </div>
   {/if}
 
   {#if view.type !== 'chart' && view.type !== 'form' && view.type !== 'timeline'}
