@@ -13,6 +13,7 @@ flashcards and databases, all linked together. Bring a friend onto a page when y
 [![Downloads](https://img.shields.io/github/downloads/kusule1351-hue/thought-desk/total?color=111111)](https://github.com/kusule1351-hue/thought-desk/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-111111)](LICENSE)
 [![Discord](https://img.shields.io/badge/chat-Discord-5865F2)](https://discord.gg/JEaUHwz5bP)
+[![Sponsor](https://img.shields.io/badge/sponsor-GitHub-111111)](https://github.com/sponsors/kusule1351-hue)
 
 [**Download for Windows**](https://thoughtdesk.org/download/windows) &nbsp;·&nbsp; [**Mac**](https://thoughtdesk.org/download/mac) &nbsp;·&nbsp; [**Linux**](https://thoughtdesk.org/download/linux) &nbsp;·&nbsp; [thoughtdesk.org](https://thoughtdesk.org)
 
@@ -112,6 +113,12 @@ npm run app     # the desktop app, with hot reload
 ```
 
 Tests, where your notes are stored and how the code is laid out: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+## Support Thought Desk
+
+Thought Desk is free, and made by one person with help from the contributors below. The first goal is **$1,000 toward iPhone, iPad and Android versions**, with your notes synced between your computer and your phone: a Mac to build and test them on, and the app store fees. One-time donations of any size help.
+
+[**Sponsor on GitHub →**](https://github.com/sponsors/kusule1351-hue)
 
 ## Contributors
 
