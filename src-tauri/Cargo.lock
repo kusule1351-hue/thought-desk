@@ -4620,7 +4620,7 @@ dependencies = [
 
 [[package]]
 name = "thought-desk"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "keyring",
  "rusqlite",
