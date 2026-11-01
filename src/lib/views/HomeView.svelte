@@ -7,6 +7,7 @@
   import EmptyState from '../ui/EmptyState.svelte';
   import EventRow from '../ui/EventRow.svelte';
   import SetupCard from '../ui/SetupCard.svelte';
+  import SponsorGoal from '../ui/SponsorGoal.svelte';
   import FileTile from '../ui/FileTile.svelte';
   import { itemsByDay } from '../calendar.svelte';
   import { clock } from '../clock.svelte';
@@ -95,6 +96,7 @@
       <div class="eyebrow date">{dateLine}</div>
       <h1 class="view-title">{greeting}</h1>
       <p class="view-sub">{summary}</p>
+      <SponsorGoal />
     </div>
   </header>
 
