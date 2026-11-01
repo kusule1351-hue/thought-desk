@@ -282,10 +282,14 @@ code {
 }
 .nav nav {
   display: flex;
+  align-items: center;
   gap: 2px;
   margin-left: auto;
 }
+/* Flex, so a link with an icon or a count sits level with the plain ones. */
 .nav nav a {
+  display: inline-flex;
+  align-items: center;
   padding: 7px 12px;
   border-radius: 999px;
   font-size: 14px;
@@ -302,8 +306,6 @@ code {
 }
 /* Sponsor: a line-drawn heart that fills in on hover. */
 .nav nav a.sponsor {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
 }
 .heart {
@@ -362,9 +364,6 @@ code {
 }
 .fine + .fine {
   margin-top: 4px;
-}
-.fine.sponsor-line {
-  margin-top: 10px;
 }
 .sponsor-line a {
   color: var(--text-2);
