@@ -1,7 +1,7 @@
 {
   "name": "thought-desk",
   "private": true,
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "A fast, local-first notes workspace built with Rust + Tauri",
   "license": "AGPL-3.0-or-later",
   "repository": {
