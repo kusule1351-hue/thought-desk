@@ -71,6 +71,24 @@ test('a new task database: rows, status, dates and priority', async ({ page }) =
     await page.keyboard.press('Enter');
     await expect(cell(page, 1, 3)).toContainText('High');
   });
+
+  await test.step('a new choice has a … menu that renames and deletes it', async () => {
+    await cell(page, 0, 3).click();
+    await page.waitForTimeout(200);
+    await page.keyboard.type('Someday');
+    await page.keyboard.press('Enter');
+    await expect(cell(page, 0, 3)).toContainText('Someday');
+    await cell(page, 0, 3).click();
+    await page.click('.db-pop .opt-row:has-text("Someday") .more');
+    // It used to open inside the picker, out of sight (issue #33).
+    const edit = page.getByRole('dialog', { name: 'Edit choice' });
+    await expect(edit).toBeInViewport();
+    await edit.getByRole('textbox', { name: 'Name' }).fill('Later');
+    await expect(cell(page, 0, 3)).toContainText('Later');
+    await edit.locator('.danger').click();
+    await page.click('button[type=submit]:has-text("Delete")');
+    await expect(cell(page, 0, 3)).not.toContainText('Later');
+  });
 });
 
 test('board, numbers, sums, formulas, pasting and undo', async ({ page }) => {

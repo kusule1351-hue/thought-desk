@@ -161,9 +161,7 @@
     aria-label={prop.name}
   ></textarea>
 {:else if ['select', 'multiSelect', 'status'].includes(prop.type)}
-  <Popover {anchor} {width} onclose={() => onclose(null)} label={prop.name}>
-    <OptionPicker {dbId} {prop} value={current as string | string[] | null} query={initial ?? ''} onchange={(v) => set(v)} onclose={() => onclose(null)} />
-  </Popover>
+  <OptionPicker {dbId} {prop} {anchor} {width} value={current as string | string[] | null} query={initial ?? ''} onchange={(v) => set(v)} onclose={() => onclose(null)} />
 {:else if prop.type === 'date'}
   <Popover {anchor} {width} onclose={() => onclose(null)} label={prop.name}>
     <DatePicker value={(databases.get(row, prop) as DateValue | null) ?? null} typed={initial} onchange={(v) => set(v)} />

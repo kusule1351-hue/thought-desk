@@ -8,7 +8,9 @@
    * A floating panel anchored to an element (or a rectangle): below it, or
    * above when there's no room, kept on screen. Closes on Esc or a click
    * outside. Popovers opened from inside one nest in it, so clicking in the
-   * inner one doesn't close the outer.
+   * inner one doesn't close the outer. Render the inner one beside the outer,
+   * not inside it: the outer's glass (backdrop-filter) would place it from
+   * the outer's corner and clip it.
    */
   import { onMount, tick, type Snippet } from 'svelte';
   import { fadeOut, pop } from '../motion';

@@ -31,7 +31,7 @@ const back = (page: Page) =>
 
 /** Opens the Friends page from the sidebar. */
 async function openFriends(page: Page) {
-  await page.locator('.sidebar .views').getByRole('button', { name: 'Friends' }).click();
+  await page.locator('.sidebar .views').getByRole('button', { name: 'Cowork' }).click();
   await expect(friendsPage(page)).toBeVisible();
 }
 
@@ -67,7 +67,7 @@ test('adding a friend by username, and accepting', async ({ page: ana, browser }
 
   await test.step('Ben gets the request, live, and accepts', async () => {
     await expect(ben.locator('.toast', { hasText: 'Ana Lima wants to be friends' })).toBeVisible(LIVE);
-    await expect(ben.locator('.sidebar .nav-row', { hasText: 'Friends' }).locator('.count'), 'the sidebar counts what waits').toHaveText('1');
+    await expect(ben.locator('.sidebar .nav-row', { hasText: 'Cowork' }).locator('.count'), 'the sidebar counts what waits').toHaveText('1');
     await away(ana);
     await openFriends(ben);
     await ben.getByRole('button', { name: 'Accept Ana Lima' }).click();
@@ -141,7 +141,7 @@ test('signed out, the Friends page offers to sign in', async ({ page }) => {
   await cloud.attach(page.context());
   await open(page);
   await openFriends(page);
-  await expect(page.locator('.titlebar')).toContainText('Friends');
+  await expect(page.locator('.titlebar')).toContainText('Cowork');
   await friendsPage(page).getByRole('button', { name: 'Sign In…' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 });
