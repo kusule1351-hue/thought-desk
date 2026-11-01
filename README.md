@@ -13,9 +13,11 @@ flashcards and databases, all linked together. Bring a friend onto a page when y
 [![Downloads](https://img.shields.io/github/downloads/kusule1351-hue/thought-desk/total?color=111111)](https://github.com/kusule1351-hue/thought-desk/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-111111)](LICENSE)
 [![Discord](https://img.shields.io/badge/chat-Discord-5865F2)](https://discord.gg/JEaUHwz5bP)
-[![Sponsor](https://img.shields.io/badge/sponsor-GitHub-111111)](https://github.com/sponsors/kusule1351-hue)
+[![Sponsor](https://img.shields.io/badge/sponsor-GitHub-111111?logo=githubsponsors&logoColor=ea4aaa)](https://github.com/sponsors/kusule1351-hue)
 
 [**Download for Windows**](https://thoughtdesk.org/download/windows) &nbsp;·&nbsp; [**Mac**](https://thoughtdesk.org/download/mac) &nbsp;·&nbsp; [**Linux**](https://thoughtdesk.org/download/linux) &nbsp;·&nbsp; [thoughtdesk.org](https://thoughtdesk.org)
+
+Thought Desk is free and open source. [**❤️ Sponsor it**](https://github.com/sponsors/kusule1351-hue) to help bring it to your phone, with sync.
 
 <br>
 
@@ -116,7 +118,12 @@ Tests, where your notes are stored and how the code is laid out: [docs/DEVELOPME
 
 ## Support Thought Desk
 
-Thought Desk is free, and made by one person with help from the contributors below. The first goal is **$1,000 toward iPhone, iPad and Android versions**, with your notes synced between your computer and your phone: a Mac to build and test them on, and the app store fees. One-time donations of any size help.
+Thought Desk is free, and made by one person with help from the contributors below. The first goal is **$1,000**, for two things:
+
+- **Thought Desk on your phone:** the tools and app store fees to build and release the iPhone, iPad and Android versions.
+- **Sync:** upgrading the backend so your notes stay in step between your computer and your phone.
+
+One-time donations of any size help, and every dollar goes into the app.
 
 [**Sponsor on GitHub →**](https://github.com/sponsors/kusule1351-hue)
 
