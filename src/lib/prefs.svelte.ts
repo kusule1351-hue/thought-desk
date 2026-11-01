@@ -73,6 +73,8 @@ interface Stored {
   setupHidden: boolean;
   /** The Galaxy was turned on. It asks first: it's new, and it costs memory while open. */
   galaxyOn: boolean;
+  /** The sponsor goal line on Home was closed: the id of the goal it showed (a new goal shows it again). */
+  goalHidden: string;
   /** What Home calls you ("Good morning, Sam"); empty for no name. */
   name: string;
   /** The welcome screen has been gone through (or this install predates it). */
@@ -139,6 +141,7 @@ const defaults: Stored = {
   inboxId: null,
   setupHidden: false,
   galaxyOn: false,
+  goalHidden: '',
   name: '',
   welcomed: false,
   splitOpen: false,
@@ -217,6 +220,7 @@ class Prefs {
   inboxId = $state<string | null>(this.#initial.inboxId);
   setupHidden = $state(this.#initial.setupHidden);
   galaxyOn = $state(this.#initial.galaxyOn);
+  goalHidden = $state(this.#initial.goalHidden);
   name = $state(this.#initial.name);
   welcomed = $state(this.#initial.welcomed);
   splitOpen = $state(this.#initial.splitOpen);
@@ -262,6 +266,7 @@ class Prefs {
       inboxId: this.inboxId,
       setupHidden: this.setupHidden,
       galaxyOn: this.galaxyOn,
+      goalHidden: this.goalHidden,
       name: this.name,
       welcomed: this.welcomed,
       splitOpen: this.splitOpen,

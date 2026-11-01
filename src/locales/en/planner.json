@@ -197,6 +197,20 @@
       "eveningName": "Good evening, {name}",
       "@eveningName": "Home's title after 6 PM; {name} is the person's first name"
     },
+    "goal": {
+      "label": "Sponsor goal",
+      "@label": "accessible name of the line under Home's greeting that shows how much of the sponsorship goal has been raised",
+      "title": "Thought Desk on your phone",
+      "@title": "on Home, under the greeting, before a progress bar: what sponsors' money goes toward (iPhone, iPad and Android versions, with sync)",
+      "progress": "{raised} of {target}",
+      "@progress": "on Home, after the sponsor progress bar: how much has been given so far; {raised} and {target} are amounts in US dollars, like $47 and $1,000",
+      "sponsor": "Sponsor",
+      "@sponsor": "link after the sponsor progress bar on Home that opens the GitHub Sponsors page in the browser",
+      "hide": "Hide sponsor goal",
+      "@hide": "screen-reader name of the × button that hides the sponsor line on Home",
+      "hideTip": "Hide until the next goal",
+      "@hideTip": "tooltip of the × button that hides the sponsor line on Home: it stays hidden until there is a new goal"
+    },
     "eventsToday": {
       "=0": "Nothing scheduled today",
       "one": "{count} event today",

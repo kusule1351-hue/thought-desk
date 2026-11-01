@@ -965,6 +965,12 @@ mockIPC((cmd, payload) => {
         return `C:\\Downloads\\${a.title}.md`;
       case 'plugin:window|is_maximized':
         return false;
+      // The browser can't open the system browser; the tests read what would have opened.
+      case 'plugin:opener|open_url': {
+        const w = window as unknown as { __opened?: string[] };
+        (w.__opened ??= []).push(a.url as string);
+        return null;
+      }
       default:
         return null;
     }
