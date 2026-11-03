@@ -4,8 +4,14 @@ import type { Page } from '@playwright/test';
 import { test, expect, open, MOD } from './fixtures';
 import { EMAIL_CODE, FakeCloud } from './fake-cloud';
 
-async function openAccount(page: Page) {
+/** Opens Settings on its Account pane (the first in its list). */
+async function openSettingsAccount(page: Page) {
   await page.keyboard.press(`${MOD}+Comma`);
+  await page.getByRole('tablist', { name: 'Settings' }).getByRole('tab').first().click();
+}
+
+async function openAccount(page: Page) {
+  await openSettingsAccount(page);
   const button = page.getByRole('button', { name: /^(Sign In…|Edit Profile…)$/ });
   await expect(button).toBeEnabled();
   await button.click();
@@ -32,7 +38,7 @@ test('signing in with Google, then picking a username', async ({ page }) => {
   await expect(page.locator('.toast', { hasText: "You're @ana_l" })).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await page.keyboard.press(`${MOD}+Comma`);
+  await openSettingsAccount(page);
   await expect(page.locator('.group').filter({ hasText: '@ana_l' })).toContainText('Ana Lima');
 });
 
@@ -59,7 +65,7 @@ test('signing in with an emailed code, and staying signed in', async ({ page }) 
 
   await page.reload();
   await page.locator('.sidebar').waitFor();
-  await page.keyboard.press(`${MOD}+Comma`);
+  await openSettingsAccount(page);
   await expect(page.getByRole('button', { name: 'Edit Profile…' })).toBeVisible();
   await expect(page.locator('.group').filter({ hasText: '@ben' })).toBeVisible();
 });
@@ -82,7 +88,7 @@ test('editing the profile, then signing out', async ({ page }) => {
   await sheet.getByRole('button', { name: 'Sign Out' }).click();
   await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible();
   await page.keyboard.press('Escape');
-  await page.keyboard.press(`${MOD}+Comma`);
+  await openSettingsAccount(page);
   await expect(page.getByRole('button', { name: 'Sign In…' })).toBeVisible();
 });
 

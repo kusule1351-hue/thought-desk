@@ -84,11 +84,14 @@ export interface Toast {
   action?: () => void;
 }
 
+/** The panes of Settings, as its list names them. */
+export type SettingsPane = 'account' | 'general' | 'appearance' | 'sidebar' | 'calendar' | 'courses' | 'keyboard' | 'storage';
+
 class UI {
   searchOpen = $state(false);
   settingsOpen = $state(false);
-  /** A part of Settings to scroll to when it opens. */
-  settingsSection = $state<'keyboard' | null>(null);
+  /** The pane Settings opens on this time (otherwise, the one it was last on). */
+  settingsSection = $state<SettingsPane | null>(null);
   shortcutsHelp = $state(false);
   trashOpen = $state(false);
   menu = $state<MenuState | null>(null);

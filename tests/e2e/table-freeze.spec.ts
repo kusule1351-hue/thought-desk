@@ -207,6 +207,7 @@ test('freeze title: pinned at both sideways extremes, header aligned, persisted'
     await page.waitForTimeout(300);
     await scrollLeft(page, 0);
     await page.keyboard.press('Control+Comma');
+    await page.getByRole('tab', { name: 'Appearance' }).click();
     await page.locator('.segmented[aria-label="Theme"] button', { hasText: 'Dark' }).click();
     await page.waitForTimeout(400);
     await page.keyboard.press('Escape');
@@ -218,6 +219,7 @@ test('freeze title: pinned at both sideways extremes, header aligned, persisted'
     t = (await cell(page, 0, 0).boundingBox())!;
     expect(Math.abs(t.x - (g.x + g.width))).toBeLessThan(3);
     await page.keyboard.press('Control+Comma');
+    await page.getByRole('tab', { name: 'Appearance' }).click();
     await page.locator('.segmented[aria-label="Theme"] button', { hasText: 'Light' }).click();
     await page.waitForTimeout(300);
     await page.keyboard.press('Escape');

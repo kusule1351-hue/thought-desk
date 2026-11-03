@@ -42,6 +42,7 @@ test('zooming with the wheel, the keyboard and Settings', async ({ page }) => {
 
   await test.step('Settings shows the level and changes it', async () => {
     await page.keyboard.press('Control+Comma');
+    await page.getByRole('tab', { name: 'Appearance' }).click();
     const stepper = page.locator('.stepper[aria-label=Zoom]');
     await expect(stepper.locator('.level')).toHaveText('100%');
     await stepper.locator('button[aria-label="Zoom in"]').click();
@@ -80,6 +81,7 @@ test('text size changes the writing on pages, and is remembered', async ({ page 
 
   await test.step('Larger makes page text and the title bigger, not the sidebar', async () => {
     await page.keyboard.press('Control+Comma');
+    await page.getByRole('tab', { name: 'Appearance' }).click();
     await page.locator('[role=radiogroup][aria-label="Text size"] button', { hasText: 'Larger' }).click();
     await page.keyboard.press('Escape');
     await expect.poll(() => pageText(page)).toBe('20px');
@@ -117,12 +119,14 @@ test('"Small text" from before becomes the Small size', async ({ page }) => {
   await expect(page.locator('h1.title')).toHaveText('Getting started');
   await expect.poll(() => pageText(page)).toBe('15px');
   await page.keyboard.press('Control+Comma');
+  await page.getByRole('tab', { name: 'Appearance' }).click();
   await expect(page.locator('[role=radiogroup][aria-label="Text size"] button[aria-checked=true]')).toHaveText('Small');
 });
 
 test('a setting changed just before a reload is kept', async ({ page }) => {
   await open(page);
   await page.keyboard.press('Control+Comma');
+  await page.getByRole('tab', { name: 'Appearance' }).click();
   await page.locator('[role=radiogroup][aria-label="Text size"] button', { hasText: 'Larger' }).click();
   // Straight away, inside the wait before settings are written.
   await page.reload();

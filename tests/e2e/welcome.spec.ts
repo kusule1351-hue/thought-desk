@@ -63,7 +63,7 @@ test('a new install walks through the welcome and lands on Home', async ({ page 
     await expect(page.locator('.name-field')).toHaveValue('Alex Morgan');
     await page.locator('.name-field').fill('Sam');
     await page.keyboard.press('Enter');
-    await page.click('button:has-text("Show the welcome again")');
+    await page.getByRole('button', { name: 'Show Again' }).click();
     await expect(page.locator('.welcome')).toHaveCount(1);
     await expect(page.locator('.welcome input')).toHaveValue('Sam');
   });
