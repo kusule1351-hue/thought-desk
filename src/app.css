@@ -160,6 +160,10 @@
   --r-lg: 12px;
   --r-xl: 16px;
   --corner: superellipse(1.6);
+  /* The window's own corners, for a sheet that stands in for a window
+     (Settings). Windows 11 rounds every window 8px, in plain arcs. */
+  --r-window: 8px;
+  --window-corner: round;
 
   /* Motion */
   --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
@@ -473,6 +477,10 @@
 .round::before,
 .round::after {
   corner-shape: round;
+}
+/* A sheet that stands in for a window (Modal: windowCorners) has the window's own corner shape. */
+.window-corners {
+  corner-shape: var(--window-corner);
 }
 
 html,
@@ -2186,4 +2194,7 @@ select.pop-input {
    (tauri.macos.conf.json places them in the middle of the title bar). */
 :root.mac {
   --traffic-lights: 72px;
+  /* macOS draws rounder, continuous window corners. */
+  --r-window: var(--r-xl);
+  --window-corner: var(--corner);
 }

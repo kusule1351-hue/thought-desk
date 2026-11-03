@@ -1,23 +1,25 @@
 {
   "language": {
     "label": "Language",
-    "@label": "Settings → Appearance: the row and dropdown that choose the interface's language",
+    "@label": "Settings → General: the row and dropdown that choose the interface's language",
     "hint": "Menus, buttons and messages. The window restarts to change it.",
     "system": "System ({language})",
     "@system": "the language option that follows the computer's language; {language} is that language's name, e.g. English"
   },
+  "general": {
+    "title": "General",
+    "@title": "Settings: the first pane in its list (your name, the language, spelling, Quick Capture, updates), as System Settings calls it"
+  },
   "you": {
-    "title": "You",
-    "@title": "Settings: heading of the section about the person using the app (their name)",
     "name": "Name",
-    "@name": "Settings → You: the row for the person's own name (what Home calls them), not the name of a thing",
+    "@name": "Settings → General: the row for the person's own name (what Home calls them), not the name of a thing",
     "nameHint": "Home greets you by it",
     "yourName": "Your name",
-    "@yourName": "Settings → You: placeholder and accessible name of the field for the person's own name"
+    "@yourName": "Settings → General: placeholder and accessible name of the field for the person's own name"
   },
   "account": {
     "title": "Account",
-    "@title": "Settings: heading of the section about the signed-in account",
+    "@title": "Settings: the pane about the signed-in account, at the top of the list",
     "username": "@{username}",
     "@username": "Settings → Account: the account's username written as a handle; {username} is the username",
     "usernameEmail": "@{username} · {email}",
@@ -33,7 +35,7 @@
   },
   "appearance": {
     "title": "Appearance",
-    "@title": "Settings: heading of the section about how the app looks",
+    "@title": "Settings: the Appearance pane, in its list and as that pane's title (keep it short: the list is narrow)",
     "theme": "Theme",
     "@theme": "Settings → Appearance: the row that chooses light or dark",
     "themes": {
@@ -111,7 +113,7 @@
   },
   "sidebar": {
     "title": "Sidebar",
-    "@title": "Settings: heading of the section that chooses what the sidebar shows",
+    "@title": "Settings: the pane that chooses what the sidebar shows, in its list and as that pane's title (keep it short)",
     "show": {
       "home": "Show Home in the sidebar",
       "assignments": "Show Assignments in the sidebar",
@@ -130,13 +132,13 @@
   },
   "writing": {
     "title": "Writing",
-    "@title": "Settings: heading of the section about writing on pages",
+    "@title": "Settings → General: heading of the group about writing on pages",
     "spellcheck": "Check spelling",
     "spellcheckHint": "Underline words that look misspelled"
   },
   "capture": {
     "title": "Quick Capture",
-    "@title": "Settings: heading of the section about Quick Capture, the small window for jotting down a note or to-do (a feature name)",
+    "@title": "Settings → General: heading of the group about Quick Capture, the small window for jotting down a note or to-do (a feature name)",
     "anywhere": "Capture from anywhere",
     "anywhereHint": "{shortcut} opens Quick Capture even when Thought Desk is in the background",
     "@anywhereHint": "Settings → Quick Capture; {shortcut} is the keys that open it, like Ctrl+Shift+Space",
@@ -144,7 +146,7 @@
   },
   "calendar": {
     "title": "Calendar",
-    "@title": "Settings: heading of the section about the calendar",
+    "@title": "Settings: the Calendar pane, in its list and as that pane's title (keep it short)",
     "weekStart": "Week starts on",
     "import": "Import a calendar",
     "importHint": "Class schedules and due dates from a .ics file (Canvas, Google, Outlook)",
@@ -153,7 +155,7 @@
   },
   "reminders": {
     "title": "Reminders",
-    "@title": "Settings: heading of the section about reminder notifications",
+    "@title": "Settings → Calendar: heading of the group about reminder notifications",
     "assignments": "Assignments",
     "@assignments": "Settings → Reminders: the row that chooses when to be reminded of homework due dates",
     "assignmentsHint": "Plus one an hour before anything with a due time",
@@ -175,7 +177,7 @@
   },
   "courses": {
     "title": "Courses",
-    "@title": "Settings: heading of the list of school courses",
+    "@title": "Settings: the pane with the list of school courses, in its list and as that pane's title (keep it short)",
     "add": "Add Course",
     "changeColor": "Change color",
     "assignmentCount": {
@@ -188,7 +190,7 @@
   },
   "storage": {
     "title": "Storage",
-    "@title": "Settings: heading of the section about where and how notes are kept on this computer",
+    "@title": "Settings: the pane about where and how notes are kept on this computer, in its list and as that pane's title (keep it short)",
     "pages": {
       "one": "<num>{count}</num><noun>Page</noun>",
       "other": "<num>{count}</num><noun>Pages</noun>"
@@ -233,18 +235,24 @@
     "@note": "Settings → Storage, under the section; “Change…” in brackets is the button above that picks another folder (storage.change): write it the same way"
   },
   "about": {
+    "title": "About",
+    "@title": "Settings → General: heading of the group with the app's version, updates and the welcome screen",
     "version": "Thought Desk {version}",
-    "@version": "Settings, at the bottom: the app's name and version; {version} is the version number, like 0.8.0",
+    "@version": "Settings → General → About: the app's name and version; {version} is the version number, like 0.8.0",
     "updating": "Updating…",
-    "@updating": "Settings, at the bottom: shown while an update is downloading",
+    "@updating": "Settings → General → About: shown while an update is downloading",
     "updatingPercent": "Updating {percent}…",
-    "@updatingPercent": "Settings, at the bottom: shown while an update is downloading; {percent} is how much is done, like 45%",
+    "@updatingPercent": "Settings → General → About: shown while an update is downloading; {percent} is how much is done, like 45%",
     "install": "Install {version}",
-    "@install": "Settings, at the bottom: link that installs the new version; {version} is its version number, like 0.9.0",
+    "@install": "Settings → General → About: button that installs the new version; {version} is its version number, like 0.9.0",
     "checking": "Checking…",
-    "@checking": "Settings, at the bottom: shown while looking for a new version",
-    "check": "Check for updates",
-    "showWelcome": "Show the welcome again"
+    "@checking": "Settings → General → About: shown on the button while looking for a new version",
+    "check": "Check for Updates",
+    "welcome": "Welcome",
+    "@welcome": "Settings → General → About: the row for the welcome screen a new install starts with (a noun)",
+    "welcomeHint": "The short tour a new install starts with: your name, the look, three things worth knowing",
+    "showWelcome": "Show Again",
+    "@showWelcome": "Settings → General → About: button that shows the welcome screen again"
   },
   "keyboard": {
     "title": "Keyboard Shortcuts",

@@ -12,6 +12,7 @@ test('sidebar items can be hidden from Settings or by right-click, and stay hidd
 
   await test.step('a switch in Settings hides Flashcards', async () => {
     await page.keyboard.press(`${MOD}+Comma`);
+    await page.getByRole('tab', { name: 'Sidebar' }).click();
     await page.getByRole('switch', { name: 'Show Flashcards in the sidebar' }).click();
     await page.keyboard.press('Escape');
     await expect(sidebar(page).locator('nav.views')).not.toContainText('Flashcards');
@@ -109,6 +110,7 @@ test('notes can move to a folder you pick, open notes a folder has, or go back',
   await open(page);
   const openStorage = async () => {
     await page.keyboard.press(`${MOD}+Comma`);
+    await page.getByRole('tab', { name: 'Storage' }).click();
     await page.getByRole('button', { name: 'Change…' }).scrollIntoViewIfNeeded();
   };
   const moves = () => page.evaluate(() => (window as any).__folderMoves ?? []);
@@ -159,6 +161,7 @@ test('a chosen folder that is missing at start-up is pointed out', async ({ page
   await open(page);
   await expect(page.locator('.toast', { hasText: "Your notes folder (F:\\Notes) isn't there" })).toBeVisible();
   await page.keyboard.press(`${MOD}+Comma`);
+  await page.getByRole('tab', { name: 'Storage' }).click();
   await expect(page.getByText('Chosen folder not found')).toBeVisible();
 });
 

@@ -33,7 +33,7 @@ The interface's text lives in `src/locales/<language>/<area>.json`, one file per
 
 5. **Check it.** `npm install`, then `npm run i18n`. It checks every rule above. `npm run i18n -- --missing <code>` lists the messages still to translate (and those still the same as English).
 
-6. **Try it.** `npm run dev` opens the interface at http://localhost:1420. Choose your language in Settings → Appearance → Language; the window restarts in it.
+6. **Try it.** `npm run dev` opens the interface at http://localhost:1420. Choose your language in Settings → General → Language; the window restarts in it.
 
 Some things stay English on purpose: the formula language (`if()`, `round()`, `"weeks"`), which is code people type; the words a date field understands when you type one ("tomorrow"), which also accepts your language's month names; and messages from the storage engine, which come from Rust.
 

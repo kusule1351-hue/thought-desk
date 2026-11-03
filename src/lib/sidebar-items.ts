@@ -63,7 +63,14 @@ export function sidebarItemMenu(e: MouseEvent, key: SidebarItem) {
         icon: 'eye-off',
         action: () => hideFromSidebar(key),
       },
-      { label: t('shell.sidebar.customize'), icon: 'sliders', action: () => (ui.settingsOpen = true) },
+      {
+        label: t('shell.sidebar.customize'),
+        icon: 'sliders',
+        action: () => {
+          ui.settingsSection = 'sidebar';
+          ui.settingsOpen = true;
+        },
+      },
     ],
   });
 }

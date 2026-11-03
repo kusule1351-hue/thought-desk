@@ -1,23 +1,25 @@
 {
   "language": {
     "label": "Idioma",
-    "@label": "Configuración → Apariencia: la fila y el menú desplegable que eligen el idioma de la interfaz",
+    "@label": "Configuración → General: la fila y el menú desplegable que eligen el idioma de la interfaz",
     "hint": "Menús, botones y mensajes. La ventana se reinicia para cambiarlo.",
     "system": "Sistema ({language})",
     "@system": "la opción de idioma que sigue al idioma de la computadora; {language} es el nombre de ese idioma, por ejemplo English"
   },
+  "general": {
+    "title": "General",
+    "@title": "Configuración: el primer panel de su lista (tu nombre, el idioma, la ortografía, Captura rápida, actualizaciones), como lo llama Ajustes del Sistema"
+  },
   "you": {
-    "title": "Tú",
-    "@title": "Configuración: encabezado de la sección sobre la persona que usa la aplicación (su nombre)",
     "name": "Nombre",
-    "@name": "Configuración → Tú: la fila para el nombre propio de la persona (como la llama Inicio), no el nombre de una cosa",
+    "@name": "Configuración → General: la fila para el nombre propio de la persona (como la llama Inicio), no el nombre de una cosa",
     "nameHint": "Inicio te saluda como",
     "yourName": "Tu nombre",
-    "@yourName": "Configuración → Tú: placeholder y nombre accesible del campo para el nombre propio de la persona"
+    "@yourName": "Configuración → General: placeholder y nombre accesible del campo para el nombre propio de la persona"
   },
   "account": {
     "title": "Cuenta",
-    "@title": "Configuración: encabezado de la sección sobre la cuenta iniciada",
+    "@title": "Configuración: el panel sobre la cuenta iniciada, en lo alto de la lista",
     "username": "@{username}",
     "@username": "Configuración → Cuenta: el nombre de usuario de la cuenta escrito como un handle; {username} es el nombre de usuario",
     "usernameEmail": "@{username} · {email}",
@@ -33,7 +35,7 @@
   },
   "appearance": {
     "title": "Apariencia",
-    "@title": "Configuración: encabezado de la sección sobre cómo se ve la aplicación",
+    "@title": "Configuración: el panel Apariencia, en su lista y como título de ese panel (que sea corto: la lista es estrecha)",
     "theme": "Tema",
     "@theme": "Configuración → Apariencia: la fila que elige claro u oscuro",
     "themes": {
@@ -110,8 +112,8 @@
     }
   },
   "sidebar": {
-    "title": "Barra Lateral",
-    "@title": "Configuración: encabezado de la sección que elige qué muestra la barra lateral",
+    "title": "Barra lateral",
+    "@title": "Configuración: el panel que elige qué muestra la barra lateral, en su lista y como título de ese panel (que sea corto)",
     "show": {
       "home": "Mostrar Inicio en la barra lateral",
       "assignments": "Mostrar tareas en la barra lateral",
@@ -128,21 +130,21 @@
   },
   "writing": {
     "title": "Escritura",
-    "@title": "Configuración: encabezado de la sección sobre escritura en páginas",
+    "@title": "Configuración → General: encabezado del grupo sobre escritura en páginas",
     "spellcheck": "Revisar ortografía",
     "spellcheckHint": "Subrayar palabras que parecen mal escritas"
   },
   "capture": {
-    "title": "Atrapar",
-    "@title": "Configuración: encabezado de la sección sobre captura rápida, la pequeña ventana para anotar una nota o tarea (un nombre de función)",
+    "title": "Captura rápida",
+    "@title": "Configuración → General: encabezado del grupo sobre Captura rápida, la pequeña ventana para anotar una nota o tarea (un nombre de función)",
     "anywhere": "Capturar desde cualquier lugar",
-    "anywhereHint": "{shortcut} abre Atrapada rápida incluso cuando Thought Desk está en segundo plano",
-    "@anywhereHint": "Configuración → Atrapada rápida; {shortcut} son las teclas que lo abren, como Ctrl+Shift+Espacio",
-    "anywhereHintNoShortcut": "Su atajo abre Atrapada rápida incluso cuando Thought Desk está en segundo plano"
+    "anywhereHint": "{shortcut} abre Captura rápida incluso cuando Thought Desk está en segundo plano",
+    "@anywhereHint": "Configuración → Captura rápida; {shortcut} son las teclas que lo abren, como Ctrl+Shift+Espacio",
+    "anywhereHintNoShortcut": "Su atajo abre Captura rápida incluso cuando Thought Desk está en segundo plano"
   },
   "calendar": {
     "title": "Calendario",
-    "@title": "Configuración: encabezado de la sección sobre el calendario",
+    "@title": "Configuración: el panel Calendario, en su lista y como título de ese panel (que sea corto)",
     "weekStart": "La semana comienza el",
     "import": "Importar un calendario",
     "importHint": "Horarios de clase y fechas de vencimiento de un archivo .ics (Canvas, Google, Outlook)",
@@ -151,7 +153,7 @@
   },
   "reminders": {
     "title": "Recordatorios",
-    "@title": "Configuración: encabezado de la sección sobre recordatorios de notificación",
+    "@title": "Configuración → Calendario: encabezado del grupo sobre recordatorios de notificación",
     "assignments": "Tareas",
     "@assignments": "Configuración → Recordatorios: la fila que elige cuándo ser recordado de las fechas de vencimiento de las tareas",
     "assignmentsHint": "Un recordatorio una hora antes de cualquier cosa con una hora de vencimiento",
@@ -173,7 +175,7 @@
   },
   "courses": {
     "title": "Cursos",
-    "@title": "Configuración: encabezado de la lista de cursos escolares",
+    "@title": "Configuración: el panel con la lista de cursos escolares, en su lista y como título de ese panel (que sea corto)",
     "add": "Añadir curso",
     "changeColor": "Cambiar color",
     "assignmentCount": {
@@ -186,7 +188,7 @@
   },
   "storage": {
     "title": "Almacenamiento",
-    "@title": "Configuración: encabezado de la sección sobre dónde y cómo se guardan las notas en este ordenador",
+    "@title": "Configuración: el panel sobre dónde y cómo se guardan las notas en este ordenador, en su lista y como título de ese panel (que sea corto)",
     "pages": {
       "one": "<num>{count}</num><noun>Pagina</noun>",
       "other": "<num>{count}</num><noun>Paginas</noun>"
@@ -231,18 +233,24 @@
     "@note": "Configuración → Almacenamiento, debajo de la sección; “Cambiar…” entre corchetes es el botón de arriba que elige otra carpeta (storage.change): escríbelo de la misma manera"
   },
   "about": {
+    "title": "Acerca de",
+    "@title": "Configuración → General: encabezado del grupo con la versión de la aplicación, las actualizaciones y la pantalla de bienvenida",
     "version": "Thought Desk {version}",
-    "@version": "Configuración, en la parte inferior: el nombre y la versión de la aplicación; {version} es el número de versión, como 0.8.0",
+    "@version": "Configuración → General → Acerca de: el nombre y la versión de la aplicación; {version} es el número de versión, como 0.8.0",
     "updating": "Actualizando…",
-    "@updating": "Configuración, en la parte inferior: se muestra mientras se descarga una actualización",
+    "@updating": "Configuración → General → Acerca de: se muestra mientras se descarga una actualización",
     "updatingPercent": "Actualizando {percent}…",
-    "@updatingPercent": "Configuración, en la parte inferior: se muestra mientras se descarga una actualización; {percent} es lo que se ha descargado, como 45%",
+    "@updatingPercent": "Configuración → General → Acerca de: se muestra mientras se descarga una actualización; {percent} es lo que se ha descargado, como 45%",
     "install": "Instalar {version}",
-    "@install": "Configuración, en la parte inferior: enlace que instala la nueva versión; {version} es su número de versión, como 0.9.0",
+    "@install": "Configuración → General → Acerca de: botón que instala la nueva versión; {version} es su número de versión, como 0.9.0",
     "checking": "Buscando…",
-    "@checking": "Configuración, en la parte inferior: se muestra mientras se busca una nueva versión",
+    "@checking": "Configuración → General → Acerca de: se muestra en el botón mientras se busca una nueva versión",
     "check": "Buscar actualizaciones",
-    "showWelcome": "Mostrar la bienvenida otra vez"
+    "welcome": "Bienvenida",
+    "@welcome": "Configuración → General → Acerca de: la fila de la pantalla de bienvenida con la que empieza una instalación nueva (un sustantivo)",
+    "welcomeHint": "El breve recorrido con el que empieza una instalación nueva: tu nombre, el aspecto, tres cosas que conviene saber",
+    "showWelcome": "Mostrar otra vez",
+    "@showWelcome": "Configuración → General → Acerca de: botón que muestra la pantalla de bienvenida otra vez"
   },
   "keyboard": {
     "title": "Atajos de teclado",

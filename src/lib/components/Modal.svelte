@@ -11,6 +11,7 @@
     label,
     glass = false,
     closeButton = false,
+    windowCorners = false,
     children,
   }: {
     onclose: () => void;
@@ -20,6 +21,8 @@
     glass?: boolean;
     /** A close button in the corner, for sheets without a header of their own. */
     closeButton?: boolean;
+    /** The app window's own corners, for a sheet that stands in for a window (Settings). */
+    windowCorners?: boolean;
     children: Snippet;
   } = $props();
 
@@ -50,6 +53,7 @@
   <div
     class="modal"
     class:glass
+    class:window-corners={windowCorners}
     style:width="{width}px"
     style:margin-top={top}
     role="dialog"
@@ -92,6 +96,10 @@
     border-radius: var(--r-xl);
     box-shadow: var(--shadow-modal);
     transform-origin: 50% 30%;
+  }
+  /* A sheet standing in for a window has the window's corners (and their shape, app.css). */
+  .modal.window-corners {
+    border-radius: var(--r-window);
   }
   .close {
     position: absolute;

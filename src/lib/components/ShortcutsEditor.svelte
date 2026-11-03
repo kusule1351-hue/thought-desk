@@ -1,8 +1,9 @@
 <script lang="ts">
   import { ALT, MOD } from '../platform';
   /**
-   * Settings → Keyboard: every command's shortcut, which can be changed by
-   * clicking it and pressing new keys. Esc cancels, Backspace removes it.
+   * Settings → Keyboard Shortcuts: every command's shortcut, which can be
+   * changed by clicking it and pressing new keys. Esc cancels, Backspace
+   * removes it. The pane's title and its Reset All button are Settings' own.
    */
   import Icon from './Icon.svelte';
   import { prefs } from '../prefs.svelte';
@@ -14,7 +15,6 @@
   let note = $state<{ id: ShortcutId; text: string; error?: boolean } | null>(null);
 
   const groups = SHORTCUT_GROUPS.map((g) => ({ id: g, items: SHORTCUTS.filter((s) => s.group === g) }));
-  const anyCustom = $derived(Object.keys(prefs.shortcuts).length > 0);
 
   function start(id: ShortcutId) {
     recording = recording === id ? null : id;
@@ -72,13 +72,7 @@
 
 <svelte:window onkeydowncapture={onKey} />
 
-<h3 class="group-title" id="settings-keyboard">
-  <span>{t('settings.keyboard.title')}</span>
-  {#if anyCustom}
-    <button class="btn small raised" onclick={() => shortcuts.reset()}><Icon name="restore" size={13} stroke={2} /> {t('settings.keyboard.resetAll')}</button>
-  {/if}
-</h3>
-<p class="group-note top">{t('settings.keyboard.intro', { escape: keyName('Escape'), backspace: keyName('Backspace') })}</p>
+<p class="group-note top" id="settings-keyboard">{t('settings.keyboard.intro', { escape: keyName('Escape'), backspace: keyName('Backspace') })}</p>
 
 {#each groups as g (g.id)}
   {#if g.id !== 'general'}<h3 class="group-title sub">{SHORTCUT_GROUP_LABELS[g.id]}</h3>{/if}
@@ -144,7 +138,7 @@
     margin-top: 16px;
   }
   .group-note.top {
-    margin: -4px 4px 8px;
+    margin: 4px 4px 12px;
   }
   .right {
     display: flex;
