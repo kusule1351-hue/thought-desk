@@ -57,9 +57,10 @@ export const fmt = {
     return cached('l', { type, style }, () => new Intl.ListFormat(i18n.locale, { type, style })).format(items);
   },
 
-  /** A file size: "512 B", "1.5 KB", "3.2 MB", "1.1 GB" (powers of 1,024). */
-  bytes(n: number): string {
-    const one = { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+  /** A file size: "512 B", "1.5 KB", "3.2 MB", "1.1 GB" (powers of 1,024); compact: "120 MB", "1 GB". */
+  bytes(n: number, compact = false): string {
+    // `compact` drops a trailing ".0": "120 MB of 1 GB".
+    const one = { minimumFractionDigits: compact ? 0 : 1, maximumFractionDigits: 1 };
     if (n < 1024) return t('common.units.bytes', { size: fmt.number(n) });
     if (n < 1024 ** 2) return t('common.units.kilobytes', { size: fmt.number(n / 1024, one) });
     if (n < 1024 ** 3) return t('common.units.megabytes', { size: fmt.number(n / 1024 ** 2, one) });

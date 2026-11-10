@@ -211,7 +211,7 @@
                 store.open(source.id);
               }}
             >
-              {#if source.icon}<span><PageIcon icon={source.icon} /></span>{:else}<Icon name="page" size={12} />{/if}
+              {#if source.icon}<span><PageIcon icon={source.icon} /></span>{:else}<Icon name={store.defaultIcon(source)} size={12} />{/if}
               {source.title || t('common.untitled')}
             </button>
           {/if}

@@ -4,7 +4,7 @@ import { t } from './i18n';
  *  (development and the interface tests, see dev-mock.ts). Asked at call
  *  time: the browser stand-in installs itself after modules load. */
 export function isDesktop(): boolean {
-  return '__TAURI_INTERNALS__' in window && !(window as { __TD_MOCK__?: boolean }).__TD_MOCK__;
+  return '__TAURI_INTERNALS__' in window && !(import.meta.env.DEV && (window as { __TD_MOCK__?: boolean }).__TD_MOCK__);
 }
 
 /** A Mac: Cmd is the shortcut key, and macOS draws the window's own buttons

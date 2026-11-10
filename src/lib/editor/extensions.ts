@@ -5,7 +5,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
 import { TableKit } from '@tiptap/extension-table';
-import Image from '@tiptap/extension-image';
+import Image, { type ImageOptions } from '@tiptap/extension-image';
 import Typography from '@tiptap/extension-typography';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -26,7 +26,7 @@ import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { RemoteGlow } from './remote-glow';
 import type { Doc as YDoc } from 'yjs';
-import { storedName } from '../api';
+import { normalizeFileUrl, storedName } from '../api';
 import { ui } from '../ui.svelte';
 import { t } from '../i18n';
 
@@ -112,18 +112,46 @@ const LinkOpener = Extension.create({
   },
 });
 
+/** Every picture: its address is shown in this platform's form, whatever form the document holds
+ *  (`http://tdfile.localhost/x`, `tdfile://localhost/x`; see sync/text.ts), and what is saved is untouched. */
+const BaseImage = Image.extend({
+  addAttributes() {
+    const parent: Record<string, Record<string, unknown>> = this.parent?.() ?? {};
+    return {
+      ...parent,
+      src: { ...parent.src, renderHTML: (attrs: Record<string, unknown>) => ({ src: typeof attrs.src === 'string' ? normalizeFileUrl(attrs.src) : attrs.src }) },
+    };
+  },
+});
+
 /** Pictures from the web shown here since the app started (see SharedImage). */
 const shownRemote = new Set<string>();
 
-/** In a page written together, a picture from a web address waits for a
- *  click: the other person may have put it there, and loading it tells that
- *  site your IP address. Pictures from the library load as usual. */
-const SharedImage = Image.extend({
+/** In a page written together, and in any page that has been (its pictures
+ *  are marked `shared` when the session ends, see Session.body in
+ *  cowork.svelte.ts), a picture from a web address waits for a click: the
+ *  other person may have put it there, and loading it tells that site your IP
+ *  address. Pictures from the library load as usual. */
+const SharedImage = BaseImage.extend<ImageOptions & { live: boolean }>({
+  addOptions() {
+    return { ...(this.parent?.() as ImageOptions), live: false };
+  },
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      shared: {
+        default: false,
+        parseHTML: (el) => el.hasAttribute('data-shared'),
+        renderHTML: (attrs) => (attrs.shared ? { 'data-shared': '' } : {}),
+      },
+    };
+  },
   addNodeView() {
     const parent = this.parent?.();
+    const live = this.options.live;
     return (props) => {
       const src = String(props.node.attrs.src ?? '');
-      if (!/^https?:\/\//i.test(src) || storedName(src) || shownRemote.has(src)) {
+      if (!/^https?:\/\//i.test(src) || storedName(src) || shownRemote.has(src) || !(live || props.node.attrs.shared)) {
         if (parent) return parent(props);
         const img = document.createElement('img');
         img.src = src;
@@ -165,15 +193,20 @@ const SharedImage = Image.extend({
   },
 });
 
-/** A shared page's editor (see cowork.svelte.ts): its document, connection and who's typing. */
+/**
+ * An editor bound to a Yjs document. A live session's page (see cowork.svelte.ts)
+ * also has its connection and who's typing; a page synced between a person's own
+ * computers (see sync/docs.ts) has only the document: no carets, no glow, and
+ * pictures from the web load as usual.
+ */
 export interface CollabSetup {
   doc: YDoc;
-  provider: unknown;
-  user: { name: string; color: string; id: number };
+  provider?: unknown;
+  user?: { name: string; color: string; id: number };
   /** The other person's cursor colour, for the glow on what they just typed. */
-  friendColor: () => string | undefined;
+  friendColor?: () => string | undefined;
   /** Whether a person's name is showing now (Session.isAwake). */
-  awake: (id: number) => boolean;
+  awake?: (id: number) => boolean;
 }
 
 /** Another person's cursor, marked with their client id so their name can
@@ -195,11 +228,11 @@ function caret(user: Record<string, unknown>, awake: (id: number) => boolean): H
 
 export function buildExtensions(handle: BlockHandleOptions, collab?: CollabSetup): AnyExtension[] {
   return [
-    ...(collab
+    ...(collab ? [Collaboration.configure({ document: collab.doc })] : []),
+    ...(collab?.provider && collab.user && collab.awake
       ? [
-          Collaboration.configure({ document: collab.doc }),
-          CollaborationCaret.configure({ provider: collab.provider, user: collab.user, render: (user) => caret(user, collab.awake) }),
-          RemoteGlow.configure({ color: collab.friendColor }),
+          CollaborationCaret.configure({ provider: collab.provider, user: collab.user, render: (user) => caret(user, collab.awake!) }),
+          RemoteGlow.configure({ color: collab.friendColor ?? (() => undefined) }),
         ]
       : []),
     StarterKit.configure({
@@ -226,7 +259,10 @@ export function buildExtensions(handle: BlockHandleOptions, collab?: CollabSetup
     DetailsContent,
     ToggleEnter,
     TableKit.configure({ table: { resizable: true, cellMinWidth: 80 } }),
-    (collab ? SharedImage : Image).configure({
+    // Live only while someone else is on the page: a page synced between your own computers
+    // has the document and no provider, and its pictures load as usual.
+    SharedImage.configure({
+      live: !!collab?.provider,
       inline: false,
       allowBase64: false,
       // A page of hundreds of photos only loads and decodes what's on screen.

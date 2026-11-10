@@ -43,7 +43,7 @@ Everything lives in one SQLite database (`thoughtdesk.db`, WAL mode) plus a `fil
 
 Set `THOUGHTDESK_DATA_DIR` to use a different folder, e.g. a portable copy on a USB drive; it wins over the folder chosen in Settings.
 
-**Ready for sync.** Databases are stored so that two copies can later be merged without a server deciding who wins. Each install has a device id; every edit to a cell, property, view, automation or row's title, icon, place or deletion carries a hybrid logical clock stamp, and changed records are queued in an outbox. Merging keeps the newest stamp per cell, so two people editing different cells of the same row both keep their edits; deleted properties and views stay as tombstones so a deletion can't be undone by an older copy. Row order uses fractional keys, so moving a row never renumbers the others. The `sync_pending` / `sync_apply` / `sync_sent` commands are the hooks an online service will use (`src-tauri/src/sync.rs`, `databases.rs`). Page bodies and the rest of the workspace aren't stamped yet.
+**Ready for sync.** Databases are stored so that two copies can be merged without a server deciding who wins: stable ids, fractional order keys (so moving a row never renumbers the others) and tombstones for deleted properties and views, so a deletion can't be undone by an older copy. Each install has a device id and a hybrid logical clock (`src-tauri/src/sync.rs`); the sync engine itself is described in `docs/sync.md`.
 
 ## Layout
 
@@ -76,8 +76,8 @@ src-tauri/src/
   organize.rs            tags, backlinks, to-dos rolled up from pages (+ tests)
   commands.rs            Tauri commands
   cards.rs               flashcards: decks, reviews (+ tests)
-  databases.rs           database schemas, properties, views, automations, rows and templates, merging copies (+ tests)
-  sync.rs                device id, hybrid logical clocks, outbox
+  databases.rs           database schemas, properties, views, automations, rows and templates (+ tests)
+  sync.rs                device id and the hybrid logical clock
   export.rs              writing the whole-workspace export into its folder (+ tests)
   location.rs            the folder notes are kept in: remembering a chosen one, copying the workspace there (+ tests)
   cowork.rs              pages in a live session: their room and the Yjs state kept for reconnecting (+ tests)

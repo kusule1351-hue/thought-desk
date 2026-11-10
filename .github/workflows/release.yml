@@ -21,7 +21,9 @@
 #   - secret SIGNPATH_API_TOKEN (in the "release" environment): the token of
 #     a SignPath user who may submit signing requests;
 #   - variables SIGNPATH_PROJECT_SLUG and SIGNPATH_POLICY_SLUG, if they
-#     aren't "thought-desk" and "release-signing".
+#     aren't "thought-desk" and "release-signing". With the policy
+#     "test-signing" the installer is signed with a test certificate, and the
+#     release notes say it isn't code-signed.
 # The SignPath project needs the GitHub.com trusted build system and two
 # artifact configurations, "binaries" and "installer" (.github/signpath/).
 #
@@ -346,7 +348,8 @@ jobs:
       - name: Write latest.json and the notes
         run: node .github/scripts/release-files.mjs publish release "$RUNNER_TEMP/notes.md"
         env:
-          SIGNED: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+          # Signed for real only: the "test-signing" policy makes a test certificate Windows doesn't trust.
+          SIGNED: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' && (vars.SIGNPATH_POLICY_SLUG || 'release-signing') != 'test-signing' }}
 
       # With the run as well: a run by hand makes no release.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

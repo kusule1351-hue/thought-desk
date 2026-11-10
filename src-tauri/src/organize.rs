@@ -482,12 +482,11 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::TempDb;
     use crate::db::PagePatch;
-    use std::path::PathBuf;
 
-    fn temp_db() -> Db {
-        let dir: PathBuf = std::env::temp_dir().join(format!("td-test-{}", uuid::Uuid::new_v4().simple()));
-        Db::open(&dir).expect("open db")
+    fn temp_db() -> TempDb {
+        TempDb::new("td-test")
     }
 
     #[test]

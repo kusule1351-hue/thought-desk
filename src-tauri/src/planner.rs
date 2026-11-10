@@ -663,12 +663,11 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::TempDb;
     use crate::db::Table;
-    use std::path::PathBuf;
 
-    fn temp_db() -> (Db, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("td-test-{}", uuid::Uuid::new_v4().simple()));
-        (Db::open(&dir).expect("open db"), dir)
+    fn temp_db() -> TempDb {
+        TempDb::new("td-test")
     }
 
     fn patch(json: &str) -> AssignmentPatch {
@@ -677,7 +676,7 @@ mod tests {
 
     #[test]
     fn assignment_lifecycle() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let course = db.create_course("Biology", "green").unwrap();
         let a = db
             .create_assignment(patch(&format!(
@@ -715,7 +714,7 @@ mod tests {
 
     #[test]
     fn attachments_follow_the_library() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let f1 = db.import_file(b"one", "notes.txt", "text/plain").unwrap();
         let f2 = db.import_file(b"two", "data.csv", "").unwrap();
         let a = db
@@ -730,7 +729,7 @@ mod tests {
 
     #[test]
     fn events_normalize_their_range() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let input: EventPatch = serde_json::from_str(
             r#"{"title":"Lecture","startDate":"2026-10-12","startTime":"10:00","endDate":"2026-10-11","endTime":"09:00","repeat":"weekly"}"#,
         )
@@ -755,7 +754,7 @@ mod tests {
 
     #[test]
     fn unified_trash() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let a = db.create_assignment(patch(r#"{"title":"Quiz"}"#)).unwrap();
         let e = db
             .create_event(serde_json::from_str(r#"{"title":"Exam","startDate":"2026-11-02"}"#).unwrap())
@@ -782,7 +781,7 @@ mod tests {
 
     #[test]
     fn grades_and_weights() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let c = db.create_course("Physics", "teal").unwrap();
         let c = db
             .update_course(&c.id, serde_json::from_str(r#"{"weights":{" Exams ":60,"Homework":40}}"#).unwrap())
@@ -802,7 +801,7 @@ mod tests {
 
     #[test]
     fn course_details_exdates_and_session_notes() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let c = db.create_course("Chemistry", "blue").unwrap();
         let c = db
             .update_course(&c.id, serde_json::from_str(r#"{"teacher":" Dr. Lee ","email":"lee@uni.edu","room":"B12"}"#).unwrap())
@@ -830,7 +829,7 @@ mod tests {
 
     #[test]
     fn courses_keep_the_order_they_are_put_in() {
-        let (db, _dir) = temp_db();
+        let db = temp_db();
         let names = |db: &Db| db.list_courses().unwrap().into_iter().map(|c| c.name).collect::<Vec<_>>();
         let a = db.create_course("Biology", "green").unwrap();
         let b = db.create_course("History", "orange").unwrap();

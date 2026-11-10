@@ -75,6 +75,8 @@ interface Stored {
   galaxyOn: boolean;
   /** The sponsor goal line on Home was closed: the id of the goal it showed (a new goal shows it again). */
   goalHidden: string;
+  /** Who closed the pop-up about the free sync storage (an account id, or `guest`). Any entry means this install has seen it: it shows once. */
+  syncWelcomed: Record<string, boolean>;
   /** What Home calls you ("Good morning, Sam"); empty for no name. */
   name: string;
   /** The welcome screen has been gone through (or this install predates it). */
@@ -142,6 +144,7 @@ const defaults: Stored = {
   setupHidden: false,
   galaxyOn: false,
   goalHidden: '',
+  syncWelcomed: {},
   name: '',
   welcomed: false,
   splitOpen: false,
@@ -172,6 +175,7 @@ function read(): Stored {
       if (!PALETTES.some((p) => p.key === stored.palette) && stored.palette !== 'custom') stored.palette = 'default';
       if (!Array.isArray(stored.recentDbs)) stored.recentDbs = [];
       if (!Array.isArray(stored.tabs)) stored.tabs = [];
+      if (!stored.syncWelcomed || typeof stored.syncWelcomed !== 'object') stored.syncWelcomed = {};
       if (!stored.coworkPages || typeof stored.coworkPages !== 'object') stored.coworkPages = {};
       if (!stored.sidebarHidden || typeof stored.sidebarHidden !== 'object') stored.sidebarHidden = {};
       // "Small text" was a switch before there were sizes.
@@ -221,6 +225,7 @@ class Prefs {
   setupHidden = $state(this.#initial.setupHidden);
   galaxyOn = $state(this.#initial.galaxyOn);
   goalHidden = $state(this.#initial.goalHidden);
+  syncWelcomed = $state.raw<Record<string, boolean>>(this.#initial.syncWelcomed);
   name = $state(this.#initial.name);
   welcomed = $state(this.#initial.welcomed);
   splitOpen = $state(this.#initial.splitOpen);
@@ -267,6 +272,7 @@ class Prefs {
       setupHidden: this.setupHidden,
       galaxyOn: this.galaxyOn,
       goalHidden: this.goalHidden,
+      syncWelcomed: this.syncWelcomed,
       name: this.name,
       welcomed: this.welcomed,
       splitOpen: this.splitOpen,

@@ -9,7 +9,8 @@
 use crate::db::{Error, Result};
 use std::fs;
 use std::io::ErrorKind;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use zeroize::Zeroize;
 
 /// Mixed into the encryption, so the file can't be decrypted without it.
 #[cfg(windows)]
@@ -25,11 +26,30 @@ fn valid(name: &str) -> bool {
 
 pub struct Secrets {
     dir: PathBuf,
+    /// Whether the system's keystore is tried first (macOS, Linux). A test
+    /// that stands for two computers turns it off: one machine has one
+    /// keystore, whatever folder each `Secrets` is given.
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    keystore: bool,
 }
 
 impl Secrets {
     pub fn new(dir: PathBuf) -> Self {
-        Self { dir }
+        Self {
+            dir,
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            keystore: true,
+        }
+    }
+
+    /// Kept in files in `dir` alone, never in the system's keystore.
+    #[cfg(test)]
+    pub fn files_only(dir: PathBuf) -> Self {
+        Self {
+            dir,
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            keystore: false,
+        }
     }
 
     fn path(&self, name: &str) -> Result<PathBuf> {
@@ -42,7 +62,7 @@ impl Secrets {
     pub fn get(&self, name: &str) -> Result<Option<String>> {
         let path = self.path(name)?;
         #[cfg(any(target_os = "macos", target_os = "linux"))]
-        if let Some(value) = keystore::get(name) {
+        if let Some(value) = self.keystore.then(|| keystore::get(name)).flatten() {
             return Ok(Some(value));
         }
         let sealed = match fs::read(&path) {
@@ -52,9 +72,10 @@ impl Secrets {
         };
         match unseal(&sealed).and_then(|plain| String::from_utf8(plain).ok()) {
             Some(value) => Ok(Some(value)),
-            // Damaged, or another Windows account's: forget it (signing in again makes a new one).
+            // Damaged, or another Windows account's: set it aside (signing in again
+            // makes a new one) rather than delete what may be someone's only copy.
             None => {
-                let _ = fs::remove_file(&path);
+                let _ = fs::rename(&path, path.with_extension("bad"));
                 Ok(None)
             }
         }
@@ -63,33 +84,98 @@ impl Secrets {
     pub fn set(&self, name: &str, value: &str) -> Result<()> {
         let path = self.path(name)?;
         #[cfg(any(target_os = "macos", target_os = "linux"))]
-        if keystore::set(name, value) {
+        if self.keystore && keystore::set(name, value) {
             // A copy left from a time without a keystore goes.
             let _ = fs::remove_file(&path);
             return Ok(());
         }
-        fs::create_dir_all(&self.dir).map_err(|e| Error(e.to_string()))?;
+        make_private_dir(&self.dir).map_err(|e| Error(e.to_string()))?;
         let sealed = seal(value.as_bytes()).ok_or_else(|| Error("Windows couldn't encrypt the sign-in".into()))?;
         // Written whole, then moved into place, so a crash never leaves half a file.
         let tmp = path.with_extension("tmp");
-        fs::write(&tmp, sealed).map_err(|e| Error(e.to_string()))?;
-        // Only this user may read it (on Windows, the encryption does that).
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&tmp, fs::Permissions::from_mode(0o600)).map_err(|e| Error(e.to_string()))?;
-        }
+        write_private(&tmp, &sealed).map_err(|e| Error(e.to_string()))?;
         fs::rename(&tmp, &path).map_err(|e| Error(e.to_string()))
     }
 
     pub fn remove(&self, name: &str) -> Result<()> {
         #[cfg(any(target_os = "macos", target_os = "linux"))]
-        keystore::remove(name);
+        if self.keystore {
+            keystore::remove(name);
+        }
         match fs::remove_file(self.path(name)?) {
             Err(e) if e.kind() != ErrorKind::NotFound => Err(Error(e.to_string())),
             _ => Ok(()),
         }
     }
+
+    /// The sync vault key, kept per account so two accounts on one computer
+    /// don't share one. Stored as hex like any other secret.
+    pub fn store_vault_key(&self, account: &str, key: &[u8; 32]) -> Result<()> {
+        let mut hex: String = key.iter().map(|b| format!("{b:02x}")).collect();
+        let stored = self.set(&vault_key_name(account), &hex);
+        hex.zeroize();
+        stored
+    }
+
+    /// `None` when there is none, or it can't be read.
+    pub fn load_vault_key(&self, account: &str) -> Option<[u8; 32]> {
+        let mut hex = self.get(&vault_key_name(account)).ok()??;
+        let key = parse_key(&hex);
+        hex.zeroize();
+        key
+    }
+
+    pub fn delete_vault_key(&self, account: &str) {
+        let _ = self.remove(&vault_key_name(account));
+    }
+}
+
+fn parse_key(hex: &str) -> Option<[u8; 32]> {
+    if hex.len() != 64 || !hex.is_ascii() {
+        return None;
+    }
+    let mut key = [0u8; 32];
+    for (i, byte) in key.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(key)
+}
+
+/// The account id is hashed so the name is always a safe file name of fixed length.
+fn vault_key_name(account: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(account.as_bytes());
+    let id: String = digest[..16].iter().map(|b| format!("{b:02x}")).collect();
+    format!("thoughtdesk.sync-key-{id}")
+}
+
+/// The secrets folder, readable by this user only (macOS and Linux; on
+/// Windows the encryption does that).
+fn make_private_dir(dir: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+        fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
+        // One made by an older version may be open to others.
+        fs::set_permissions(dir, fs::Permissions::from_mode(0o700))
+    }
+    #[cfg(not(unix))]
+    fs::create_dir_all(dir)
+}
+
+/// Writes a file that is private from the moment it exists (mode 0600), not
+/// readable by others in between creating and restricting it.
+fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        // A leftover from a crash may have wider rights, which `mode` doesn't change.
+        let _ = fs::remove_file(path);
+        fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?.write_all(bytes)
+    }
+    #[cfg(not(unix))]
+    fs::write(path, bytes)
 }
 
 #[cfg(windows)]
@@ -198,7 +284,60 @@ mod tests {
         assert!(!raw.windows(13).any(|w| w == b"refresh-token"), "not stored in plain text");
         fs::write(&file, b"not something DPAPI made").unwrap();
         assert_eq!(secrets.get("td-test.auth").unwrap(), None);
-        assert!(!file.exists(), "a file that can't be read is removed");
+        assert!(!file.exists(), "a file that can't be read is moved out of the way");
+        assert_eq!(fs::read(dir.join("td-test.auth.bad")).unwrap(), b"not something DPAPI made", "and kept");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_fallback_file_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        // The pieces `set` uses (a keyring, where there is one, may take the secret instead).
+        let (_, dir) = fresh();
+        make_private_dir(&dir).unwrap();
+        write_private(&dir.join("s.bin"), b"v").unwrap();
+        let mode = |p: &Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&dir), 0o700);
+        assert_eq!(mode(&dir.join("s.bin")), 0o600);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn vault_keys_are_kept_per_account() {
+        let (secrets, dir) = fresh();
+        assert_eq!(secrets.load_vault_key("user_a"), None);
+        secrets.store_vault_key("user_a", &[1u8; 32]).unwrap();
+        secrets.store_vault_key("user_b", &[2u8; 32]).unwrap();
+        assert_eq!(secrets.load_vault_key("user_a"), Some([1u8; 32]));
+        assert_eq!(secrets.load_vault_key("user_b"), Some([2u8; 32]));
+        secrets.delete_vault_key("user_a");
+        assert_eq!(secrets.load_vault_key("user_a"), None);
+        assert_eq!(secrets.load_vault_key("user_b"), Some([2u8; 32]));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_file_and_its_folder_are_private_from_the_start() {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = |p: &std::path::Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        // The folder is tightened even when it already exists with the defaults.
+        let (_, dir) = fresh();
+        fs::create_dir_all(&dir).unwrap();
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+        make_private_dir(&dir).unwrap();
+        assert_eq!(mode(&dir), 0o700);
+        let nested = dir.join("a").join("b");
+        make_private_dir(&nested).unwrap();
+        assert_eq!(mode(&nested), 0o700);
+        // The file never exists with wider permissions, and a stale one is replaced.
+        let file = dir.join("one.bin");
+        fs::write(&file, b"old").unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).unwrap();
+        write_private(&file, b"secret").unwrap();
+        assert_eq!(mode(&file), 0o600);
+        assert_eq!(fs::read(&file).unwrap(), b"secret");
         let _ = fs::remove_dir_all(dir);
     }
 

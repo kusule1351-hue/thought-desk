@@ -210,3 +210,63 @@ test('new page, slash menu, events and history', async ({ page }) => {
     await expect(page.locator('.panel', { hasText: 'Team sync' })).toBeVisible();
   });
 });
+
+test('a hostile icon value builds no element: the colour goes through the palette, and nothing else reaches the markup', async ({ page }) => {
+  await open(page);
+  const result = await page.evaluate(async () => {
+    const { renderIcon } = await import('/src/lib/page-icon.ts');
+    const values = [
+      'icon:book-open:red"><img src=https://evil.example/x onerror=alert(1)><style>*{display:none}</style>',
+      'icon:book-open:red" onmouseover="alert(1)',
+      'icon:book-open:var(--x);background:url(https://evil.example/y)',
+      'icon:book-open:blue',
+      'icon:book-open',
+      '<img src=https://evil.example/z onerror=alert(1)>',
+      'icon:<img src=x>',
+    ];
+    return values.map((value) => {
+      const el = document.createElement('div');
+      renderIcon(el, value);
+      const all = [...el.querySelectorAll('*')];
+      return {
+        value,
+        tags: all.map((n) => n.tagName.toLowerCase()),
+        attrs: all.flatMap((n) => n.getAttributeNames()),
+        color: el.querySelector('svg')?.getAttribute('style') ?? null,
+        text: el.textContent,
+      };
+    });
+  });
+  for (const r of result) {
+    expect(r.tags.every((t) => ['svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'ellipse'].includes(t)), r.value).toBe(true);
+    expect(r.attrs.some((a) => /^on/i.test(a)), r.value).toBe(false);
+    // Only the palette can colour it: an unknown key is gray, never the value.
+    if (r.color) expect(r.color).toMatch(/^color:\s*var\(--c-[a-z]+\);?$/);
+  }
+  expect(result[3].color).toContain('var(--c-blue)');
+  expect(result[0].color).toContain('var(--c-gray)');
+  expect(result[4].color).toBeNull();
+  // Not a line icon at all: text, and only text.
+  expect(result[5].text).toBe(result[5].value);
+  expect(result[5].tags).toEqual([]);
+});
+
+test('a hostile icon on a page or in a callout reaches no markup in the sidebar or the editor', async ({ page }) => {
+  await open(page);
+  const hostile = 'icon:book-open:red"><img src=https://evil.example/x><style>*{display:none}</style>';
+  await page.click('.sidebar >> text=Getting started');
+  await expect(page.locator('.scroller .ProseMirror')).toBeVisible();
+  await page.evaluate(async (hostile) => {
+    const { store } = await import('/src/lib/store.svelte.ts');
+    await (window as any).__TAURI_INTERNALS__.invoke('update_page', { id: store.currentId, patch: { icon: hostile } });
+    await store.refresh();
+    (window as any).__editor.chain().focus('end').insertContent({ type: 'callout', attrs: { icon: hostile }, content: [{ type: 'paragraph' }] }).run();
+  }, hostile);
+  await expect(page.locator('.callout-icon svg').last()).toBeVisible();
+  const found = await page.evaluate(() => ({
+    evil: document.querySelectorAll('img[src*="evil"]').length,
+    styles: [...document.querySelectorAll('style')].filter((s) => s.textContent?.includes('display:none')).length,
+    inCallout: [...document.querySelectorAll('.callout-icon *')].map((n) => n.tagName.toLowerCase()).filter((t) => !['svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'ellipse'].includes(t)),
+  }));
+  expect(found).toEqual({ evil: 0, styles: 0, inCallout: [] });
+});

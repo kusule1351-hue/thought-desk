@@ -1,8 +1,13 @@
 <script lang="ts">
   import { Editor, type JSONContent } from '@tiptap/core';
-  import { Selection } from '@tiptap/pm/state';
+  import { GapCursor } from '@tiptap/pm/gapcursor';
+  import { NodeSelection, Selection } from '@tiptap/pm/state';
+  import { ySyncPluginKey } from '@tiptap/y-tiptap';
   import { onMount } from 'svelte';
-  import { normalizeFileUrl } from '../api';
+  import type { Doc as YDoc } from 'yjs';
+  import { api, normalizeFileUrl } from '../api';
+  import { syncAvailable } from '../sync/flag';
+  import { syncState } from '../sync/state.svelte';
   import { prefs } from '../prefs.svelte';
   import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
@@ -82,6 +87,21 @@
     view.focus();
   }
 
+  /**
+   * A new editor's selection is at the very start of the page. On a page that
+   * opens with a block chosen only as a whole (a database, a file, a formula),
+   * that is the block itself, so it would be drawn selected, wash and outline,
+   * before anyone touched it. The selection rests in the first line of text
+   * instead, or, on a page with no text at all, in the gap before the block.
+   */
+  function restSelection(ed: Editor) {
+    const { state, view } = ed;
+    if (!(state.selection instanceof NodeSelection)) return;
+    const top = state.doc.resolve(0);
+    const rest = Selection.findFrom(top, 1, true) ?? new GapCursor(top);
+    view.dispatch(state.tr.setSelection(rest).setMeta('addToHistory', false));
+  }
+
   export function focusStart() {
     focusAt('start');
   }
@@ -114,10 +134,16 @@
     let session: Session | null = null;
     let unwatch: (() => void) | null = null;
     let gone = false;
+    /** Sync's document for this page, when the editor is bound to it (see sync/docs.ts). */
+    let synced: YDoc | null = null;
+    let freeDoc: (() => Promise<void>) | null = null;
+    /** The body to start from (sync reads it again: `page` can be older than the database). */
+    let body = page.content;
+    let plain = false;
 
     /** Builds the editor: on the shared document for a shared page, else on the stored body. */
     function mount() {
-      const { content, legacy } = session ? { content: undefined, legacy: false } : parseContent(page.content);
+      const { content, legacy } = session || synced ? { content: undefined, legacy: false } : parseContent(body);
       const handle = {
         onMenu: (target: Parameters<typeof blockMenuItems>[1], anchor: HTMLElement) => {
           const rect = anchor.getBoundingClientRect();
@@ -131,7 +157,9 @@
           handle,
           session
             ? { doc: session.doc, provider: { awareness: session.awareness }, user: session.user, friendColor: () => session?.people.find((p) => !p.me)?.color, awake: (id) => !!session?.isAwake(id) }
-            : undefined,
+            : synced
+              ? { doc: synced }
+              : undefined,
         ),
         editorProps: {
           attributes: {
@@ -141,8 +169,16 @@
           },
         },
         // A shared page renders its document while the editor is still being made.
-        onUpdate: ({ editor: e }) => {
+        onUpdate: ({ editor: e, transaction }) => {
           onempty?.(e.isEmpty);
+          // A change that came from the document (another computer, or the document loading) is
+          // never saved from here: it would bump the page's time and write the body back for nothing.
+          // Undo and redo are also changes from the document, but they are this person's own.
+          const change = synced ? transaction.getMeta(ySyncPluginKey) : null;
+          if (change?.isChangeOrigin && !change.isUndoRedoOperation) {
+            stats();
+            return;
+          }
           dirty = true;
           clearTimeout(timer);
           timer = setTimeout(() => {
@@ -153,6 +189,7 @@
       });
       ed = made;
       editor = made;
+      restSelection(made);
       if (import.meta.env.DEV) (window as any).__editor = made;
       onempty?.(made.isEmpty);
       stats();
@@ -174,7 +211,41 @@
         },
         (e) => ui.error(e),
       );
-    } else mount();
+    } else if (syncAvailable() && syncState.on) {
+      // Sync is on (or turning on). Until its documents are ready this is a plain editor,
+      // and the engine leaves the page's incoming text alone while it is.
+      void (async () => {
+        try {
+          await store.flush();
+          body = (await api.getPage(page.id)).content;
+        } catch (e) {
+          console.warn('Sync: could not read the page again', e);
+        }
+        if (gone) return;
+        if (syncState.ready) {
+          try {
+            const docs = await import('../sync/docs');
+            const doc = await docs.open(page.id, body);
+            if (gone) return void (await docs.release(page.id, doc));
+            synced = doc;
+            freeDoc = () => docs.release(page.id, doc);
+            return mount();
+          } catch (e) {
+            console.warn('Sync: this page opens without its synced document', e);
+          }
+        }
+        if (gone) return;
+        plain = true;
+        syncState.holdPlain(page.id);
+        mount();
+      })();
+    } else {
+      if (syncAvailable()) {
+        plain = true;
+        syncState.holdPlain(page.id);
+      }
+      mount();
+    }
 
     const flushOnHide = () => document.visibilityState === 'hidden' && save();
     document.addEventListener('visibilitychange', flushOnHide);
@@ -196,6 +267,8 @@
       ed?.destroy();
       unwatch?.();
       if (session) cowork.release(page.id);
+      if (freeDoc) void freeDoc();
+      if (plain) syncState.releasePlain(page.id);
     };
   });
 

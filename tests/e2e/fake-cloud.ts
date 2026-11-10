@@ -3,6 +3,7 @@
 // `window.__fakeCloud` (see src/lib/cloud/fake.ts), so two profiles, two
 // people, share one backend. It follows the real rules where the interface
 // depends on them; the real row-level security is tested in supabase/tests.
+import { RELAY_HOST } from './relay';
 import type { BrowserContext } from '@playwright/test';
 
 export interface FakeProfile {
@@ -81,7 +82,7 @@ export class FakeCloud {
    *  Live sessions there use the test relay (port 8788, see playwright.config.ts). */
   async attach(context: BrowserContext, oauth?: { email: string; name: string }) {
     if (oauth) this.#oauth.set(context, oauth);
-    await context.addInitScript(() => ((window as unknown as { __coworkHost: string }).__coworkHost = 'localhost:8788'));
+    await context.addInitScript((host) => ((window as unknown as { __coworkHost: string }).__coworkHost = host), RELAY_HOST);
     await context.exposeBinding('__fakeCloud', ({ context }, method: string, args: unknown[]) => this.#handle(context, method, args));
   }
 

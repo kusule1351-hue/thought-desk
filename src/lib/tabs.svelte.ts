@@ -57,7 +57,7 @@ class Tabs {
     if (place.view === 'page') {
       const p = place.id ? store.byId.get(place.id) : undefined;
       const db = p?.kind === 'database';
-      return { title: p?.title || (db ? t('common.untitledDatabase') : t('common.untitled')), icon: db ? 'database' : 'page', pageIcon: p?.icon ?? '' };
+      return { title: p?.title || (db ? t('common.untitledDatabase') : t('common.untitled')), icon: store.defaultIcon(p), pageIcon: p?.icon ?? '' };
     }
     if (place.view === 'tag') return { title: `#${place.id ?? ''}`, icon: 'tag', pageIcon: '' };
     if (place.view === 'course') return { title: planner.courseById.get(place.id ?? '')?.name || t('common.course'), icon: 'book', pageIcon: '' };

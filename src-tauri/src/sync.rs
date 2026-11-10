@@ -1,33 +1,43 @@
-//! Groundwork for syncing between devices (no server yet).
-//!
-//! Every change to a database, its schema or its rows is stamped with a
-//! hybrid logical clock: wall-clock milliseconds, a counter for changes in
-//! the same millisecond, and this copy's device id, written so that comparing
-//! two stamps as strings orders them in time. When two copies change the same
-//! field, the later stamp wins on both, so they end up identical whichever
-//! order they hear about each other's changes in.
-//!
-//! The outbox lists what changed since the last sync (one entry per record,
-//! not a growing log). A sync service will send those records, apply what
-//! comes back with `Db::sync_apply`, and clear what was sent.
+//! The hybrid logical clock. A stamp is wall-clock milliseconds, a counter
+//! for changes in the same millisecond, and this copy's device id, written
+//! so that comparing two stamps as strings orders changes in time.
+//! `docs/sync.md` has the design.
 
 use crate::db::{now, Result};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension};
 
-/// This copy's id (made once, when the database is created or upgraded).
+#[cfg(test)]
+mod convergence;
+pub(crate) mod crypto;
+pub(crate) mod files;
+pub(crate) mod order;
+pub(crate) mod records;
+pub(crate) mod setup;
+#[cfg(test)]
+mod testkit;
+pub(crate) mod text;
+pub(crate) mod vault;
+
+/// This copy's name in its stamps: the install's, if it's been told, or else
+/// the one made with the database. A notes folder that's copied or on a cloud
+/// drive would otherwise make two computers one.
 pub(crate) fn device(conn: &Connection) -> Result<String> {
-    Ok(conn.query_row("SELECT value FROM sync_meta WHERE key = 'device'", [], |r| r.get(0))?)
+    Ok(conn.query_row(
+        "SELECT value FROM sync_meta WHERE key IN ('install', 'device') ORDER BY key = 'install' DESC LIMIT 1",
+        [],
+        |r| r.get(0),
+    )?)
 }
 
 /// (milliseconds, counter) of a stamp; (0, 0) for none.
-fn parse(stamp: &str) -> (i64, i64) {
+pub(crate) fn parse(stamp: &str) -> (i64, i64) {
     let mut parts = stamp.splitn(3, '-');
     let ms = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
     let n = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
     (ms, n)
 }
 
-fn make(ms: i64, n: i64, device: &str) -> String {
+pub(crate) fn make(ms: i64, n: i64, device: &str) -> String {
     let short: String = device.chars().filter(|c| c.is_ascii_hexdigit()).take(8).collect();
     format!("{ms:013}-{n:04}-{short}")
 }
@@ -48,14 +58,22 @@ fn store(conn: &Connection, stamp: &str) -> Result<()> {
     Ok(())
 }
 
+/// The latest time a stamp can hold: 13 digits. Past it a stamp would have
+/// 14, and sort below every other.
+const LAST_MS: i64 = 9_999_999_999_999;
+
 /// A new stamp, later than every stamp this copy has made or seen.
 pub(crate) fn tick(conn: &Connection) -> Result<String> {
     let (last_ms, last_n) = parse(&last(conn)?);
-    let mut ms = now().max(last_ms);
+    let mut ms = now().max(last_ms).min(LAST_MS);
     let mut n = if ms == last_ms { last_n + 1 } else { 0 };
     if n > 9999 {
-        ms += 1;
-        n = 0;
+        if ms < LAST_MS {
+            ms += 1;
+            n = 0;
+        } else {
+            n = 9999;
+        }
     }
     let stamp = make(ms, n, &device(conn)?);
     store(conn, &stamp)?;
@@ -69,27 +87,6 @@ pub(crate) fn observe(conn: &Connection, stamp: &str) -> Result<()> {
         let (ms, n) = parse(stamp);
         store(conn, &make(ms, n, &device(conn)?))?;
     }
-    Ok(())
-}
-
-/// Notes that a record changed (or is gone) and should be sent next sync.
-pub(crate) fn mark(conn: &Connection, entity: &str, id: &str, stamp: &str) -> Result<()> {
-    conn.execute(
-        "INSERT INTO sync_outbox (entity, id, clock) VALUES (?1, ?2, ?3)
-         ON CONFLICT (entity, id) DO UPDATE SET clock = max(clock, excluded.clock)",
-        params![entity, id, stamp],
-    )?;
-    Ok(())
-}
-
-/// Whether this copy has ever exchanged changes with another. Until then a
-/// record deleted for good needs no note in the outbox: no one else has it.
-pub(crate) fn has_peer(conn: &Connection) -> Result<bool> {
-    Ok(conn.query_row("SELECT EXISTS (SELECT 1 FROM sync_meta WHERE key = 'peer')", [], |r| r.get(0))?)
-}
-
-pub(crate) fn met_peer(conn: &Connection) -> Result<()> {
-    conn.execute("INSERT OR IGNORE INTO sync_meta (key, value) VALUES ('peer', '1')", [])?;
     Ok(())
 }
 

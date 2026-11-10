@@ -4,7 +4,7 @@
 //! That state is kept here, so reconnecting (or restarting) mid-session
 //! loses and repeats nothing; it's dropped when the session ends.
 
-use crate::db::{Db, Error, Result};
+use crate::db::{check_size, Db, Error, Result, MAX_PAGE_BYTES};
 use rusqlite::{params, OptionalExtension};
 
 pub const SCHEMA_V11: &str = "
@@ -60,6 +60,7 @@ impl Db {
     }
 
     pub fn save_page_yjs(&self, id: &str, state: &[u8]) -> Result<()> {
+        check_size(state.len(), MAX_PAGE_BYTES, "This session's page is too large to keep (the limit is 64 MB)")?;
         let changed = self.conn().execute(
             "INSERT INTO page_yjs (rid, state) SELECT rid, ?2 FROM pages WHERE id = ?1 AND shared_room IS NOT NULL
              ON CONFLICT (rid) DO UPDATE SET state = excluded.state",
@@ -75,12 +76,12 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::TempDb;
 
     const ROOM: &str = "0b9a1c2d-3e4f-4a5b-8c6d-7e8f9a0b1c2d";
 
-    fn temp_db() -> Db {
-        let dir = std::env::temp_dir().join(format!("td-cowork-{}", uuid::Uuid::new_v4().simple()));
-        Db::open(&dir).expect("open db")
+    fn temp_db() -> TempDb {
+        TempDb::new("td-cowork")
     }
 
     #[test]
@@ -112,6 +113,18 @@ mod tests {
         db.set_shared_room(&page.id, None).unwrap();
         assert_eq!(db.get_page(&page.id).unwrap().meta.shared_room, None);
         assert_eq!(db.page_yjs(&page.id).unwrap(), b"", "stopping drops the merge state");
+    }
+
+    #[test]
+    fn refuses_state_over_the_limit() {
+        let db = temp_db();
+        let page = db.create_page(None, None, "Big", "").unwrap();
+        db.set_shared_room(&page.id, Some(ROOM)).unwrap();
+        db.save_page_yjs(&page.id, b"small").unwrap();
+        let limit = MAX_PAGE_BYTES as usize;
+        assert!(db.save_page_yjs(&page.id, &vec![0u8; limit + 1]).is_err());
+        assert_eq!(db.page_yjs(&page.id).unwrap(), b"small", "a refused save changes nothing");
+        assert!(db.save_page_yjs(&page.id, &vec![0u8; limit]).is_ok());
     }
 
     #[test]

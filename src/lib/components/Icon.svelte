@@ -17,6 +17,9 @@
     page: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h6"/>',
     'page-plus':
       '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2v6h6"/><path d="M9 15h6"/><path d="M12 12v6"/>',
+    // A page with pages under it: a branch holding two small pages.
+    'page-tree':
+      '<path d="M3 2v14a2 2 0 0 0 2 2h6"/><path d="M3 4a2 2 0 0 0 2 2h6"/><path d="M18 2h-5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V5Z"/><path d="M18 14h-5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3Z"/>',
     sidebar: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
     'arrow-left': '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
     'arrow-right': '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
@@ -151,6 +154,11 @@
     template: '<rect width="18" height="7" x="3" y="3" rx="1.2"/><rect width="9" height="7" x="3" y="14" rx="1.2"/><rect width="5" height="7" x="16" y="14" rx="1.2"/>',
     'corner-down-right': '<path d="m15 10 5 5-5 5"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/>',
   };
+
+  /** An icon as markup, for elements built outside Svelte (a drag image). */
+  export function iconMarkup(name: string, size = 16, stroke = 1.8): string {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round">${paths[name] ?? ''}</svg>`;
+  }
 </script>
 
 <script lang="ts">
@@ -169,6 +177,7 @@
   stroke-linecap="round"
   stroke-linejoin="round"
   aria-hidden="true"
+  data-icon={name}
 >
   {@html paths[name] ?? ''}
 </svg>

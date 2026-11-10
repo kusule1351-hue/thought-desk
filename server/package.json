@@ -5,11 +5,11 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --port 8787",
-    "test-relay": "wrangler dev --port 8788 --var AUTH_MODE:test",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --env dev --port 8787",
+    "test-relay": "wrangler dev --env dev --port 8788 --var AUTH_MODE:test",
+    "deploy": "wrangler deploy --env=\"\"",
     "check": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test test/*.test.ts"
+    "test": "node --experimental-strip-types --test test/*.test.ts && vitest run"
   },
   "dependencies": {
     "jose": "^6.2.13",
@@ -18,8 +18,10 @@
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.6.0",
     "@cloudflare/workers-types": "^5.20261023.1",
     "typescript": "^7.0.2",
+    "vitest": "^4.1.12",
     "wrangler": "^4.152.0"
   }
 }

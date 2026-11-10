@@ -31,6 +31,7 @@ import type {
   Property,
   CellValue,
 } from './types';
+import type { FilesTodo, IngestItem, OutRecord, OutText, SyncStatus, TextCommit, TextRead, TextTodo } from './sync/types';
 
 export const api = {
   listPages: () => invoke<PageMeta[]>('list_pages'),
@@ -167,6 +168,39 @@ export const api = {
   /** Sets row values (null clears one) and order; returns the time edited. */
   updateRows: (changes: { id: string; cells?: Record<string, CellValue>; sortKey?: string }[]) =>
     invoke<number>('update_rows', { changes }),
+
+  // ---- sync (docs/sync.md, "Inside the app"): only called once sync is on
+  syncVaultCreate: (account: string) => invoke<{ recoveryKey: string; wrappedKey: string }>('sync_vault_create', { account }),
+  syncVaultJoin: (account: string, recoveryKey: string, wrappedKey: string) => invoke<void>('sync_vault_join', { account, recoveryKey, wrappedKey }),
+  syncVaultOpen: (account: string) => invoke<boolean>('sync_vault_open', { account }),
+  syncVaultForget: (account: string) => invoke<void>('sync_vault_forget', { account }),
+  syncVaultProof: () => invoke<string>('sync_vault_proof'),
+  syncStatus: () => invoke<SyncStatus>('sync_status'),
+  syncTurnOn: (account: string, joining: boolean, wrappedKey: string) => invoke<void>('sync_turn_on', { account, joining, wrappedKey }),
+  syncMarkReady: () => invoke<void>('sync_mark_ready'),
+  syncTurnOff: () => invoke<void>('sync_turn_off'),
+  syncIngest: (items: IngestItem[], cursor: number) => invoke<{ skipped: number }>('sync_ingest', { items, cursor }),
+  syncApply: () => invoke<{ entities: string[]; skipped: number }>('sync_apply'),
+  syncSealRecords: (maxBytes: number) => invoke<OutRecord[]>('sync_seal_records', { maxBytes }),
+  syncRecordsSent: (items: { entity: string; id: string; seq: number }[]) => invoke<void>('sync_records_sent', { items }),
+  syncRecordsRebase: (items: { entity: string; id: string; seq: number }[]) => invoke<void>('sync_records_rebase', { items }),
+  syncAudit: () => invoke<number>('sync_audit'),
+  syncBackupDelete: () => invoke<void>('sync_backup_delete'),
+  syncTextTodo: () => invoke<TextTodo>('sync_text_todo'),
+  syncTextRead: (pageId: string) => invoke<TextRead>('sync_text_read', { pageId }),
+  syncTextCommit: (commit: TextCommit) => invoke<boolean>('sync_text_commit', { ...commit }),
+  syncSealText: (maxBytes: number) => invoke<OutText[]>('sync_seal_text', { maxBytes }),
+  syncTextSent: (items: { ref: string | number; seq: number }[]) => invoke<void>('sync_text_sent', { items }),
+  syncHasChanges: () => invoke<boolean>('sync_has_changes'),
+  syncTextRefused: (pageId: string) => invoke<void>('sync_text_refused', { pageId }),
+  syncFilesTodo: () => invoke<FilesTodo>('sync_files_todo'),
+  syncFileNames: (stored: string, chunks: number) => invoke<string[]>('sync_file_names', { stored, chunks }),
+  /** One sealed chunk of a file, as raw bytes. */
+  syncFileSeal: (stored: string, index: number) => invoke<ArrayBuffer>('sync_file_seal', { stored, index }),
+  /** Hands over a downloaded sealed chunk (raw body, details in headers); true once every chunk is in and the file is in place. */
+  syncFileOpen: (sealed: Uint8Array, stored: string, index: number, chunks: number) =>
+    invoke<boolean>('sync_file_open', sealed, { headers: { stored, index: String(index), chunks: String(chunks) } }),
+  syncFileDone: (id: string, step: 'uploaded' | 'removed') => invoke<void>('sync_file_done', { id, step }),
 
   trashItem: (table: TrashTable, id: string) => invoke<number>('trash_item', { table, id }),
   restoreItem: (table: TrashTable, id: string) => invoke<void>('restore_item', { table, id }),

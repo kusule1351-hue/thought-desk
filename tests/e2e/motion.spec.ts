@@ -34,6 +34,23 @@ const routeAnimations = () =>
 
 const sidebarWidth = () => document.querySelector('.sidebar-slot')?.getBoundingClientRect().width ?? 0;
 
+/** How much each page icon in the tree is scaled (1 at rest). */
+const iconScales = () =>
+  [...document.querySelectorAll('[role=tree][aria-label=Pages] .glyph .swap')].map((el) => {
+    const t = getComputedStyle(el).transform;
+    return t === 'none' ? 1 : new DOMMatrix(t).a;
+  });
+
+/** A new page called `title`, and its row in the tree. */
+async function newPage(page: Page, title: string) {
+  await page.keyboard.press('Control+n');
+  await expect(page.locator('h1.title')).toBeFocused();
+  await page.keyboard.type(title);
+  const row = page.locator('[role=tree][aria-label=Pages] .row', { hasText: title });
+  await expect(row).toBeVisible();
+  return row;
+}
+
 test('views slide in the direction you move', async ({ page }) => {
   await open(page);
   const played = async (key: string) => (await frames(page, routeAnimations, () => page.keyboard.press(key))).filter(Boolean);
@@ -96,6 +113,28 @@ test('the sidebar slides closed and open, and still resizes', async ({ page }) =
   });
 });
 
+test('a page icon turns into a branch and back softly, without overshooting', async ({ page }) => {
+  await open(page);
+  const trip = await newPage(page, 'Trip');
+  const icon = () => trip.locator('.glyph [data-icon]').evaluateAll((els) => els.map((el) => el.getAttribute('data-icon')));
+
+  await test.step('its first sub-page: the branch grows in as the page icon shrinks away', async () => {
+    await trip.hover();
+    const scales = (await frames(page, iconScales, () => trip.locator('button[data-tip="Add a page inside"]').click())).flat();
+    expect(scales.some((s) => s < 0.95)).toBe(true);
+    expect(scales.every((s) => s <= 1)).toBe(true);
+    await expect.poll(icon).toEqual(['page-tree']);
+  });
+
+  await test.step('its last one gone: the page icon comes back the same way', async () => {
+    await page.locator('[role=tree][aria-label=Pages] .row', { hasText: 'Untitled' }).click({ button: 'right' });
+    const scales = (await frames(page, iconScales, () => page.getByRole('menuitem', { name: 'Move to Trash' }).click())).flat();
+    expect(scales.some((s) => s < 0.95)).toBe(true);
+    expect(scales.every((s) => s <= 1)).toBe(true);
+    await expect.poll(icon).toEqual(['page']);
+  });
+});
+
 // The resize handle reaches 4px past the sidebar's edge; the page must not cover that half.
 test('the whole resize handle can be grabbed', async ({ page }) => {
   await open(page);
@@ -123,4 +162,30 @@ test.describe('with reduced motion', () => {
     expect(widths.every((w) => w === 0 || w === full)).toBe(true);
     await expect(page.locator('.sidebar-slot')).toHaveCount(0);
   });
+
+  test('a page icon turns into a branch at once', async ({ page }) => {
+    await open(page);
+    const trip = await newPage(page, 'Trip');
+    const scales = (await frames(page, iconScales, () => trip.locator('button[data-tip="Add a page inside"]').click())).flat();
+    expect(scales.every((s) => s === 1)).toBe(true);
+    await expect(trip.locator('.glyph [data-icon]')).toHaveAttribute('data-icon', 'page-tree');
+  });
+});
+
+// A sheet closed and opened again before its fade-out ends is the same sheet
+// coming back, not a new one: it must come back alive. It used to stay marked
+// as leaving, which takes neither clicks nor Escape.
+test('a sheet reopened while it is still fading out takes clicks and Escape again', async ({ page }) => {
+  await open(page);
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await page.keyboard.press('Control+Comma');
+  await expect(settings).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+Comma');
+  await expect(settings).toBeVisible();
+  const tabs = page.getByRole('tablist', { name: 'Settings' }).getByRole('tab');
+  await tabs.nth(2).click();
+  await expect(tabs.nth(2)).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('Escape');
+  await expect(settings).toHaveCount(0);
 });

@@ -20,6 +20,8 @@ mod secrets;
 mod sync;
 #[cfg(test)]
 mod stress;
+#[cfg(test)]
+mod testutil;
 
 use std::path::PathBuf;
 use tauri::{Emitter, Manager};
@@ -32,6 +34,22 @@ fn custom_data_dir() -> Option<PathBuf> {
     std::env::var_os("THOUGHTDESK_DATA_DIR")
         .filter(|d| !d.is_empty())
         .map(PathBuf::from)
+}
+
+/// A name for this install that lives in the app's own folder, never the notes
+/// folder (which may be copied or synced): made on first use.
+fn install_id(dir: &std::path::Path) -> Option<String> {
+    let file = dir.join("install-id");
+    if let Ok(text) = std::fs::read_to_string(&file) {
+        let id = text.trim().to_string();
+        if uuid::Uuid::parse_str(&id).is_ok() {
+            return Some(id);
+        }
+    }
+    let id = uuid::Uuid::new_v4().to_string();
+    std::fs::create_dir_all(dir).ok()?;
+    std::fs::write(&file, &id).ok()?;
+    Some(id)
 }
 
 fn main() {
@@ -92,10 +110,15 @@ fn main() {
                 None => location::resolve(&default_dir),
             };
             let db = db::Db::open(&place.dir).map_err(|e| e.0)?;
+            // This install's name in sync stamps; without one sync falls back to the notes folder's.
+            if let Some(id) = app.path().app_config_dir().ok().and_then(|dir| install_id(&dir)) {
+                let _ = db.sync_set_install(&id);
+            }
             app.manage(db);
             app.manage(place);
             // The sign-in: in the app's own folder, never the notes folder.
             app.manage(secrets::Secrets::new(app.path().app_local_data_dir()?.join("secrets")));
+            app.manage(sync::vault::SyncVault::default());
 
             reminders::start(app.handle().clone());
 
@@ -173,9 +196,6 @@ fn main() {
             commands::delete_automation,
             commands::create_rows,
             commands::update_rows,
-            commands::sync_pending,
-            commands::sync_sent,
-            commands::sync_apply,
             commands::trash_item,
             commands::restore_item,
             commands::delete_item,
@@ -196,6 +216,34 @@ fn main() {
             commands::data_folder_check,
             commands::data_folder_move,
             commands::data_folder_reset,
+            commands::sync_vault_create,
+            commands::sync_vault_join,
+            commands::sync_vault_open,
+            commands::sync_vault_forget,
+            commands::sync_vault_proof,
+            commands::sync_status,
+            commands::sync_turn_on,
+            commands::sync_mark_ready,
+            commands::sync_turn_off,
+            commands::sync_ingest,
+            commands::sync_apply,
+            commands::sync_seal_records,
+            commands::sync_records_sent,
+            commands::sync_text_todo,
+            commands::sync_text_read,
+            commands::sync_text_commit,
+            commands::sync_seal_text,
+            commands::sync_text_sent,
+            commands::sync_text_refused,
+            commands::sync_has_changes,
+            commands::sync_audit,
+            commands::sync_backup_delete,
+            commands::sync_records_rebase,
+            commands::sync_files_todo,
+            commands::sync_file_names,
+            commands::sync_file_seal,
+            commands::sync_file_open,
+            commands::sync_file_done,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Thought Desk");

@@ -13,6 +13,7 @@
   import { STARTERS, type Starter } from '../editor/starters';
   import type { JSONContent } from '@tiptap/core';
   import type { Page } from '../types';
+  import { syncState } from '../sync/state.svelte';
   import { t } from '../i18n';
   import { fmt } from '../i18n/format';
 
@@ -148,7 +149,10 @@
     <RowProperties rowId={page.id} />
   {/if}
 
-  <Editor bind:this={editor} {page} {onstats} onempty={(e) => (empty = e)} />
+  <!-- Sync's documents becoming ready (or going away) builds the editor again -->
+  {#key syncState.generation}
+    <Editor bind:this={editor} {page} {onstats} onempty={(e) => (empty = e)} />
+  {/key}
 
   {#if empty}
     <div class="starters" aria-label={t('pages.starters.region')}>

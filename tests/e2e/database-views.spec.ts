@@ -199,3 +199,38 @@ test('a database in a page opens its menus in full', async ({ page }) => {
   expect(m.y).toBeGreaterThanOrEqual(0);
   expect(m.y + m.height).toBeLessThanOrEqual(vh);
 });
+
+// A new editor's selection is at the very start of the page; when that is a
+// database, the block was drawn selected (a wash over the whole table) every
+// time the page was opened, until someone clicked somewhere.
+test('a page that begins with a database opens with nothing selected', async ({ page }) => {
+  await open(page);
+  await page.keyboard.press('Control+n');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/database');
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Enter');
+  await page.click('.tile:has-text("Tasks")');
+  const block = page.locator('.ProseMirror > .database-block');
+  await expect(block.locator('.dbv')).toHaveCount(1);
+  // The database is the page's first block, with a line of text under it.
+  await expect(page.locator('.ProseMirror > *').first()).toHaveClass(/database-block/);
+  await page.waitForTimeout(600);
+
+  // Closing the app and opening it again comes back to this page.
+  await page.reload();
+  await expect(block.locator('.dbv')).toHaveCount(1);
+  await page.waitForTimeout(300);
+  await expect(page.locator('.ProseMirror-selectednode')).toHaveCount(0);
+  // The selection rests in the line of text under it instead.
+  expect(await page.evaluate(() => (window as unknown as { __editor: { state: { selection: { toJSON(): { type: string } } } } }).__editor.state.selection.toJSON().type)).toBe('text');
+
+  // Selected on purpose, it has its outline and no wash (the table's header and rules would show through it).
+  await page.evaluate(() => (window as unknown as { __editor: { commands: { setNodeSelection(pos: number): boolean } } }).__editor.commands.setNodeSelection(0));
+  await expect(block).toHaveClass(/ProseMirror-selectednode/);
+  const look = await block.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { background: cs.backgroundColor, shadow: cs.boxShadow, outline: cs.outlineStyle };
+  });
+  expect(look).toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none', outline: 'solid' });
+});

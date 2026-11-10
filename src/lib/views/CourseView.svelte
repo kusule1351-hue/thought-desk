@@ -298,7 +298,7 @@
           <div class="group">
             {#each notes.slice(0, 8) as p (p.id)}
               <button class="group-row compact link-row" onclick={() => store.open(p.id)}>
-                <span class="page-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={16} />{/if}</span>
+                <span class="page-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name={store.defaultIcon(p)} size={16} />{/if}</span>
                 <span class="page-title">{p.title || t('common.untitled')}</span>
                 <span class="meta">{relativeTime(p.updatedAt)}</span>
               </button>

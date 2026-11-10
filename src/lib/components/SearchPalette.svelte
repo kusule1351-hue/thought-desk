@@ -185,7 +185,7 @@
         group: q ? 'pages' : 'recent',
         title: hit.title || t('common.untitled'),
         emoji: hit.icon || undefined,
-        icon: hit.icon ? undefined : store.byId.get(hit.id)?.kind === 'database' ? 'database' : 'page',
+        icon: hit.icon ? undefined : store.defaultIcon(store.byId.get(hit.id)),
         path: pathOf(hit.id) || undefined,
         snippet: hit.snippet || undefined,
         meta: relativeTime(hit.updatedAt),
