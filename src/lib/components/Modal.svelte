@@ -27,7 +27,8 @@
   } = $props();
 
   // A sheet stays on screen while it fades out; by then the keys and clicks
-  // belong to whatever is opening next.
+  // belong to whatever is opening next. Opened again before the fade ends, it
+  // is this same sheet coming back, so it stops leaving (`onintrostart` below).
   let leaving = $state(false);
 
   function onKey(e: KeyboardEvent) {
@@ -59,6 +60,7 @@
     role="dialog"
     aria-modal="true"
     aria-label={label}
+    onintrostart={() => (leaving = false)}
     in:sheet|global={{ duration: 340 }}
     out:sheetOut|global={{ duration: 180 }}
   >
