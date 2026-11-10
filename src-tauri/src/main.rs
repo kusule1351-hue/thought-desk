@@ -58,6 +58,12 @@ fn main() {
     // A second launch focuses the running window instead of opening another
     // view onto the same database. A custom data folder is a separate
     // workspace, so it may run alongside.
+    //
+    // This is also all a thoughtdesk:// link does on Windows and Linux: the
+    // system starts the app again with the link as its argument, and that
+    // launch lands here. Any website can open such a link, so the arguments
+    // stay unread: whatever the link says, the window comes forward and
+    // nothing else happens.
     if custom_data_dir().is_none() {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
@@ -69,6 +75,13 @@ fn main() {
     }
 
     builder
+        // The thoughtdesk:// scheme (tauri.conf.json), which the installers
+        // register so the page after signing in can link back to the app
+        // (auth.rs). On macOS the system brings the app forward by itself.
+        // Nothing listens for the link and the interface has no permission to
+        // read it. Keep it so: any website can open one, so a handler for it
+        // would be taking orders from strangers (auth.rs has a test for this).
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
