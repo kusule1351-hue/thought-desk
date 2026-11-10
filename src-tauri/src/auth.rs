@@ -43,9 +43,7 @@ pub fn listen(app: AppHandle, state: Option<String>) -> Result<u16, String> {
                     if let Some(query) = answer(stream, state.as_deref()) {
                         let _ = app.emit("auth-callback", query);
                         if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.unminimize();
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                            bring_forward(&window);
                         }
                         return;
                     }
@@ -56,6 +54,33 @@ pub fn listen(app: AppHandle, state: Option<String>) -> Result<u16, String> {
         }
     });
     Ok(PORT)
+}
+
+/// How long the window is held above the others while the person hasn't come back to it.
+const HELD_ON_TOP: Duration = Duration::from_secs(15);
+
+/// Brings the window back once the browser has handed over. An app can't
+/// count on being given the front: Windows refuses while the person has just
+/// typed or clicked in the browser (as they have, signing in), and macOS and
+/// Linux may refuse too. So the window is held above the others, where the
+/// person sees it over the browser, until they are in it (or a few seconds
+/// pass), and asks for attention meanwhile (a flashing taskbar button, a
+/// bouncing Dock icon). It is never left pinned on top.
+fn bring_forward(window: &tauri::WebviewWindow) {
+    let _ = window.unminimize();
+    let _ = window.show();
+    let _ = window.set_always_on_top(true);
+    let _ = window.set_focus();
+    let started = Instant::now();
+    let mut asked = false;
+    while !window.is_focused().unwrap_or(true) && started.elapsed() < HELD_ON_TOP {
+        if !asked && started.elapsed() >= Duration::from_millis(400) {
+            let _ = window.request_user_attention(Some(tauri::UserAttentionType::Informational));
+            asked = true;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let _ = window.set_always_on_top(false);
 }
 
 /// Binds the port, waiting a moment for a sign-in started just before to let
@@ -147,7 +172,7 @@ fn failed(query: &str) -> bool {
 
 fn page(ok: bool) -> String {
     let (title, text) = if ok {
-        ("You're signed in", "You can close this tab and go back to Thought Desk.")
+        ("You're signed in", "Thought Desk is ready. If you don't see its window, switch back to it. You can close this tab.")
     } else {
         ("Sign-in didn't finish", "Go back to Thought Desk and try again.")
     };
