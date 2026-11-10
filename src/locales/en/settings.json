@@ -47,12 +47,14 @@
     "@failed": "Settings → Account: shown (muted, not an error) when the sync storage in use can't be read, for instance offline",
     "welcome": {
       "title": "You get 1 GB of free sync storage",
-      "@title": "title of the small note shown once to a newly signed-in account; the storage is free for good",
+      "@title": "title of the small pop-up with a present, shown once in the middle of the window when the app opens, signed in or not; the storage is free for good",
       "body": "Keep your notes on all your computers, encrypted so only you can read them.",
       "gotIt": "Got It",
-      "@gotIt": "button that closes the small sync note",
+      "@gotIt": "button that closes the sync pop-up",
       "setUp": "Set Up Sync",
-      "@setUp": "button on the small sync note that opens Settings → Account"
+      "@setUp": "main button on the sync pop-up for someone signed in; it opens Settings → Account",
+      "signIn": "Sign In to Set Up",
+      "@signIn": "main button on the sync pop-up for someone not signed in; it opens the sign-in sheet"
     },
     "offHint": "Keep your notes on all your computers, encrypted so only you can read them.",
     "@offHint": "Settings → Account: one line under the sync storage bar when sync is off",

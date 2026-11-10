@@ -175,8 +175,8 @@ const test = base.extend<{ make: (rowsA: Seed[], rowsB: Seed[], opts?: { live?: 
       worlds.push(world);
       for (const win of [a, b]) {
         await open(win.page);
-        const gotIt = win.page.getByRole('button', { name: 'Got It' });
-        if (await gotIt.isVisible().catch(() => false)) await gotIt.click();
+        // The one-time pop-up about the free storage covers the window: it arrives a moment after the app, and is closed.
+        await win.page.getByRole('button', { name: 'Got It' }).click();
       }
       return world;
     });

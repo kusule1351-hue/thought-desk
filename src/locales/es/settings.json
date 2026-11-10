@@ -44,7 +44,8 @@
       "title": "Tienes 1 GB de almacenamiento de sincronización gratis",
       "body": "Ten tus notas en todos tus equipos, cifradas para que solo tú puedas leerlas.",
       "gotIt": "Entendido",
-      "setUp": "Configurar sincronización"
+      "setUp": "Configurar sincronización",
+      "signIn": "Iniciar sesión para configurarla"
     },
     "offHint": "Ten tus notas en todos tus equipos, cifradas para que solo tú puedas leerlas.",
     "turnOn": "Activar sincronización",

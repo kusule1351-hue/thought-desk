@@ -75,7 +75,7 @@ interface Stored {
   galaxyOn: boolean;
   /** The sponsor goal line on Home was closed: the id of the goal it showed (a new goal shows it again). */
   goalHidden: string;
-  /** Accounts (by id) that have seen the sync welcome note. */
+  /** Who closed the pop-up about the free sync storage (an account id, or `guest`). Any entry means this install has seen it: it shows once. */
   syncWelcomed: Record<string, boolean>;
   /** What Home calls you ("Good morning, Sam"); empty for no name. */
   name: string;

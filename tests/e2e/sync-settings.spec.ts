@@ -187,11 +187,15 @@ async function setup(page: Page, box = newBox(), { on = false, flag = true, live
   return { box, user, cloud };
 }
 
-/** Opens the app and closes the one-time welcome note, so its words aren't in the way. */
+/** Opens the app and closes the one-time pop-up about the free storage: it covers the window while it shows. */
 async function start(page: Page) {
   await open(page);
-  const gotIt = page.getByRole('button', { name: 'Got It' });
-  if (await gotIt.isVisible().catch(() => false)) await gotIt.click();
+  const seen = await page.evaluate(async () => {
+    const { prefs } = await import('/src/lib/prefs.svelte.ts');
+    return Object.keys(prefs.syncWelcomed).length > 0;
+  });
+  // It arrives a moment after the app does, so it is waited for.
+  if (!seen) await page.getByRole('button', { name: 'Got It' }).click();
 }
 
 async function openAccount(page: Page) {
