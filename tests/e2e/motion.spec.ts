@@ -171,3 +171,21 @@ test.describe('with reduced motion', () => {
     await expect(trip.locator('.glyph [data-icon]')).toHaveAttribute('data-icon', 'page-tree');
   });
 });
+
+// A sheet closed and opened again before its fade-out ends is the same sheet
+// coming back, not a new one: it must come back alive. It used to stay marked
+// as leaving, which takes neither clicks nor Escape.
+test('a sheet reopened while it is still fading out takes clicks and Escape again', async ({ page }) => {
+  await open(page);
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await page.keyboard.press('Control+Comma');
+  await expect(settings).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+Comma');
+  await expect(settings).toBeVisible();
+  const tabs = page.getByRole('tablist', { name: 'Settings' }).getByRole('tab');
+  await tabs.nth(2).click();
+  await expect(tabs.nth(2)).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('Escape');
+  await expect(settings).toHaveCount(0);
+});
