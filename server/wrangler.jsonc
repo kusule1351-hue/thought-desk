@@ -1,7 +1,8 @@
-// The relay for live sessions (see README.md). `npm run dev` runs it on
-// localhost:8787; `npm run deploy` puts it on your Cloudflare account, at
-// relay.thoughtdesk.org (the only relay the app's content security policy
-// allows).
+// The relay for live sessions (see README.md). The top level is PRODUCTION:
+// `npm run deploy` puts it on your Cloudflare account, at relay.thoughtdesk.org
+// (the only relay the app's content security policy allows), trusting only the
+// production Clerk instance. `npm run dev` and `npm run test-relay` run
+// `env.dev` below on localhost, which also trusts the development instance.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "thought-desk-cowork",
@@ -11,10 +12,18 @@
   // Only the address above: no second one on workers.dev.
   "workers_dev": false,
   "durable_objects": {
-    "bindings": [{ "name": "Page", "class_name": "Page" }]
+    "bindings": [
+      { "name": "Page", "class_name": "Page" },
+      { "name": "VAULT", "class_name": "Vault" }
+    ]
   },
+  // Sync's files and big items (see README.md: create the bucket once).
+  "r2_buckets": [{ "binding": "SYNC_BLOBS", "bucket_name": "thoughtdesk-sync" }],
   // SQLite-backed Durable Objects are on the free plan.
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Page"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Page"] },
+    { "tag": "v2", "new_sqlite_classes": ["Vault"] }
+  ],
   // The Supabase project that knows who is in which session (its publishable
   // key is public by design: row-level security protects the data), the Clerk
   // instance people sign in with (production only) and where the app runs (the
@@ -24,26 +33,39 @@
     "SUPABASE_URL": "https://nbzojbfkkpeisitbkwpg.supabase.co",
     "SUPABASE_KEY": "sb_publishable_6W6p3hj5pIszsSA36NWUbQ_TXB4YwLD",
     "CLERK_ISSUERS": "https://clerk.thoughtdesk.org",
-    "APP_ORIGINS": "http://tauri.localhost,tauri://localhost"
+    "APP_ORIGINS": "http://tauri.localhost,tauri://localhost",
+    // The most one account's sync mailbox may hold (1 GiB), R2 included.
+    "SYNC_LIMIT_BYTES": "1073741824"
   },
   "env": {
     // For this computer only (`npm run dev`, `npm run test-relay`): the
     // development Clerk instance and the Vite dev server's origin. It takes
-    // no route (wrangler would inherit the custom domain) and is never deployed. Wrangler inherits none of the bindings,
-    // migrations or vars above into an environment, so all of them repeat.
+    // no route (wrangler would inherit the custom domain) and is never deployed.
+    // Wrangler inherits none of the bindings, migrations, bucket or vars above
+    // into an environment, so all of them repeat. The bucket has a name of its
+    // own: `wrangler dev` keeps it in a folder here, and nothing run from this
+    // environment can reach the real one.
     "dev": {
       "name": "thought-desk-cowork-dev",
       "routes": [],
       "workers_dev": false,
       "durable_objects": {
-        "bindings": [{ "name": "Page", "class_name": "Page" }]
+        "bindings": [
+          { "name": "Page", "class_name": "Page" },
+          { "name": "VAULT", "class_name": "Vault" }
+        ]
       },
-      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Page"] }],
+      "r2_buckets": [{ "binding": "SYNC_BLOBS", "bucket_name": "thoughtdesk-sync-dev" }],
+      "migrations": [
+        { "tag": "v1", "new_sqlite_classes": ["Page"] },
+        { "tag": "v2", "new_sqlite_classes": ["Vault"] }
+      ],
       "vars": {
         "SUPABASE_URL": "https://nbzojbfkkpeisitbkwpg.supabase.co",
         "SUPABASE_KEY": "sb_publishable_6W6p3hj5pIszsSA36NWUbQ_TXB4YwLD",
         "CLERK_ISSUERS": "https://smiling-sunbird-3571.clerk.accounts.dev",
-        "APP_ORIGINS": "http://localhost:1420"
+        "APP_ORIGINS": "http://localhost:1420",
+        "SYNC_LIMIT_BYTES": "1073741824"
       }
     }
   }

@@ -273,10 +273,11 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::TempDir;
     use crate::db::{PagePatch, Table};
 
-    fn temp_dir() -> PathBuf {
-        std::env::temp_dir().join(format!("td-test-{}", uuid::Uuid::new_v4().simple()))
+    fn temp_dir() -> TempDir {
+        TempDir::new("td-test")
     }
 
     #[test]
@@ -296,13 +297,16 @@ mod tests {
         assert!(check_size(MAX_FILE_BYTES as usize, MAX_FILE_BYTES, "x").is_ok());
         assert!(check_size(MAX_FILE_BYTES as usize + 1, MAX_FILE_BYTES, "x").is_err());
         assert_eq!(MAX_FILE_BYTES, 2 * 1024 * 1024 * 1024);
-        let db = Db::open(&temp_dir()).unwrap();
+        // The folder must outlive the database: it is removed when `dir` goes.
+        let dir = temp_dir();
+        let db = Db::open(&dir).unwrap();
         assert!(db.import_file(b"small", "ok.txt", "").is_ok());
     }
 
     #[test]
     fn import_rename_and_usage() {
-        let db = Db::open(&temp_dir()).unwrap();
+        let dir = temp_dir();
+        let db = Db::open(&dir).unwrap();
         let f = db.import_file(b"%PDF-1.7", "Syllabus.pdf", "").unwrap();
         assert_eq!(f.mime, "application/pdf");
         assert_eq!(f.size, 8);

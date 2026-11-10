@@ -170,26 +170,25 @@ pub fn same_folder(a: &Path, b: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::TempDir;
 
-    fn temp(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("td-loc-{name}-{}", uuid::Uuid::new_v4().simple()));
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
+    fn temp(name: &str) -> TempDir {
+        TempDir::new(&format!("td-loc-{name}"))
     }
 
     #[test]
     fn remembers_and_forgets_a_chosen_folder() {
         let home = temp("home");
         let chosen = temp("chosen");
-        assert_eq!(resolve(&home).dir, home);
+        assert_eq!(resolve(&home).dir, *home);
         remember(&home, Some(&chosen)).unwrap();
         let loc = resolve(&home);
-        assert!(loc.chosen && loc.dir == chosen && loc.missing.is_none());
+        assert!(loc.chosen && loc.dir == *chosen && loc.missing.is_none());
 
         // A drive that isn't plugged in: the app's own folder, and say so.
         std::fs::remove_dir_all(&chosen).unwrap();
         let loc = resolve(&home);
-        assert!(!loc.chosen && loc.dir == home && loc.missing == Some(chosen));
+        assert!(!loc.chosen && loc.dir == *home && loc.missing == Some(chosen.to_path_buf()));
 
         remember(&home, None).unwrap();
         assert!(resolve(&home).missing.is_none());

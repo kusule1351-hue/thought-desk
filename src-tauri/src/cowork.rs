@@ -76,12 +76,12 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::TempDb;
 
     const ROOM: &str = "0b9a1c2d-3e4f-4a5b-8c6d-7e8f9a0b1c2d";
 
-    fn temp_db() -> Db {
-        let dir = std::env::temp_dir().join(format!("td-cowork-{}", uuid::Uuid::new_v4().simple()));
-        Db::open(&dir).expect("open db")
+    fn temp_db() -> TempDb {
+        TempDb::new("td-cowork")
     }
 
     #[test]

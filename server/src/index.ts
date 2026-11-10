@@ -10,9 +10,12 @@
 
 import { routePartykitRequest, type Connection, type ConnectionContext, type WSMessage } from 'partyserver';
 import { YServer } from 'y-partyserver';
-import { authorize, isLocal, PROTOCOL, tokenFrom, type AuthEnv } from './auth';
+import { authorize, isLocal, PROTOCOL, tokenFrom } from './auth';
+import { handleSync, type SyncEnv } from './sync';
 
-interface Env extends AuthEnv {
+export { Vault } from './vault';
+
+interface Env extends SyncEnv {
   Page: DurableObjectNamespace<Page>;
 }
 
@@ -103,6 +106,7 @@ const ROOM = /^\/parties\/page\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === '/sync' || url.pathname.startsWith('/sync/')) return handleSync(request, env);
     if (url.pathname === '/') return new Response('Thought Desk live sessions', { headers: { 'content-type': 'text/plain' } });
     const room = ROOM.exec(url.pathname)?.[1];
     if (!room) return new Response('Not found', { status: 404 });

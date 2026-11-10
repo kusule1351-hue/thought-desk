@@ -53,19 +53,26 @@ export function clerkKeys(issuer: string): JWTVerifyGetKey {
   return keys;
 }
 
-const listOf = (s: string | undefined) => (s ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+export const listOf = (s: string | undefined) => (s ?? '').split(',').map((x) => x.trim()).filter(Boolean);
 
-/** Who a Clerk session token is for, if Clerk signed it, it's current, it's
+/** A token older than this (by `iat`) is refused, whatever its `exp` says. Clerk's last a minute. */
+const MAX_TOKEN_AGE = '10m';
+
+/** Who a Clerk session token is for, if Clerk signed it, it has an expiry, a
+ *  subject and an issue time, it's current and no older than ten minutes, it's
  *  from one of our instances (asked for its keys only then), it was made in
- *  the app (azp, when there is one) and its session is fully signed in. */
-export async function personOf(token: string, env: AuthEnv, keys: AuthDeps['keys'] = clerkKeys): Promise<string | null> {
+ *  the app (azp, when there is one) and its session is fully signed in.
+ *  `impersonation: false` also refuses a token made by someone acting as the
+ *  person (an `act` claim); rooms still accept those, the mailbox doesn't. */
+export async function personOf(token: string, env: AuthEnv, keys: AuthDeps['keys'] = clerkKeys, { impersonation = true } = {}): Promise<string | null> {
   try {
     const issuer = decodeJwt(token).iss;
     if (!issuer || !listOf(env.CLERK_ISSUERS).includes(issuer)) return null;
-    const { payload } = await jwtVerify(token, keys(issuer), { issuer, algorithms: ['RS256'], clockTolerance: 5 });
+    const { payload } = await jwtVerify(token, keys(issuer), { issuer, algorithms: ['RS256'], clockTolerance: 5, requiredClaims: ['exp', 'sub', 'iat'], maxTokenAge: MAX_TOKEN_AGE });
     if (typeof payload.sub !== 'string' || !payload.sub) return null;
     if (payload.azp !== undefined && !listOf(env.APP_ORIGINS).includes(String(payload.azp))) return null;
     if (payload.sts === 'pending') return null;
+    if (!impersonation && payload.act !== undefined) return null;
     return payload.sub;
   } catch {
     return null;

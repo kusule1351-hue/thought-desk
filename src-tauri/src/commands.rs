@@ -6,7 +6,7 @@
 //! the main thread.
 
 use crate::cards::{Card, Deck, Review};
-use crate::databases::{Change, CreatedDatabase, CreatedRow, Database, DatabaseInput, ListedRow, NewRow, RowChange, SchemaItem};
+use crate::databases::{CreatedDatabase, CreatedRow, Database, DatabaseInput, ListedRow, NewRow, RowChange, SchemaItem};
 use crate::db::{Db, Error, Page, PageContent, PageMeta, PagePatch, Result, SearchHit, Table};
 use crate::export::{Export, ExportEntry};
 use crate::library::{FileMeta, FilePatch, FileUsage};
@@ -15,6 +15,11 @@ use crate::organize::{Tag, Todo};
 use crate::planner::{Assignment, AssignmentPatch, Course, CoursePatch, Event, EventPatch, OccurrencePage};
 use crate::reminders::{Reminder, Reminders};
 use crate::secrets::Secrets;
+use crate::sync::files::FilesTodo;
+use crate::sync::records::{Applied, Sent};
+use crate::sync::setup::SyncStatus;
+use crate::sync::text::{SealedText, TextCommit, TextRead, TextSent, TextTodo};
+use crate::sync::vault::{self, Ingested, NewVault, Pulled, SealedRecord, SyncVault};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{ipc::InvokeBody, AppHandle, Manager, State};
@@ -503,6 +508,196 @@ pub fn save_page_yjs(db: State<Db>, request: tauri::ipc::Request<'_>) -> Result<
     db.save_page_yjs(id, bytes)
 }
 
+// ---------------------------------------------------------------- sync
+// Thin: docs/sync.md ("Inside the app") says what each one is for.
+
+#[tauri::command(async)]
+pub fn sync_vault_create(db: State<Db>, secrets: State<Secrets>, vault: State<SyncVault>, account: String) -> Result<NewVault> {
+    vault::create(&db, &secrets, &vault, &account)
+}
+
+#[tauri::command(async)]
+pub fn sync_vault_join(
+    db: State<Db>,
+    secrets: State<Secrets>,
+    vault: State<SyncVault>,
+    account: String,
+    recovery_key: String,
+    wrapped_key: String,
+) -> Result<()> {
+    vault::join(&db, &secrets, &vault, &account, &recovery_key, &wrapped_key)
+}
+
+#[tauri::command(async)]
+pub fn sync_vault_open(db: State<Db>, secrets: State<Secrets>, vault: State<SyncVault>, account: String) -> Result<bool> {
+    vault::open(&db, &secrets, &vault, &account)
+}
+
+#[tauri::command(async)]
+pub fn sync_vault_forget(db: State<Db>, secrets: State<Secrets>, vault: State<SyncVault>, account: String) -> Result<()> {
+    vault::forget(&db, &secrets, &vault, &account)
+}
+
+/// `X-Vault-Proof`, base64url: derived from the vault key, so a sign-in alone can't change the mailbox.
+#[tauri::command(async)]
+pub fn sync_vault_proof(vault: State<SyncVault>) -> Result<String> {
+    vault::proof(&vault)
+}
+
+#[tauri::command(async)]
+pub fn sync_status(app: tauri::AppHandle, db: State<Db>) -> Result<SyncStatus> {
+    let mut status = db.sync_status()?;
+    status.backup = sync_backup_path(&app)?.exists();
+    Ok(status)
+}
+
+/// Where the backup from before sync goes: this computer's own app folder.
+fn sync_backup_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf> {
+    use tauri::Manager;
+    let dir = app.path().app_local_data_dir().map_err(|e| Error(e.to_string()))?;
+    Ok(dir.join(crate::sync::setup::BACKUP))
+}
+
+#[tauri::command(async)]
+pub fn sync_backup_delete(app: tauri::AppHandle) -> Result<()> {
+    Db::sync_backup_delete(&sync_backup_path(&app)?)
+}
+
+#[tauri::command(async)]
+pub fn sync_turn_on(app: tauri::AppHandle, db: State<Db>, account: String, joining: bool, wrapped_key: String) -> Result<()> {
+    db.sync_turn_on(&account, joining, &wrapped_key, &sync_backup_path(&app)?)
+}
+
+#[tauri::command(async)]
+pub fn sync_mark_ready(db: State<Db>) -> Result<()> {
+    db.sync_mark_ready()
+}
+
+#[tauri::command(async)]
+pub fn sync_turn_off(db: State<Db>) -> Result<()> {
+    db.sync_disable()
+}
+
+#[tauri::command(async)]
+pub fn sync_ingest(db: State<Db>, vault: State<SyncVault>, items: Vec<Pulled>, cursor: i64) -> Result<Ingested> {
+    vault.with(|keys| db.sync_ingest(keys, &items, cursor))
+}
+
+#[tauri::command(async)]
+pub fn sync_apply(db: State<Db>) -> Result<Applied> {
+    db.sync_apply()
+}
+
+#[tauri::command(async)]
+pub fn sync_seal_records(db: State<Db>, vault: State<SyncVault>, max_bytes: usize) -> Result<Vec<SealedRecord>> {
+    vault.with(|keys| db.sync_seal_records(keys, max_bytes))
+}
+
+#[tauri::command(async)]
+pub fn sync_records_sent(db: State<Db>, items: Vec<Sent>) -> Result<()> {
+    db.sync_sent(&items)
+}
+
+#[tauri::command(async)]
+pub fn sync_text_todo(db: State<Db>) -> Result<TextTodo> {
+    db.sync_text_todo()
+}
+
+#[tauri::command(async)]
+pub fn sync_text_read(db: State<Db>, page_id: String) -> Result<TextRead> {
+    db.sync_text_read(&page_id)
+}
+
+/// The fields of `TextCommit` as separate arguments.
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)]
+pub fn sync_text_commit(
+    db: State<Db>,
+    page_id: String,
+    base: Option<String>,
+    state: String,
+    update: Option<String>,
+    first: Option<bool>,
+    content: Option<String>,
+    text: Option<String>,
+    consumed: Option<i64>,
+) -> Result<bool> {
+    db.sync_text_commit(&TextCommit { page_id, base, state, update, first, content, text, consumed })
+}
+
+#[tauri::command(async)]
+pub fn sync_seal_text(db: State<Db>, vault: State<SyncVault>, max_bytes: usize) -> Result<Vec<SealedText>> {
+    vault.with(|keys| db.sync_seal_text(keys, max_bytes))
+}
+
+#[tauri::command(async)]
+pub fn sync_text_sent(db: State<Db>, items: Vec<TextSent>) -> Result<()> {
+    db.sync_text_sent(&items)
+}
+
+#[tauri::command(async)]
+pub fn sync_audit(db: State<Db>) -> Result<usize> {
+    db.sync_audit()
+}
+
+#[tauri::command(async)]
+pub fn sync_records_rebase(db: State<Db>, items: Vec<crate::sync::records::Rebase>) -> Result<()> {
+    db.sync_records_rebase(&items)
+}
+
+#[tauri::command(async)]
+pub fn sync_has_changes(db: State<Db>) -> Result<bool> {
+    db.sync_has_changes()
+}
+
+#[tauri::command(async)]
+pub fn sync_text_refused(db: State<Db>, page_id: String) -> Result<()> {
+    db.sync_text_refused(&page_id)
+}
+
+#[tauri::command(async)]
+pub fn sync_files_todo(db: State<Db>) -> Result<FilesTodo> {
+    db.sync_files_todo()
+}
+
+#[tauri::command(async)]
+pub fn sync_file_names(db: State<Db>, vault: State<SyncVault>, stored: String, chunks: i64) -> Result<Vec<String>> {
+    vault.with(|keys| db.sync_file_names(keys, &stored, chunks))
+}
+
+/// One chunk of a file, sealed, as raw bytes.
+#[tauri::command(async)]
+pub fn sync_file_seal(db: State<Db>, vault: State<SyncVault>, stored: String, index: u32) -> Result<tauri::ipc::Response> {
+    Ok(tauri::ipc::Response::new(vault.with(|keys| db.sync_file_seal(keys, &stored, index))?))
+}
+
+/// A sealed chunk as the raw request body; `stored`, `index` and `chunks`
+/// come as headers (also accepted with an `x-` in front, like `x-id`).
+#[tauri::command(async)]
+pub fn sync_file_open(db: State<Db>, vault: State<SyncVault>, request: tauri::ipc::Request<'_>) -> Result<bool> {
+    let InvokeBody::Raw(bytes) = request.body() else {
+        return Err(Error("Expected raw bytes".into()));
+    };
+    let header = |name: &str| {
+        let headers = request.headers();
+        headers
+            .get(name)
+            .or_else(|| headers.get(format!("x-{name}")))
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            .to_string()
+    };
+    let bad = || Error("A file piece without its details".into());
+    let index = header("index").parse().map_err(|_| bad())?;
+    let chunks = header("chunks").parse().map_err(|_| bad())?;
+    vault.with(|keys| db.sync_file_open(keys, &header("stored"), index, chunks, bytes))
+}
+
+#[tauri::command(async)]
+pub fn sync_file_done(db: State<Db>, id: String, step: String) -> Result<()> {
+    db.sync_file_done(&id, &step)
+}
+
 // ---------------------------------------------------------------- flashcards
 
 #[tauri::command(async)]
@@ -609,22 +804,6 @@ pub fn create_rows(db: State<Db>, db_id: String, rows: Vec<NewRow>) -> Result<Ve
 #[tauri::command(async)]
 pub fn update_rows(db: State<Db>, changes: Vec<RowChange>) -> Result<i64> {
     db.update_rows(changes)
-}
-
-/// What changed since the last sync (for the sync service, when there is one).
-#[tauri::command(async)]
-pub fn sync_pending(db: State<Db>) -> Result<Vec<Change>> {
-    db.sync_pending()
-}
-
-#[tauri::command(async)]
-pub fn sync_sent(db: State<Db>, clock: String) -> Result<()> {
-    db.sync_sent(&clock)
-}
-
-#[tauri::command(async)]
-pub fn sync_apply(db: State<Db>, changes: Vec<Change>) -> Result<()> {
-    db.sync_apply(changes)
 }
 
 #[derive(Serialize)]
@@ -737,8 +916,7 @@ mod tests {
     fn safe_unique_names() {
         assert_eq!(safe_file_name("a/b:c?.pdf"), "a b c .pdf");
         assert_eq!(safe_file_name("..."), "Untitled");
-        let dir = std::env::temp_dir().join(format!("td-names-{}", uuid::Uuid::new_v4().simple()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testutil::TempDir::new("td-names");
         std::fs::write(dir.join("Essay.docx"), b"").unwrap();
         assert_eq!(unique_path(&dir, "Essay.docx", ""), dir.join("Essay (2).docx"));
         assert_eq!(unique_path(&dir, "Notes", "md"), dir.join("Notes.md"));

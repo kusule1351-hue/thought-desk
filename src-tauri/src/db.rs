@@ -346,9 +346,9 @@ END;
 /// Databases: a page of kind "database" whose sub-pages are its rows. The
 /// schema (typed properties and saved views) and each row's values live in
 /// their own tables (see databases.rs). Every record is shaped to merge
-/// between devices later: stable ids, fractional order keys, a clock stamp
-/// on each field, tombstones for deletes, and an outbox of what changed
-/// (see sync.rs).
+/// between devices later: stable ids, fractional order keys and tombstones
+/// for deletes. (The clock columns and the outbox made here are no longer
+/// used; version 12 drops the outbox, see docs/sync.md.)
 const SCHEMA_V7: &str = "
 ALTER TABLE pages ADD COLUMN kind TEXT NOT NULL DEFAULT '';
 CREATE TABLE databases (
@@ -431,6 +431,74 @@ CREATE INDEX events_page ON events(page_id);
 CREATE INDEX courses_page ON courses(page_id);
 CREATE INDEX occurrence_pages_page ON occurrence_pages(page_id);
 CREATE INDEX attachments_file ON attachments(file_id);
+";
+
+/// What a copy knows about syncing (see sync/records.rs): per record, each
+/// field's stamp and whether it still has to be sent; which records changed
+/// since that was last looked at; and what's been read from the mailbox but
+/// not merged yet. `sync_outbox` isn't used any more, but it stays: going back
+/// to an older version of the app opens this file, and that version writes to it.
+const SCHEMA_V12: &str = "
+CREATE TABLE sync_record (
+  entity   TEXT NOT NULL,
+  id       TEXT NOT NULL,
+  stamps   TEXT NOT NULL DEFAULT '{}',
+  sort_key TEXT,
+  gone     TEXT,
+  seq      INTEGER NOT NULL DEFAULT 0,
+  unsent   INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (entity, id)
+) WITHOUT ROWID;
+CREATE INDEX sync_record_unsent ON sync_record(entity) WHERE unsent = 1;
+CREATE TABLE sync_changed (
+  entity TEXT NOT NULL,
+  id     TEXT NOT NULL,
+  PRIMARY KEY (entity, id)
+) WITHOUT ROWID;
+CREATE TABLE sync_inbox (
+  seq    INTEGER PRIMARY KEY,
+  record TEXT NOT NULL
+);
+CREATE TABLE sync_y (page_id TEXT PRIMARY KEY, state BLOB NOT NULL, log_bytes INTEGER NOT NULL DEFAULT 0) WITHOUT ROWID;
+CREATE TABLE sync_y_out (id INTEGER PRIMARY KEY, page_id TEXT NOT NULL, data BLOB NOT NULL, first INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE sync_y_in (seq INTEGER PRIMARY KEY, page_id TEXT NOT NULL, kind TEXT NOT NULL, data BLOB NOT NULL);
+CREATE TABLE sync_y_gone (page_id TEXT PRIMARY KEY) WITHOUT ROWID;
+CREATE TABLE sync_file (id TEXT PRIMARY KEY, stored TEXT NOT NULL, chunks INTEGER NOT NULL, uploaded INTEGER NOT NULL DEFAULT 0) WITHOUT ROWID;
+";
+
+/// After the security audit (docs/sync-security-audit.md): fields a newer
+/// version wrote that this one doesn't know, kept to send on (`extra`); whether
+/// a record was ever offered to the mailbox (`tried`); what this computer
+/// shows instead of a record's value while it can't show that (`sync_parked`,
+/// see "Repairs are local" in docs/sync.md); and items that couldn't be opened,
+/// kept for a later version to try again (`sync_quarantine`). A tombstone notes
+/// whose deletion took it with it (`gone_by`), from the parent a page had
+/// (`sync_deleted`), so bringing that back brings it back. A page's text keeps a
+/// hash of the body it last matched (`body_hash`), for the audit.
+const SCHEMA_V13: &str = "
+ALTER TABLE sync_record ADD COLUMN extra TEXT;
+ALTER TABLE sync_record ADD COLUMN tried INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE sync_record ADD COLUMN gone_by TEXT;
+ALTER TABLE sync_y ADD COLUMN body_hash TEXT;
+CREATE TABLE sync_deleted (
+  id     TEXT PRIMARY KEY,
+  parent TEXT
+) WITHOUT ROWID;
+CREATE TABLE sync_parked (
+  entity  TEXT NOT NULL,
+  id      TEXT NOT NULL,
+  field   TEXT NOT NULL,
+  logical TEXT NOT NULL,
+  shown   TEXT NOT NULL,
+  PRIMARY KEY (entity, id, field)
+) WITHOUT ROWID;
+CREATE TABLE sync_quarantine (
+  seq    INTEGER PRIMARY KEY,
+  key    TEXT NOT NULL,
+  kind   TEXT NOT NULL,
+  data   BLOB NOT NULL,
+  reason TEXT NOT NULL
+);
 ";
 
 const WELCOME_HTML: &str = r#"<p>Thought Desk is a quiet place to write. Everything stays on this computer, in a single local database.</p>
@@ -518,6 +586,7 @@ impl Db {
             files_dir,
         };
         db.migrate()?;
+        db.sync_on_open()?;
         Ok(db)
     }
 
@@ -629,6 +698,18 @@ impl Db {
             tx.execute_batch("PRAGMA user_version = 11;")?;
             tx.commit()?;
         }
+        if version < 12 {
+            let tx = conn.transaction()?;
+            tx.execute_batch(SCHEMA_V12)?;
+            tx.execute_batch("PRAGMA user_version = 12;")?;
+            tx.commit()?;
+        }
+        if version < 13 {
+            let tx = conn.transaction()?;
+            tx.execute_batch(SCHEMA_V13)?;
+            tx.execute_batch("PRAGMA user_version = 13;")?;
+            tx.commit()?;
+        }
         Ok(())
     }
 
@@ -725,14 +806,11 @@ impl Db {
             touched = true;
         }
         if let Some(content) = &patch.content {
-            check_page_size(content)?;
-            tx.execute("UPDATE page_content SET content = ?1 WHERE rid = ?2", params![content, rid])?;
-            index_content(&tx, rid, content)?;
-            crate::databases::cover_changed(&tx, id, content)?;
+            write_body(&tx, rid, id, content)?;
             touched = true;
         }
         if let Some(text) = &patch.text {
-            tx.execute("UPDATE pages_fts SET body = ?1 WHERE rowid = ?2", params![text, rid])?;
+            write_search_text(&tx, rid, text)?;
         }
         if let Some(fav) = patch.favorite {
             let v = if fav { ts } else { 0 };
@@ -744,7 +822,6 @@ impl Db {
         if touched {
             tx.execute("UPDATE pages SET updated_at = ?1 WHERE rid = ?2", params![ts, rid])?;
         }
-        crate::databases::page_edited(&tx, id, patch.title.is_some(), patch.icon.is_some())?;
         let updated: i64 =
             tx.query_row("SELECT updated_at FROM pages WHERE rid = ?1", [rid], |r| r.get(0))?;
         tx.commit()?;
@@ -894,7 +971,6 @@ impl Db {
              UPDATE pages SET deleted_at = ?2 WHERE id IN sub AND deleted_at IS NULL",
             params![id, ts],
         )?;
-        crate::databases::trashed(&tx, ts)?;
         let parent: Option<String> = tx
             .query_row("SELECT parent_id FROM pages WHERE id = ?1", [id], |r| r.get(0))
             .optional()?
@@ -916,7 +992,6 @@ impl Db {
     /// Permanently deletes a page and everything below it.
     pub fn delete_page(&self, id: &str) -> Result<()> {
         let conn = self.conn();
-        crate::databases::forget_subtree(&conn, id)?;
         conn.execute("DELETE FROM pages WHERE id = ?1", [id])?;
         compact(&conn, false)
     }
@@ -973,7 +1048,6 @@ impl Db {
         let stored = {
             let mut conn = self.conn();
             let tx = conn.transaction()?;
-            crate::databases::forget_trashed(&tx)?;
             tx.execute("DELETE FROM pages WHERE deleted_at IS NOT NULL", [])?;
             tx.execute("DELETE FROM assignments WHERE deleted_at IS NOT NULL", [])?;
             tx.execute("DELETE FROM events WHERE deleted_at IS NOT NULL", [])?;
@@ -1145,7 +1219,6 @@ fn restore_in(tx: &Transaction, id: &str) -> Result<()> {
             stmt.execute([sid])?;
         }
     }
-    crate::databases::restored(tx, &ids)?;
     // If the old parent is itself in the trash, restore to the top level.
     let parent_alive = match &parent {
         Some(pid) => tx
@@ -1207,6 +1280,21 @@ pub(crate) fn insert_page_as(
         "INSERT INTO pages_fts (rowid, title, body) VALUES (?1, ?2, ?3)",
         params![rid, title, text],
     )?;
+    Ok(())
+}
+
+/// Replaces a page's body and what's derived from it (links, to-dos, cards,
+/// a row's cover). The search text is separate, see `write_search_text`.
+/// Every body goes through here, typed or synced, so the size limit is here too.
+pub(crate) fn write_body(tx: &Transaction, rid: i64, id: &str, content: &str) -> Result<()> {
+    check_page_size(content)?;
+    tx.execute("UPDATE page_content SET content = ?1 WHERE rid = ?2", params![content, rid])?;
+    index_content(tx, rid, content)?;
+    crate::databases::cover_changed(tx, id, content)
+}
+
+pub(crate) fn write_search_text(tx: &Transaction, rid: i64, text: &str) -> Result<()> {
+    tx.execute("UPDATE pages_fts SET body = ?1 WHERE rowid = ?2", params![text, rid])?;
     Ok(())
 }
 
@@ -1353,7 +1441,7 @@ fn renumber(tx: &Transaction, parent: Option<&str>) -> Result<()> {
     write_positions(tx, &ids)
 }
 
-fn write_positions(tx: &Transaction, ids: &[String]) -> Result<()> {
+pub(crate) fn write_positions(tx: &Transaction, ids: &[String]) -> Result<()> {
     let mut stmt = tx.prepare("UPDATE pages SET position = ?1 WHERE id = ?2 AND position != ?1")?;
     for (i, sid) in ids.iter().enumerate() {
         stmt.execute(params![i as i64, sid])?;
@@ -1412,10 +1500,10 @@ fn excerpt(body: &str, needle: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::{TempDb, TempDir};
 
-    fn temp_db() -> (Db, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("td-test-{}", uuid::Uuid::new_v4().simple()));
-        (Db::open(&dir).expect("open db"), dir)
+    fn temp_db() -> TempDb {
+        TempDb::new("td-test")
     }
 
     fn children(db: &Db, parent: Option<&str>) -> Vec<String> {
@@ -1431,7 +1519,7 @@ mod tests {
 
     #[test]
     fn refuses_a_page_body_over_the_limit() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let page = db.create_page(None, None, "Big", "").unwrap();
         let limit = MAX_PAGE_BYTES as usize;
         let patch = |content: String| PagePatch { content: Some(content), ..Default::default() };
@@ -1449,7 +1537,8 @@ mod tests {
 
     #[test]
     fn seeds_welcome_page_once() {
-        let (db, dir) = temp_db();
+        let dir = TempDir::new("td-test");
+        let db = Db::open(&dir).unwrap();
         assert_eq!(children(&db, None), vec!["Getting started"]);
         drop(db);
         let db = Db::open(&dir).unwrap();
@@ -1458,7 +1547,7 @@ mod tests {
 
     #[test]
     fn reads_many_page_bodies() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let a = db.create_page(None, None, "A", "").unwrap();
         let b = db.create_page(None, None, "B", "").unwrap();
         let patch = |text: &str| PagePatch { content: Some(text.into()), ..Default::default() };
@@ -1478,7 +1567,7 @@ mod tests {
 
     #[test]
     fn create_orders_and_moves() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let a = db.create_page(None, None, "A", "").unwrap();
         let b = db.create_page(None, Some(0), "B", "").unwrap();
         assert_eq!(children(&db, None), vec!["B", "Getting started", "A"]);
@@ -1493,7 +1582,7 @@ mod tests {
 
     #[test]
     fn refuses_cycles() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let a = db.create_page(None, None, "A", "").unwrap();
         let b = db.create_page(Some(&a.id), None, "B", "").unwrap();
         assert!(db.move_page(&a.id, Some(&b.id), 0).is_err());
@@ -1502,7 +1591,7 @@ mod tests {
 
     #[test]
     fn trash_restore_and_delete_subtree() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let a = db.create_page(None, None, "A", "").unwrap();
         let b = db.create_page(Some(&a.id), None, "B", "").unwrap();
         let c = db.create_page(Some(&b.id), None, "C", "").unwrap();
@@ -1529,7 +1618,7 @@ mod tests {
 
     #[test]
     fn update_and_search() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let p = db.create_page(None, None, "Quarterly planning", "").unwrap();
         db.update_page(
             &p.id,
@@ -1559,7 +1648,7 @@ mod tests {
 
     #[test]
     fn side_tables_follow_pages() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let target = db.create_page(None, None, "Target", "").unwrap();
         let a = db.create_page(None, None, "A", "").unwrap();
         let b = db.create_page(Some(&a.id), None, "B", "").unwrap();
@@ -1594,7 +1683,7 @@ mod tests {
 
     #[test]
     fn duplicate_copies_subtree_and_relinks() {
-        let (db, _) = temp_db();
+        let db = temp_db();
         let a = db.create_page(None, None, "A", "").unwrap();
         let b = db.create_page(Some(&a.id), None, "B", "").unwrap();
         let link = format!("{{\"type\":\"pageLink\",\"attrs\":{{\"id\":\"{}\"}}}}", b.id);

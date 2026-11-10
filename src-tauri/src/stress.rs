@@ -421,9 +421,6 @@ fn stress_databases() {
     });
     time("update_page (row title)", 5, || db.update_page(&task_ids[7], PagePatch { title: Some("Renamed".into()), ..Default::default() }).unwrap());
     time("search \"review\"", 3, || db.search("review", 40).unwrap());
-    time("sync_pending (everything, never synced)", 1, || db.sync_pending().unwrap());
-    let outbox: i64 = db.conn().query_row("SELECT count(*) FROM sync_outbox", [], |r| r.get(0)).unwrap();
-    println!("            outbox holds {outbox} records");
     time("duplicate_page (Projects, 5,000 rows)", 1, || db.duplicate_page(&projects.page.id).unwrap());
     time("trash_page (Tasks, 51,000 rows)", 1, || db.trash_page(&tasks.page.id).unwrap());
     time("restore_page (Tasks)", 1, || db.restore_page(&tasks.page.id).unwrap());
@@ -438,7 +435,5 @@ fn stress_databases() {
         db.trash_page(&copy.id).unwrap();
         db.delete_page(&copy.id).unwrap();
     });
-    let outbox: i64 = db.conn().query_row("SELECT count(*) FROM sync_outbox", [], |r| r.get(0)).unwrap();
-    println!("            outbox holds {outbox} records after deleting");
     println!("\ndatabase {:.1} MB at the end", size());
 }

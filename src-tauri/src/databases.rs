@@ -9,16 +9,13 @@
 //! property id). A row can also be a template: a page that new rows start
 //! from (its values and its body), kept apart from the rows themselves.
 //!
-//! Everything is shaped to sync between devices later (see sync.rs):
+//! Everything is shaped to sync between devices (see docs/sync.md):
 //! properties, views and select options have stable ids; rows, properties
 //! and views are ordered by fractional keys (strings that sort, so putting
-//! one between two others never renumbers the rest); every value carries its
-//! own clock stamp, so concurrent edits to different cells of a row both
-//! survive; deleted properties and views are kept as tombstones; and each
-//! change lands in the sync outbox.
+//! one between two others never renumbers the rest); and deleted properties
+//! and views are kept as tombstones.
 
-use crate::db::{fail, insert_page, insert_page_as, is_database, meta_by_id, now, place, replace_ids, Db, PageMeta, Result};
-use crate::sync;
+use crate::db::{fail, insert_page, is_database, meta_by_id, now, place, replace_ids, Db, PageMeta, Result};
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
@@ -236,16 +233,8 @@ fn parse_map(raw: &str) -> Map<String, Value> {
     }
 }
 
-/// The schema tables, and what their records are called in the sync outbox.
-const SCHEMA_TABLES: &[(&str, &str)] = &[("db_properties", "property"), ("db_views", "view"), ("db_automations", "automation")];
-
-fn entity_of(table: &str) -> &'static str {
-    SCHEMA_TABLES.iter().find(|(t, _)| *t == table).map_or("view", |(_, e)| e)
-}
-
-fn table_of(entity: &str) -> Option<&'static str> {
-    SCHEMA_TABLES.iter().find(|(_, e)| *e == entity).map(|(t, _)| *t)
-}
+/// The tables a database's schema is kept in.
+const SCHEMA_TABLES: &[&str] = &["db_properties", "db_views", "db_automations"];
 
 // --------------------------------------------------------------------- reading
 
@@ -381,24 +370,24 @@ fn live_database(conn: &Connection, id: &str) -> Result<()> {
 // --------------------------------------------------------------------- writing
 
 /// Inserts or replaces a property or view (bringing back a deleted one).
-fn put_item(conn: &Connection, table: &str, db_id: &str, item: &SchemaItem, stamp: &str) -> Result<()> {
+fn put_item(conn: &Connection, table: &str, db_id: &str, item: &SchemaItem) -> Result<()> {
     conn.execute(
         &format!(
-            "INSERT INTO {table} (db_id, id, name, type, config, sort_key, deleted, clock)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7)
+            "INSERT INTO {table} (db_id, id, name, type, config, sort_key, deleted)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0)
              ON CONFLICT (db_id, id) DO UPDATE SET name = excluded.name, type = excluded.type,
-               config = excluded.config, sort_key = excluded.sort_key, deleted = 0, clock = excluded.clock"
+               config = excluded.config, sort_key = excluded.sort_key, deleted = 0"
         ),
-        params![db_id, item.id, item.name, item.kind, item.config.to_string(), item.sort_key, stamp],
+        params![db_id, item.id, item.name, item.kind, item.config.to_string(), item.sort_key],
     )?;
-    sync::mark(conn, entity_of(table), &format!("{db_id}/{}", item.id), stamp)
+    Ok(())
 }
 
 fn next_number(conn: &Connection, db_id: &str) -> Result<i64> {
     Ok(conn.query_row("SELECT next_number FROM databases WHERE page_id = ?1", [db_id], |r| r.get(0))?)
 }
 
-fn insert_rows(tx: &Transaction, db_id: &str, rows: &[NewRow], stamp: &str) -> Result<Vec<CreatedRow>> {
+fn insert_rows(tx: &Transaction, db_id: &str, rows: &[NewRow]) -> Result<Vec<CreatedRow>> {
     if rows.len() > MAX_BATCH {
         return fail("That's too many rows at once");
     }
@@ -413,17 +402,12 @@ fn insert_rows(tx: &Transaction, db_id: &str, rows: &[NewRow], stamp: &str) -> R
             tx.execute("UPDATE pages SET tags = (SELECT tags FROM pages WHERE id = ?1) WHERE id = ?2", params![new.from_template, id])?;
         }
         let cover = first_image(&content);
-        let mut clocks = Map::new();
-        for key in new.cells.keys().map(String::as_str).chain(["$title", "$icon", "$order"]) {
-            clocks.insert(key.to_string(), Value::String(stamp.to_string()));
-        }
         // Templates aren't counted (their number is never shown).
         let n = if new.template { 0 } else { number };
         tx.execute(
-            "INSERT INTO db_rows (page_id, sort_key, number, cells, clocks, template, cover) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![id, new.sort_key, n, Value::Object(new.cells.clone()).to_string(), Value::Object(clocks).to_string(), new.template, cover],
+            "INSERT INTO db_rows (page_id, sort_key, number, cells, template, cover) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![id, new.sort_key, n, Value::Object(new.cells.clone()).to_string(), new.template, cover],
         )?;
-        sync::mark(tx, "row", &id, stamp)?;
         out.push(CreatedRow { page: meta_by_id(tx, &id)?, row: row_by_id(tx, &id)? });
         if !new.template {
             number += 1;
@@ -451,30 +435,6 @@ fn template_body(conn: &Connection, db_id: &str, id: &str) -> Result<(String, St
         Some(body) => Ok(body),
         None => fail("That template no longer exists"),
     }
-}
-
-/// Stamps fields of a row (its cells by property id, or "$title", "$icon",
-/// "$order" and "$deleted").
-fn stamp_row(conn: &Connection, id: &str, keys: &[&str], stamp: &str) -> Result<()> {
-    let raw: Option<String> =
-        conn.query_row("SELECT clocks FROM db_rows WHERE page_id = ?1", [id], |r| r.get(0)).optional()?;
-    let Some(raw) = raw else {
-        return Ok(());
-    };
-    let mut clocks = parse_map(&raw);
-    for key in keys {
-        clocks.insert(key.to_string(), Value::String(stamp.to_string()));
-    }
-    conn.execute(
-        "UPDATE db_rows SET clocks = ?1 WHERE page_id = ?2",
-        params![Value::Object(clocks).to_string(), id],
-    )?;
-    sync::mark(conn, "row", id, stamp)
-}
-
-fn stamp_database(conn: &Connection, id: &str, stamp: &str) -> Result<()> {
-    conn.execute("UPDATE databases SET clock = ?1 WHERE page_id = ?2", params![stamp, id])?;
-    sync::mark(conn, "database", id, stamp)
 }
 
 impl Db {
@@ -601,22 +561,17 @@ impl Db {
         let id = insert_page(&tx, parent_id, title, icon, "", "")?;
         tx.execute("UPDATE pages SET kind = 'database' WHERE id = ?1", [&id])?;
         place(&tx, &id, parent_id, None)?;
-        let stamp = sync::tick(&tx)?;
-        tx.execute(
-            "INSERT INTO databases (page_id, description, clock) VALUES (?1, ?2, ?3)",
-            params![id, input.description, stamp],
-        )?;
-        sync::mark(&tx, "database", &id, &stamp)?;
+        tx.execute("INSERT INTO databases (page_id, description) VALUES (?1, ?2)", params![id, input.description])?;
         for p in &properties {
-            put_item(&tx, "db_properties", &id, p, &stamp)?;
+            put_item(&tx, "db_properties", &id, p)?;
         }
         for v in &views {
-            put_item(&tx, "db_views", &id, v, &stamp)?;
+            put_item(&tx, "db_views", &id, v)?;
         }
         for a in &input.automations {
-            put_item(&tx, "db_automations", &id, a, &stamp)?;
+            put_item(&tx, "db_automations", &id, a)?;
         }
-        let rows = insert_rows(&tx, &id, &input.rows, &stamp)?;
+        let rows = insert_rows(&tx, &id, &input.rows)?;
         let created = CreatedDatabase { page: meta_by_id(&tx, &id)?, database: database_by_id(&tx, &id)?, rows };
         tx.commit()?;
         Ok(created)
@@ -626,9 +581,7 @@ impl Db {
         let mut conn = self.conn();
         let tx = conn.transaction()?;
         live_database(&tx, id)?;
-        let stamp = sync::tick(&tx)?;
         tx.execute("UPDATE databases SET description = ?1 WHERE page_id = ?2", params![description, id])?;
-        stamp_database(&tx, id, &stamp)?;
         tx.commit()?;
         Ok(())
     }
@@ -639,8 +592,7 @@ impl Db {
         let mut conn = self.conn();
         let tx = conn.transaction()?;
         live_database(&tx, db_id)?;
-        let stamp = sync::tick(&tx)?;
-        put_item(&tx, "db_properties", db_id, &property, &stamp)?;
+        put_item(&tx, "db_properties", db_id, &property)?;
         tx.commit()?;
         Ok(())
     }
@@ -658,8 +610,7 @@ impl Db {
         let mut conn = self.conn();
         let tx = conn.transaction()?;
         live_database(&tx, db_id)?;
-        let stamp = sync::tick(&tx)?;
-        put_item(&tx, "db_views", db_id, &view, &stamp)?;
+        put_item(&tx, "db_views", db_id, &view)?;
         tx.commit()?;
         Ok(())
     }
@@ -682,8 +633,7 @@ impl Db {
         let mut conn = self.conn();
         let tx = conn.transaction()?;
         live_database(&tx, db_id)?;
-        let stamp = sync::tick(&tx)?;
-        put_item(&tx, "db_automations", db_id, &automation, &stamp)?;
+        put_item(&tx, "db_automations", db_id, &automation)?;
         tx.commit()?;
         Ok(())
     }
@@ -695,14 +645,7 @@ impl Db {
     fn tombstone(&self, table: &str, db_id: &str, id: &str) -> Result<()> {
         let mut conn = self.conn();
         let tx = conn.transaction()?;
-        let stamp = sync::tick(&tx)?;
-        let n = tx.execute(
-            &format!("UPDATE {table} SET deleted = 1, clock = ?1 WHERE db_id = ?2 AND id = ?3"),
-            params![stamp, db_id, id],
-        )?;
-        if n > 0 {
-            sync::mark(&tx, entity_of(table), &format!("{db_id}/{id}"), &stamp)?;
-        }
+        tx.execute(&format!("UPDATE {table} SET deleted = 1 WHERE db_id = ?1 AND id = ?2"), params![db_id, id])?;
         tx.commit()?;
         Ok(())
     }
@@ -711,8 +654,7 @@ impl Db {
         let mut conn = self.conn();
         let tx = conn.transaction()?;
         live_database(&tx, db_id)?;
-        let stamp = sync::tick(&tx)?;
-        let out = insert_rows(&tx, db_id, &rows, &stamp)?;
+        let out = insert_rows(&tx, db_id, &rows)?;
         tx.commit()?;
         Ok(out)
     }
@@ -725,20 +667,18 @@ impl Db {
         }
         let mut conn = self.conn();
         let tx = conn.transaction()?;
-        let stamp = sync::tick(&tx)?;
         let ts = now();
         for change in changes {
-            let found: Option<(String, String, String)> = tx
-                .query_row("SELECT cells, clocks, sort_key FROM db_rows WHERE page_id = ?1", [&change.id], |r| {
-                    Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            let found: Option<(String, String)> = tx
+                .query_row("SELECT cells, sort_key FROM db_rows WHERE page_id = ?1", [&change.id], |r| {
+                    Ok((r.get(0)?, r.get(1)?))
                 })
                 .optional()?;
             // A row deleted for good in the meantime has nothing to update.
-            let Some((cells_raw, clocks_raw, mut sort_key)) = found else {
+            let Some((cells_raw, mut sort_key)) = found else {
                 continue;
             };
             let mut cells = parse_map(&cells_raw);
-            let mut clocks = parse_map(&clocks_raw);
             let edited = change.cells.is_some();
             if let Some(patch) = change.cells {
                 check_cells(&patch)?;
@@ -746,174 +686,31 @@ impl Db {
                     if value.is_null() {
                         cells.remove(&key);
                     } else {
-                        cells.insert(key.clone(), value);
+                        cells.insert(key, value);
                     }
-                    clocks.insert(key, Value::String(stamp.clone()));
                 }
             }
             if let Some(key) = change.sort_key {
                 check_key(&key)?;
                 sort_key = key;
-                clocks.insert("$order".into(), Value::String(stamp.clone()));
             }
             tx.execute(
-                "UPDATE db_rows SET cells = ?1, clocks = ?2, sort_key = ?3 WHERE page_id = ?4",
-                params![Value::Object(cells).to_string(), Value::Object(clocks).to_string(), sort_key, change.id],
+                "UPDATE db_rows SET cells = ?1, sort_key = ?2 WHERE page_id = ?3",
+                params![Value::Object(cells).to_string(), sort_key, change.id],
             )?;
             if edited {
                 tx.execute("UPDATE pages SET updated_at = ?1 WHERE id = ?2", params![ts, change.id])?;
             }
-            sync::mark(&tx, "row", &change.id, &stamp)?;
         }
         tx.commit()?;
         Ok(ts)
     }
 }
 
-// ----------------------------------------------- hooks from the page functions
-
-/// After a page's title or icon changed: stamps it if it's a database or row.
-pub(crate) fn page_edited(conn: &Connection, id: &str, title: bool, icon: bool) -> Result<()> {
-    if !title && !icon {
-        return Ok(());
-    }
-    let (is_db, is_row): (bool, bool) = conn.query_row(
-        "SELECT EXISTS (SELECT 1 FROM databases WHERE page_id = ?1), EXISTS (SELECT 1 FROM db_rows WHERE page_id = ?1)",
-        [id],
-        |r| Ok((r.get(0)?, r.get(1)?)),
-    )?;
-    if is_db {
-        let stamp = sync::tick(conn)?;
-        stamp_database(conn, id, &stamp)?;
-    } else if is_row {
-        let stamp = sync::tick(conn)?;
-        let keys: Vec<&str> = [(title, "$title"), (icon, "$icon")].into_iter().filter(|(on, _)| *on).map(|(_, k)| k).collect();
-        stamp_row(conn, id, &keys, &stamp)?;
-    }
-    Ok(())
-}
-
-/// Databases and rows among `ids` (pages that went to or came out of the
-/// trash), stamped together: a whole database of rows in a few statements.
-fn stamp_trash_state(conn: &Connection, ids: &[String]) -> Result<()> {
-    if ids.is_empty() {
-        return Ok(());
-    }
-    let list = serde_json::to_string(ids)?;
-    const IN: &str = "(SELECT value FROM json_each(?1))";
-    let any: bool = conn.query_row(
-        &format!("SELECT EXISTS (SELECT 1 FROM db_rows WHERE page_id IN {IN}) OR EXISTS (SELECT 1 FROM databases WHERE page_id IN {IN})"),
-        [&list],
-        |r| r.get(0),
-    )?;
-    if !any {
-        return Ok(());
-    }
-    let stamp = sync::tick(conn)?;
-    conn.execute(&format!("UPDATE databases SET clock = ?2 WHERE page_id IN {IN}"), params![list, stamp])?;
-    conn.execute(
-        &format!(
-            "UPDATE db_rows SET clocks = json_set(CASE WHEN json_valid(clocks) THEN clocks ELSE '{{}}' END, '$.\"$deleted\"', ?2)
-             WHERE page_id IN {IN}"
-        ),
-        params![list, stamp],
-    )?;
-    for (entity, table) in [("database", "databases"), ("row", "db_rows")] {
-        conn.execute(
-            &format!(
-                "INSERT INTO sync_outbox (entity, id, clock) SELECT ?3, page_id, ?2 FROM {table} WHERE page_id IN {IN}
-                 ON CONFLICT (entity, id) DO UPDATE SET clock = max(clock, excluded.clock)"
-            ),
-            params![list, stamp, entity],
-        )?;
-    }
-    Ok(())
-}
-
-/// After pages were moved to the trash at `ts`.
-pub(crate) fn trashed(conn: &Connection, ts: i64) -> Result<()> {
-    let ids: Vec<String> = {
-        let mut stmt = conn.prepare(
-            "SELECT page_id FROM databases WHERE page_id IN (SELECT id FROM pages WHERE deleted_at = ?1)
-             UNION ALL
-             SELECT page_id FROM db_rows WHERE page_id IN (SELECT id FROM pages WHERE deleted_at = ?1)",
-        )?;
-        let rows = stmt.query_map([ts], |r| r.get(0))?;
-        rows.collect::<rusqlite::Result<_>>()?
-    };
-    stamp_trash_state(conn, &ids)
-}
-
-/// After pages came back from the trash.
-pub(crate) fn restored(conn: &Connection, ids: &[String]) -> Result<()> {
-    stamp_trash_state(conn, ids)
-}
-
-fn note_gone(conn: &Connection, ids: Vec<(String, String)>) -> Result<()> {
-    if ids.is_empty() {
-        return Ok(());
-    }
-    // A copy that has never synced has no one to tell: forget the records
-    // instead of keeping a note of each deletion forever.
-    if !sync::has_peer(conn)? {
-        let mut stmt = conn.prepare_cached("DELETE FROM sync_outbox WHERE entity = ?1 AND id = ?2")?;
-        for (entity, id) in ids {
-            stmt.execute(params![entity, id])?;
-        }
-        return Ok(());
-    }
-    let stamp = sync::tick(conn)?;
-    for (entity, id) in ids {
-        sync::mark(conn, &entity, &id, &stamp)?;
-    }
-    Ok(())
-}
-
-/// Before a page and everything below it is deleted for good: the databases
-/// and rows among them are noted as gone, for other copies to delete too.
-pub(crate) fn forget_subtree(conn: &Connection, root: &str) -> Result<()> {
-    let ids: Vec<(String, String)> = {
-        let mut stmt = conn.prepare(
-            "WITH RECURSIVE sub(id) AS (
-               SELECT ?1
-               UNION ALL
-               SELECT p.id FROM pages p JOIN sub ON p.parent_id = sub.id
-             )
-             SELECT 'database', page_id FROM databases WHERE page_id IN sub
-             UNION ALL
-             SELECT 'row', page_id FROM db_rows WHERE page_id IN sub",
-        )?;
-        let rows = stmt.query_map([root], |r| Ok((r.get(0)?, r.get(1)?)))?;
-        rows.collect::<rusqlite::Result<_>>()?
-    };
-    note_gone(conn, ids)
-}
-
-/// Before the trash is emptied.
-pub(crate) fn forget_trashed(conn: &Connection) -> Result<()> {
-    let ids: Vec<(String, String)> = {
-        let mut stmt = conn.prepare(
-            "SELECT 'database', page_id FROM databases JOIN pages ON id = page_id WHERE deleted_at IS NOT NULL
-             UNION ALL
-             SELECT 'row', page_id FROM db_rows JOIN pages ON id = page_id WHERE deleted_at IS NOT NULL",
-        )?;
-        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
-        rows.collect::<rusqlite::Result<_>>()?
-    };
-    note_gone(conn, ids)
-}
-
 /// After pages were copied (`map`: old id → new id): a copied database gets
 /// its schema, and a copied row its values. Links between copied pages (a
 /// relation to another copied row) point at the copies.
 pub(crate) fn duplicated(tx: &Transaction, map: &HashMap<String, String>) -> Result<()> {
-    let mut stamp: Option<String> = None;
-    let mut stamp_now = |tx: &Transaction| -> Result<String> {
-        if stamp.is_none() {
-            stamp = Some(sync::tick(tx)?);
-        }
-        Ok(stamp.clone().unwrap_or_default())
-    };
     for (old, new) in map {
         let found: Option<(String, i64)> = tx
             .query_row("SELECT description, next_number FROM databases WHERE page_id = ?1", [old], |r| {
@@ -923,16 +720,14 @@ pub(crate) fn duplicated(tx: &Transaction, map: &HashMap<String, String>) -> Res
         let Some((description, next)) = found else {
             continue;
         };
-        let stamp = stamp_now(tx)?;
         tx.execute(
-            "INSERT INTO databases (page_id, description, next_number, clock) VALUES (?1, ?2, ?3, ?4)",
-            params![new, description, next, stamp],
+            "INSERT INTO databases (page_id, description, next_number) VALUES (?1, ?2, ?3)",
+            params![new, description, next],
         )?;
-        sync::mark(tx, "database", new, &stamp)?;
-        for (table, _) in SCHEMA_TABLES {
+        for table in SCHEMA_TABLES {
             for mut item in items(tx, table, Some(old))?.remove(old).unwrap_or_default() {
                 item.config = serde_json::from_str(&replace_ids(&item.config.to_string(), map)).unwrap_or_else(|_| empty_object());
-                put_item(tx, table, new, &item, &stamp)?;
+                put_item(tx, table, new, &item)?;
             }
         }
     }
@@ -949,7 +744,6 @@ pub(crate) fn duplicated(tx: &Transaction, map: &HashMap<String, String>) -> Res
         let Some((sort_key, number, cells, parent, template, cover)) = found else {
             continue;
         };
-        let stamp = stamp_now(tx)?;
         let db_id = parent.unwrap_or_default();
         // A row copied on its own goes right after the original and gets
         // the next number (a template isn't numbered); rows of a copied
@@ -965,360 +759,23 @@ pub(crate) fn duplicated(tx: &Transaction, map: &HashMap<String, String>) -> Res
             (after(sort_key), n)
         };
         let cells = parse_map(&replace_ids(&cells, map));
-        let mut clocks = Map::new();
-        for key in cells.keys().map(String::as_str).chain(["$title", "$icon", "$order"]) {
-            clocks.insert(key.to_string(), Value::String(stamp.clone()));
-        }
         tx.execute(
-            "INSERT INTO db_rows (page_id, sort_key, number, cells, clocks, template, cover) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![new, sort_key, number, Value::Object(cells).to_string(), Value::Object(clocks).to_string(), template, cover],
+            "INSERT INTO db_rows (page_id, sort_key, number, cells, template, cover) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![new, sort_key, number, Value::Object(cells).to_string(), template, cover],
         )?;
-        sync::mark(tx, "row", new, &stamp)?;
     }
     Ok(())
-}
-
-// ------------------------------------------------------------------------ sync
-
-/// One record as it travels between copies. A copy applying it keeps, field
-/// by field, whichever version has the later stamp.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
-pub enum Change {
-    Database {
-        id: String,
-        parent_id: Option<String>,
-        title: String,
-        icon: String,
-        description: String,
-        deleted: bool,
-        clock: String,
-    },
-    Property {
-        db_id: String,
-        item: SchemaItem,
-        deleted: bool,
-        clock: String,
-    },
-    View {
-        db_id: String,
-        item: SchemaItem,
-        deleted: bool,
-        clock: String,
-    },
-    Automation {
-        db_id: String,
-        item: SchemaItem,
-        deleted: bool,
-        clock: String,
-    },
-    Row {
-        id: String,
-        db_id: String,
-        title: String,
-        icon: String,
-        sort_key: String,
-        number: i64,
-        deleted: bool,
-        /// A template rather than a row (fixed when it's made).
-        #[serde(default)]
-        template: bool,
-        cells: Map<String, Value>,
-        /// Stamp of each cell (by property id) and of "$title", "$icon",
-        /// "$order" and "$deleted".
-        clocks: Map<String, Value>,
-    },
-    /// Deleted for good (a database or a row).
-    Gone { entity: String, id: String, clock: String },
-}
-
-impl Change {
-    /// Databases before their schema, schema before rows, deletions last.
-    fn rank(&self) -> u8 {
-        match self {
-            Change::Database { .. } => 0,
-            Change::Property { .. } | Change::View { .. } | Change::Automation { .. } => 1,
-            Change::Row { .. } => 2,
-            Change::Gone { .. } => 3,
-        }
-    }
-}
-
-fn schema_change(conn: &Connection, entity: &str, key: &str) -> Result<Option<Change>> {
-    let Some((db_id, id)) = key.split_once('/') else {
-        return Ok(None);
-    };
-    let Some(table) = table_of(entity) else {
-        return Ok(None);
-    };
-    let found = conn
-        .query_row(
-            &format!("SELECT db_id, id, name, type, config, sort_key, deleted, clock FROM {table} WHERE db_id = ?1 AND id = ?2"),
-            params![db_id, id],
-            |r| Ok((item_from(r)?, r.get::<_, bool>(6)?, r.get::<_, String>(7)?)),
-        )
-        .optional()?;
-    Ok(found.map(|((db_id, item), deleted, clock)| match entity {
-        "property" => Change::Property { db_id, item, deleted, clock },
-        "automation" => Change::Automation { db_id, item, deleted, clock },
-        _ => Change::View { db_id, item, deleted, clock },
-    }))
-}
-
-fn newer(remote: &Value, local: Option<&Value>) -> bool {
-    let remote = remote.as_str().unwrap_or("");
-    let local = local.and_then(Value::as_str).unwrap_or("");
-    remote > local
-}
-
-fn set_title(conn: &Connection, id: &str, title: &str) -> Result<()> {
-    conn.execute("UPDATE pages SET title = ?1 WHERE id = ?2", params![title, id])?;
-    conn.execute(
-        "UPDATE pages_fts SET title = ?1 WHERE rowid = (SELECT rid FROM pages WHERE id = ?2)",
-        params![title, id],
-    )?;
-    Ok(())
-}
-
-fn set_deleted(conn: &Connection, id: &str, deleted: bool) -> Result<()> {
-    if deleted {
-        conn.execute("UPDATE pages SET deleted_at = coalesce(deleted_at, ?1) WHERE id = ?2", params![now(), id])?;
-    } else {
-        conn.execute("UPDATE pages SET deleted_at = NULL WHERE id = ?1", [id])?;
-    }
-    Ok(())
-}
-
-fn apply_item(tx: &Transaction, table: &str, db_id: &str, item: &SchemaItem, deleted: bool, clock: &str) -> Result<()> {
-    if !is_database(tx, db_id)? {
-        return Ok(());
-    }
-    let local: Option<String> = tx
-        .query_row(&format!("SELECT clock FROM {table} WHERE db_id = ?1 AND id = ?2"), params![db_id, item.id], |r| r.get(0))
-        .optional()?;
-    if local.is_some_and(|l| l.as_str() >= clock) {
-        return Ok(());
-    }
-    tx.execute(
-        &format!(
-            "INSERT INTO {table} (db_id, id, name, type, config, sort_key, deleted, clock)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-             ON CONFLICT (db_id, id) DO UPDATE SET name = excluded.name, type = excluded.type,
-               config = excluded.config, sort_key = excluded.sort_key, deleted = excluded.deleted, clock = excluded.clock"
-        ),
-        params![db_id, item.id, item.name, item.kind, item.config.to_string(), item.sort_key, deleted, clock],
-    )?;
-    Ok(())
-}
-
-impl Db {
-    /// Everything changed since the last sync, as records to send.
-    pub fn sync_pending(&self) -> Result<Vec<Change>> {
-        let conn = self.conn();
-        let entries: Vec<(String, String, String)> = {
-            let mut stmt = conn.prepare("SELECT entity, id, clock FROM sync_outbox ORDER BY clock")?;
-            let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
-            rows.collect::<rusqlite::Result<_>>()?
-        };
-        let mut out = Vec::with_capacity(entries.len());
-        for (entity, id, clock) in entries {
-            let change = match entity.as_str() {
-                // Cached statements: a first sync can list every record there is.
-                "database" => conn
-                    .prepare_cached(
-                        "SELECT p.parent_id, p.title, p.icon, p.deleted_at IS NOT NULL, d.description, d.clock
-                         FROM databases d JOIN pages p ON p.id = d.page_id WHERE d.page_id = ?1",
-                    )?
-                    .query_row(
-                        [&id],
-                        |r| {
-                            Ok(Change::Database {
-                                id: id.clone(),
-                                parent_id: r.get(0)?,
-                                title: r.get(1)?,
-                                icon: r.get(2)?,
-                                deleted: r.get(3)?,
-                                description: r.get(4)?,
-                                clock: r.get(5)?,
-                            })
-                        },
-                    )
-                    .optional()?,
-                "property" | "view" | "automation" => schema_change(&conn, &entity, &id)?,
-                "row" => conn
-                    .prepare_cached(
-                        "SELECT p.parent_id, p.title, p.icon, p.deleted_at IS NOT NULL, r.sort_key, r.number, r.cells, r.clocks, r.template
-                         FROM db_rows r JOIN pages p ON p.id = r.page_id WHERE r.page_id = ?1",
-                    )?
-                    .query_row(
-                        [&id],
-                        |r| {
-                            Ok(Change::Row {
-                                id: id.clone(),
-                                db_id: r.get::<_, Option<String>>(0)?.unwrap_or_default(),
-                                title: r.get(1)?,
-                                icon: r.get(2)?,
-                                deleted: r.get(3)?,
-                                sort_key: r.get(4)?,
-                                number: r.get(5)?,
-                                cells: parse_map(&r.get::<_, String>(6)?),
-                                clocks: parse_map(&r.get::<_, String>(7)?),
-                                template: r.get(8)?,
-                            })
-                        },
-                    )
-                    .optional()?,
-                _ => None,
-            };
-            // Nothing left of it here: it was deleted for good.
-            out.push(change.unwrap_or(Change::Gone { entity, id, clock }));
-        }
-        Ok(out)
-    }
-
-    /// Forgets outbox entries up to `clock` once they've been sent.
-    pub fn sync_sent(&self, clock: &str) -> Result<()> {
-        let conn = self.conn();
-        sync::met_peer(&conn)?;
-        conn.execute("DELETE FROM sync_outbox WHERE clock <= ?1", [clock])?;
-        Ok(())
-    }
-
-    /// Applies records from another copy, keeping the later of each field.
-    pub fn sync_apply(&self, mut changes: Vec<Change>) -> Result<()> {
-        changes.sort_by_key(Change::rank);
-        let mut conn = self.conn();
-        let tx = conn.transaction()?;
-        sync::met_peer(&tx)?;
-        for change in changes {
-            match change {
-                Change::Database { id, parent_id, title, icon, description, deleted, clock } => {
-                    sync::observe(&tx, &clock)?;
-                    let local: Option<String> = tx
-                        .query_row("SELECT clock FROM databases WHERE page_id = ?1", [&id], |r| r.get(0))
-                        .optional()?;
-                    match local {
-                        None => {
-                            let parent = match &parent_id {
-                                Some(pid) if is_database(&tx, pid)? => None,
-                                Some(pid) => tx
-                                    .query_row("SELECT id FROM pages WHERE id = ?1", [pid], |r| r.get::<_, String>(0))
-                                    .optional()?,
-                                None => None,
-                            };
-                            insert_page_as(&tx, &id, parent.as_deref(), &title, &icon, "", "")?;
-                            tx.execute("UPDATE pages SET kind = 'database' WHERE id = ?1", [&id])?;
-                            tx.execute(
-                                "INSERT INTO databases (page_id, description, clock) VALUES (?1, ?2, ?3)",
-                                params![id, description, clock],
-                            )?;
-                            set_deleted(&tx, &id, deleted)?;
-                        }
-                        Some(local) if clock > local => {
-                            set_title(&tx, &id, &title)?;
-                            tx.execute("UPDATE pages SET icon = ?1 WHERE id = ?2", params![icon, id])?;
-                            tx.execute(
-                                "UPDATE databases SET description = ?1, clock = ?2 WHERE page_id = ?3",
-                                params![description, clock, id],
-                            )?;
-                            set_deleted(&tx, &id, deleted)?;
-                        }
-                        Some(_) => {}
-                    }
-                }
-                Change::Property { db_id, item, deleted, clock } => {
-                    sync::observe(&tx, &clock)?;
-                    apply_item(&tx, "db_properties", &db_id, &item, deleted, &clock)?;
-                }
-                Change::View { db_id, item, deleted, clock } => {
-                    sync::observe(&tx, &clock)?;
-                    apply_item(&tx, "db_views", &db_id, &item, deleted, &clock)?;
-                }
-                Change::Automation { db_id, item, deleted, clock } => {
-                    sync::observe(&tx, &clock)?;
-                    apply_item(&tx, "db_automations", &db_id, &item, deleted, &clock)?;
-                }
-                Change::Row { id, db_id, title, icon, sort_key, number, deleted, template, cells, clocks } => {
-                    for stamp in clocks.values().filter_map(Value::as_str) {
-                        sync::observe(&tx, stamp)?;
-                    }
-                    if !is_database(&tx, &db_id)? {
-                        continue;
-                    }
-                    let local: Option<(String, String)> = tx
-                        .query_row("SELECT cells, clocks FROM db_rows WHERE page_id = ?1", [&id], |r| {
-                            Ok((r.get(0)?, r.get(1)?))
-                        })
-                        .optional()?;
-                    match local {
-                        None => {
-                            insert_page_as(&tx, &id, Some(&db_id), &title, &icon, "", "")?;
-                            tx.execute(
-                                "INSERT INTO db_rows (page_id, sort_key, number, cells, clocks, template) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                                params![id, sort_key, number, Value::Object(cells).to_string(), Value::Object(clocks).to_string(), template],
-                            )?;
-                            tx.execute(
-                                "UPDATE databases SET next_number = max(next_number, ?1) WHERE page_id = ?2",
-                                params![number + 1, db_id],
-                            )?;
-                            set_deleted(&tx, &id, deleted)?;
-                        }
-                        Some((local_cells, local_clocks)) => {
-                            let mut local_cells = parse_map(&local_cells);
-                            let mut local_clocks = parse_map(&local_clocks);
-                            for (key, stamp) in &clocks {
-                                if !newer(stamp, local_clocks.get(key)) {
-                                    continue;
-                                }
-                                match key.as_str() {
-                                    "$title" => set_title(&tx, &id, &title)?,
-                                    "$icon" => {
-                                        tx.execute("UPDATE pages SET icon = ?1 WHERE id = ?2", params![icon, id])?;
-                                    }
-                                    "$order" => {
-                                        tx.execute("UPDATE db_rows SET sort_key = ?1 WHERE page_id = ?2", params![sort_key, id])?;
-                                    }
-                                    "$deleted" => set_deleted(&tx, &id, deleted)?,
-                                    prop => match cells.get(prop) {
-                                        Some(v) => {
-                                            local_cells.insert(prop.to_string(), v.clone());
-                                        }
-                                        None => {
-                                            local_cells.remove(prop);
-                                        }
-                                    },
-                                }
-                                local_clocks.insert(key.clone(), stamp.clone());
-                            }
-                            tx.execute(
-                                "UPDATE db_rows SET cells = ?1, clocks = ?2 WHERE page_id = ?3",
-                                params![Value::Object(local_cells).to_string(), Value::Object(local_clocks).to_string(), id],
-                            )?;
-                        }
-                    }
-                }
-                Change::Gone { entity, id, clock } => {
-                    sync::observe(&tx, &clock)?;
-                    if entity == "database" || entity == "row" {
-                        tx.execute("DELETE FROM pages WHERE id = ?1", [&id])?;
-                    }
-                }
-            }
-        }
-        tx.commit()?;
-        Ok(())
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::TempDb;
     use crate::db::PagePatch;
     use serde_json::json;
 
-    fn temp_db() -> Db {
-        let dir = std::env::temp_dir().join(format!("td-db-test-{}", uuid::Uuid::new_v4().simple()));
-        Db::open(&dir).expect("open db")
+    fn temp_db() -> TempDb {
+        TempDb::new("td-db-test")
     }
 
     fn prop(id: &str, name: &str, kind: &str, key: &str, config: Value) -> SchemaItem {
@@ -1480,94 +937,6 @@ mod tests {
         assert_eq!(first_image("<p>old html</p>"), None);
     }
 
-    /// Two copies change the same database while apart, then swap changes
-    /// (in either order): they end up the same.
-    #[test]
-    fn two_copies_converge() {
-        let a = temp_db();
-        let b = temp_db();
-        let created = reading_list(&a);
-        let id = created.page.id.clone();
-        let dune = created.rows[0].page.id.clone();
-        let emma = created.rows[1].page.id.clone();
-        b.sync_apply(a.sync_pending().unwrap()).unwrap();
-        // Sent: A's outbox empties.
-        a.sync_sent("9999999999999").unwrap();
-        assert!(a.sync_pending().unwrap().is_empty());
-        assert_eq!(b.list_rows().unwrap().len(), 2);
-        assert_eq!(b.get_page(&dune).unwrap().meta.title, "Dune");
-
-        // Apart: both change Dune's status (B later), A its pages, B its
-        // title; A adds a row, B renames a property and trashes Emma.
-        let set = |db: &Db, id: &str, cells: Value| {
-            db.update_rows(vec![RowChange { id: id.into(), cells: Some(cells.as_object().cloned().unwrap()), sort_key: None }])
-                .unwrap();
-        };
-        set(&a, &dune, json!({"status": "todo", "pages": 500}));
-        a.create_rows(&id, vec![new_row("Middlemarch", "a5", json!({}))]).unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(3));
-        set(&b, &dune, json!({"status": "done"}));
-        b.update_page(&dune, PagePatch { title: Some("Dune (1965)".into()), ..Default::default() }).unwrap();
-        let mut status = b.list_databases().unwrap()[0].properties[1].clone();
-        status.name = "Progress".into();
-        b.save_property(&id, status).unwrap();
-        b.trash_page(&emma).unwrap();
-
-        let from_a = a.sync_pending().unwrap();
-        let from_b = b.sync_pending().unwrap();
-        a.sync_apply(from_b).unwrap();
-        b.sync_apply(from_a).unwrap();
-
-        let snapshot = |db: &Db| {
-            let mut rows: Vec<(String, String, Map<String, Value>, bool)> = db
-                .list_rows()
-                .unwrap()
-                .into_iter()
-                .map(|r| {
-                    let meta = db.get_page(&r.id).unwrap().meta;
-                    (r.id, meta.title, r.cells, meta.deleted_at.is_some())
-                })
-                .collect();
-            rows.sort_by(|x, y| x.0.cmp(&y.0));
-            let props: Vec<String> = db.list_databases().unwrap()[0].properties.iter().map(|p| p.name.clone()).collect();
-            (rows, props)
-        };
-        let (rows_a, props_a) = snapshot(&a);
-        assert_eq!(snapshot(&a), snapshot(&b));
-        assert_eq!(rows_a.len(), 3);
-        let dune_a = rows_a.iter().find(|r| r.0 == dune).unwrap();
-        assert_eq!(dune_a.1, "Dune (1965)");
-        assert_eq!(dune_a.2["status"], json!("done"), "the later edit wins");
-        assert_eq!(dune_a.2["pages"], json!(500), "an edit to another cell survives");
-        assert!(rows_a.iter().find(|r| r.0 == emma).unwrap().3, "trashed on both");
-        assert_eq!(props_a[1], "Progress");
-
-        // Deleting for good travels too.
-        b.delete_page(&emma).unwrap();
-        a.sync_apply(b.sync_pending().unwrap()).unwrap();
-        assert!(a.get_page(&emma).is_err());
-
-        // A stamp from a copy whose clock runs ahead is still beaten by the
-        // next local edit.
-        let future = format!("{:013}-0000-ffffffff", now() + 60_000);
-        b.sync_apply(vec![Change::Row {
-            id: dune.clone(),
-            db_id: id.clone(),
-            title: "Dune (1965)".into(),
-            icon: String::new(),
-            sort_key: "a0".into(),
-            number: 1,
-            deleted: false,
-            template: false,
-            cells: json!({"pages": 1}).as_object().cloned().unwrap(),
-            clocks: json!({"pages": future}).as_object().cloned().unwrap(),
-        }])
-        .unwrap();
-        assert_eq!(row(&b, &dune).cells["pages"], json!(1));
-        set(&b, &dune, json!({"pages": 2}));
-        assert_eq!(row(&b, &dune).cells["pages"], json!(2));
-    }
-
     #[test]
     fn templates_and_automations() {
         let db = temp_db();
@@ -1613,26 +982,18 @@ mod tests {
         let copy = db.duplicate_page(&tpl.id).unwrap();
         assert!(row(&db, &copy.id).template);
 
-        // Automations are part of the schema, deleted as tombstones, and sync.
+        // Automations are part of the schema, and deleted as tombstones.
         let rule = prop("r1", "Finished date", "changed", "a0", json!({"prop": "status", "actions": []}));
         db.save_automation(&id, rule.clone()).unwrap();
         assert!(db.save_automation(&id, prop("r2", "x", "nonsense", "a1", json!({}))).is_err());
         assert_eq!(db.list_databases().unwrap()[0].automations, vec![rule.clone()]);
 
-        let other = temp_db();
-        other.sync_apply(db.sync_pending().unwrap()).unwrap();
-        let schemas = other.list_databases().unwrap();
-        assert_eq!(schemas[0].automations, vec![rule]);
-        assert!(other.list_rows().unwrap().iter().any(|r| r.id == tpl.id && r.template));
-
         db.delete_automation(&id, "r1").unwrap();
         assert!(db.list_databases().unwrap()[0].automations.is_empty());
-        other.sync_apply(db.sync_pending().unwrap()).unwrap();
-        assert!(other.list_databases().unwrap()[0].automations.is_empty());
     }
 
     #[test]
-    fn outbox_and_listing_stay_lean() {
+    fn listing_stays_lean() {
         let db = temp_db();
         let created = reading_list(&db);
         let id = created.page.id.clone();
@@ -1664,19 +1025,9 @@ mod tests {
         db.restore_page(&dune).unwrap();
         assert_eq!(db.list_rows().unwrap().iter().filter(|r| r.db_id == id).count(), 2);
 
-        // Never synced: a row deleted for good leaves nothing behind.
-        let before: i64 = db.conn().query_row("SELECT count(*) FROM sync_outbox", [], |r| r.get(0)).unwrap();
+        // A row can be deleted for good once it's in the trash.
         db.trash_page(&dune).unwrap();
         db.delete_page(&dune).unwrap();
-        let after: i64 = db.conn().query_row("SELECT count(*) FROM sync_outbox", [], |r| r.get(0)).unwrap();
-        assert_eq!(after, before - 1);
-        assert!(db.sync_pending().unwrap().iter().all(|c| !matches!(c, Change::Gone { .. })));
-
-        // Once it has synced, deletions are noted for the other copy.
-        db.sync_sent("").unwrap();
-        let emma = created.rows[1].row.id.clone();
-        db.trash_page(&emma).unwrap();
-        db.delete_page(&emma).unwrap();
-        assert!(db.sync_pending().unwrap().iter().any(|c| matches!(c, Change::Gone { id, .. } if *id == emma)));
+        assert!(db.list_rows().unwrap().iter().all(|r| r.id != dune));
     }
 }

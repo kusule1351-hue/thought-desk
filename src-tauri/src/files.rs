@@ -171,6 +171,7 @@ pub fn collect_garbage(db: &Db) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::TempDir;
 
     const HEX: &str = "0123456789abcdef0123456789abcdef";
 
@@ -248,13 +249,11 @@ mod tests {
 
     #[test]
     fn refuses_a_range_that_ends_before_it_starts() {
-        let dir = std::env::temp_dir().join(format!("td-range-bad-{}", uuid::Uuid::new_v4().simple()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = TempDir::new("td-range-bad");
         let path = dir.join("clip.mp4");
         std::fs::write(&path, vec![7u8; 100]).unwrap();
         let response = serve(&path, "clip.mp4", parse_range("bytes=10-5")).unwrap().unwrap();
         assert_eq!(response.status(), StatusCode::RANGE_NOT_SATISFIABLE);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -264,8 +263,7 @@ mod tests {
         assert_eq!(parse_range("bytes=-5"), None, "suffix ranges fall back to the whole file");
         assert_eq!(parse_range("items=0-1"), None);
 
-        let dir = std::env::temp_dir().join(format!("td-range-{}", uuid::Uuid::new_v4().simple()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = TempDir::new("td-range");
         let path = dir.join("clip.mp4");
         let data: Vec<u8> = (0..(CHUNK + 100)).map(|i| (i % 251) as u8).collect();
         std::fs::write(&path, &data).unwrap();

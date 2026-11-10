@@ -29,6 +29,9 @@
   import { importCalendar } from '../ics-import.svelte';
   import { exportWorkspace } from '../export-workspace';
   import { account } from '../account.svelte';
+  import SyncMeter from '../ui/SyncMeter.svelte';
+  import SyncSettings from '../ui/SyncSettings.svelte';
+  import { syncAvailable } from '../sync/flag';
   import Avatar from './Avatar.svelte';
   import { chooseDataFolder, useDefaultDataFolder } from '../data-folder';
   import { SIDEBAR_ITEMS, setShownInSidebar, shownInSidebar, type SidebarItem } from '../sidebar-items';
@@ -381,6 +384,10 @@
                   </div>
                   <button class="btn small raised" onclick={openAccount}>{t('settings.account.editProfile')}</button>
                 </div>
+                {#if syncAvailable()}
+                  <SyncMeter />
+                  <SyncSettings />
+                {/if}
               {:else}
                 <div class="group-row">
                   <div class="row-label">

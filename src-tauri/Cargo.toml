@@ -26,6 +26,15 @@ serde_json = { version = "1", features = ["raw_value"] }
 rusqlite = { version = "0.40", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
 tauri-plugin-dialog = "2"
+# Sync encryption (sync/crypto.rs).
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
+hkdf = "0.12"
+hmac = "0.12"
+sha2 = "0.10"
+flate2 = "1"
+getrandom = "0.2"
+# Wipes the vault key from memory (sync/crypto.rs, secrets.rs); already in the build.
+zeroize = "1"
 
 # Small, fast release binary: the app is mostly I/O bound, so favour size.
 [profile.release]

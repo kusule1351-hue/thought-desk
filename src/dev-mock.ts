@@ -7,6 +7,7 @@ import { mockConvertFileSrc, mockIPC, mockWindows } from '@tauri-apps/api/mocks'
 import type { Assignment, CalEvent, CardReview, CellValue, Course, DatabaseSchema, DbRow, FileMeta, OccurrencePage, PageMeta, Tag } from './lib/types';
 import { TEMPLATES } from './lib/db/templates';
 import { prefs } from './lib/prefs.svelte';
+import { fromB64, toB64 } from './lib/sync/bytes';
 
 type Row = PageMeta & { content: string; text: string };
 
@@ -511,6 +512,558 @@ if (!FRESH && !Object.keys(dbData.schemas).length && !localStorage.getItem(DB_KE
   persistDb();
 }
 
+
+// ---------------------------------------------------------------- sync
+// A stand-in for the sync commands (docs/sync.md, "Inside the app"), in memory
+// per window. It carries data for real: page changes become records with a
+// stamp per field (later stamp wins), page text keeps the queue, the `first`
+// mark, the `base` check and the marks the way src-tauri/src/sync/text.rs does,
+// so two windows on one mailbox (tests/e2e/sync-two.spec.ts) meet the engine
+// as two computers would.
+//
+// What it is NOT: encryption (an "envelope" is base64url of JSON or bytes, and
+// a key is a plain hash of the name; the real ones are tested in Rust), and
+// there is no merge logic for page text in here. Text is merged by the engine
+// (Yjs); the real rules, including convergence, are proven by
+// src-tauri/src/sync/convergence.rs. Only pages are records here; the other
+// entities of the doc are not, as no interface test needs them.
+//
+// Tests steer it through `window.__syncMock`: the pages whose body changed
+// (`bodies`), updates received and not merged (`incoming`, by page), every
+// `sync_text_commit` (`commits`), records injected to be sent (`records`), and
+// the commands called.
+interface SyncStand {
+  enabled: boolean;
+  account: string | null;
+  ready: boolean;
+  cursor: number;
+  /** Items Rust could not open (kept); a test sets it through `__syncMock.status`. */
+  unreadable: number;
+  /** A copy of the notes from before sync was turned on is kept (made by sync_turn_on, removed by sync_backup_delete). */
+  backup: boolean;
+}
+const SYNC_KEY = 'thoughtdesk.devmock.sync';
+const syncStand: SyncStand = (() => {
+  try {
+    return { enabled: false, account: null, ready: false, cursor: 0, unreadable: 0, backup: false, ...JSON.parse(localStorage.getItem(SYNC_KEY) ?? '{}') };
+  } catch {
+    return { enabled: false, account: null, ready: false, cursor: 0, unreadable: 0, backup: false };
+  }
+})();
+const saveSync = () => localStorage.setItem(SYNC_KEY, JSON.stringify(syncStand));
+/** Vault keys: the recovery key's plain form per account, and which accounts have the key on this computer. */
+const syncVaults = new Map<string, string>();
+const syncOpen = new Set<string>(JSON.parse(localStorage.getItem(SYNC_KEY + '.open') ?? '[]'));
+const keepOpen = () => localStorage.setItem(SYNC_KEY + '.open', JSON.stringify([...syncOpen]));
+/** Each account's proof, kept across reloads like the key itself. */
+const syncProofs: Record<string, string> = JSON.parse(localStorage.getItem(SYNC_KEY + '.proof') ?? '{}');
+const keepProof = (account: string, plain: string) => {
+  syncProofs[account] = proofOf(plain);
+  localStorage.setItem(SYNC_KEY + '.proof', JSON.stringify(syncProofs));
+};
+/** The vault proof: 32 bytes derived from the key (a plain hash here; HKDF in Rust), so every computer with the key has the same one. */
+const proofOf = (plain: string) => {
+  const hex = nameKey('proof|' + plain) + nameKey('proof2|' + plain);
+  return toB64(Uint8Array.from(hex.match(/../g)!.map((h) => parseInt(h, 16))));
+};
+const plainKey = (key: string) => key.toUpperCase().replace(/[\s-]/g, '').replace(/[IL]/g, '1').replace(/O/g, '0');
+(window as any).__syncMock = {
+  /** Pages whose body was written and not looked at yet (what the real trigger notes). */
+  bodies: [] as string[],
+  /** Updates from other computers, by page id, for the engine to merge. */
+  incoming: {} as Record<string, { seq: number; kind: string; data: string }[]>,
+  /** Every sync_text_commit the engine or the editor made. */
+  commits: [] as unknown[],
+  /** Records waiting to be sent (until sync_records_sent takes them), ahead of the pages' own. */
+  records: [] as { entity: string; id: string; key: string; kind: 'r'; base: number; data: string }[],
+  /** Fields laid over what sync_status answers (a test's `unreadable`, say). */
+  status: {} as Record<string, unknown>,
+  /** What sync_apply says it passed over. */
+  applySkipped: 0,
+  /** Files to move: jobs for sync_files_todo (a job leaves its list when sync_file_done says so). */
+  files: { upload: [], download: [], remove: [] } as Record<'upload' | 'download' | 'remove', { id: string; stored: string; chunks: number }[]>,
+  /** Commands that fail once with this message (`{ sync_turn_on: 'boom' }`). */
+  fail: {} as Record<string, string>,
+  /** Commands called, in order, and with what. */
+  calls: [] as string[],
+  args: [] as Record<string, unknown>[],
+};
+
+/** The device in stamps: this install's, kept across reloads. */
+const DEVICE = (() => {
+  const k = SYNC_KEY + '.device';
+  let d = localStorage.getItem(k);
+  if (!d) localStorage.setItem(k, (d = 'd' + Math.random().toString(16).slice(2, 8)));
+  return d;
+})();
+const clock = { ms: 0, n: 0 };
+const pad = (n: number, w: number) => String(n).padStart(w, '0');
+/** A hybrid logical clock stamp, `{ms:013}-{n:04}-{device}`: strings compare in time order. */
+const stamp = () => {
+  const now = Date.now();
+  if (now > clock.ms) Object.assign(clock, { ms: now, n: 0 });
+  else clock.n++;
+  return `${pad(clock.ms, 13)}-${pad(clock.n, 4)}-${DEVICE}`;
+};
+/** A stamp heard from elsewhere: ours never goes behind it. */
+const observe = (s: string) => {
+  const ms = Number(s.slice(0, 13));
+  const n = Number(s.slice(14, 18));
+  if (ms > clock.ms || (ms === clock.ms && n > clock.n)) Object.assign(clock, { ms, n });
+};
+
+const utf8 = new TextEncoder();
+const unutf8 = new TextDecoder();
+/** A name's key on the server: a plain hash here, an HMAC in Rust (cyrb128). */
+function nameKey(name: string): string {
+  let [h1, h2, h3, h4] = [1779033703, 3144134277, 1013904242, 2773480762];
+  for (let i = 0; i < name.length; i++) {
+    const k = name.charCodeAt(i);
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+  }
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+  h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+  h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+  h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+  return [h1 ^ h2 ^ h3 ^ h4, h2 ^ h1, h3 ^ h1, h4 ^ h1].map((h) => (h >>> 0).toString(16).padStart(8, '0')).join('');
+}
+
+/** The fields of a page that sync (docs/sync.md), as the app's row names them. `order` and `position` stay local here. */
+const PAGE_FIELDS: Record<string, keyof Row> = {
+  parent_id: 'parentId',
+  title: 'title',
+  icon: 'icon',
+  favorite: 'favorite',
+  full_width: 'fullWidth',
+  tags: 'tags',
+  kind: 'kind',
+  created_at: 'createdAt',
+  updated_at: 'updatedAt',
+  deleted_at: 'deletedAt',
+};
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/** `sync_record`: per page, each field's value with the stamp of its last change, the mailbox's number for it, whether it is to be sent, or a tombstone. */
+interface Known {
+  fields: Record<string, { s: string; v: unknown }>;
+  seq: number;
+  dirty: boolean;
+  gone?: string;
+}
+const known = new Map<string, Known>();
+/** What turning sync off keeps, for turning it on again for the same account. */
+let kept: { account: string; wrappedKey: string; cursor: number } | null = null;
+/** Records are kept from `sync_turn_on` on. A window that opens with sync already on (a test saves that state) lost them with its memory, and acts as if everything were sent and seeded. */
+let tracked = false;
+/** Records pulled and not applied yet. */
+let inbox: { seq: number; rec: { id: string; f?: Record<string, [unknown, string]>; gone?: string } }[] = [];
+/** `sync_y`: each page's last whole text state; `sync_y_out`: updates to send; `sync_y_gone`: deleted pages the mailbox may hold text for. */
+const syncY = new Map<string, { state: string; logBytes: number }>();
+let syncOut: { id: number; pageId: string; data: string; first: boolean }[] = [];
+let outCounter = 0;
+const syncGone = new Set<string>();
+/** Every body write is noted, as the real trigger does; only a commit with a `base` clears the mark. */
+const noteBody = (id: string) => {
+  const m = (window as any).__syncMock;
+  if (!m.bodies.includes(id)) m.bodies.push(id);
+};
+/** Pages leaving (deleted for good): their text goes, and a marker stays if the mailbox may have it. */
+function forgetText(ids: string[]) {
+  const m = (window as any).__syncMock;
+  for (const id of ids) {
+    if (syncY.has(id)) syncGone.add(id);
+    syncY.delete(id);
+    syncOut = syncOut.filter((o) => o.pageId !== id);
+    delete m.incoming[id];
+    m.bodies = m.bodies.filter((b: string) => b !== id);
+  }
+}
+const resetSync = () => {
+  const m = (window as any).__syncMock;
+  tracked = false;
+  known.clear();
+  inbox = [];
+  syncY.clear();
+  syncOut = [];
+  syncGone.clear();
+  m.bodies = [];
+  m.incoming = {};
+};
+
+/** Stamps what changed since the record was last known: a new page, a field whose value differs, a page that's gone. */
+function reconcile() {
+  if (!tracked) return;
+  const present = new Set<string>();
+  for (const row of rows) {
+    present.add(row.id);
+    let k = known.get(row.id);
+    if (!k || k.gone) {
+      k = { fields: {}, seq: k?.seq ?? 0, dirty: true };
+      known.set(row.id, k);
+    }
+    for (const [name, key] of Object.entries(PAGE_FIELDS)) {
+      const old = k.fields[name];
+      if (old && same(old.v, row[key])) continue;
+      k.fields[name] = { s: stamp(), v: clone(row[key]) };
+      k.dirty = true;
+    }
+  }
+  for (const [id, k] of known) {
+    if (present.has(id) || k.gone) continue;
+    // A page no one else ever saw is just forgotten.
+    if (k.seq === 0) known.delete(id);
+    else Object.assign(k, { fields: {}, gone: stamp(), dirty: true });
+  }
+}
+
+/** Whether a page changed in a way `reconcile` hasn't seen (what the real triggers note). */
+function unseen(): boolean {
+  if (!tracked) return false;
+  const ids = new Set<string>();
+  for (const row of rows) {
+    ids.add(row.id);
+    const k = known.get(row.id);
+    if (!k || k.gone || Object.entries(PAGE_FIELDS).some(([name, key]) => !same(k.fields[name]?.v, row[key]))) return true;
+  }
+  return [...known].some(([id, k]) => !k.gone && !ids.has(id) && k.seq > 0);
+}
+
+/** Merges one record into the page it is about: per field, the later stamp wins; a tombstone loses to a later edit. */
+function mergeRecord(seq: number, rec: (typeof inbox)[number]['rec']): boolean {
+  let k = known.get(rec.id);
+  let row = rows.find((r) => r.id === rec.id);
+  if (rec.gone) {
+    observe(rec.gone);
+    if (k && !k.gone && Object.values(k.fields).some((f) => f.s > rec.gone!)) {
+      // Edited after it was deleted: it stays, and says so.
+      k.seq = Math.max(k.seq, seq);
+      k.dirty = true;
+      return false;
+    }
+    k = k ?? { fields: {}, seq: 0, dirty: false };
+    Object.assign(k, { fields: {}, gone: rec.gone, seq: Math.max(k.seq, seq), dirty: false });
+    known.set(rec.id, k);
+    if (!row) return false;
+    for (const child of rows.filter((r) => r.parentId === rec.id)) child.parentId = null;
+    rows = rows.filter((r) => r.id !== rec.id);
+    forgetText([rec.id]);
+    return true;
+  }
+  const fields = rec.f ?? {};
+  if (k?.gone && !Object.values(fields).some(([, s]) => s > k!.gone!)) {
+    // Deleted here after this was written: the tombstone goes up to replace it.
+    k.seq = Math.max(k.seq, seq);
+    return false;
+  }
+  if (k?.gone) k = undefined;
+  k ??= { fields: {}, seq: 0, dirty: false };
+  known.set(rec.id, k);
+  let changed = false;
+  if (!row) {
+    row = make(null, '', '', '');
+    row.id = rec.id;
+    row.position = Number.MAX_SAFE_INTEGER;
+    rows.push(row);
+    changed = true;
+  }
+  for (const [name, [value, s]] of Object.entries(fields)) {
+    const key = PAGE_FIELDS[name];
+    if (!key) continue;
+    observe(s);
+    const mine = k.fields[name];
+    // Equal stamps with different values (a device clash) go to the greater value.
+    if (mine && (mine.s > s || (mine.s === s && JSON.stringify(mine.v) >= JSON.stringify(value)))) continue;
+    k.fields[name] = { s, v: clone(value) };
+    if (!same(row[key], value)) {
+      (row as any)[key] = clone(value);
+      changed = true;
+    }
+  }
+  k.seq = Math.max(k.seq, seq);
+  // Something here is newer than what came, or not in it: it has to go back.
+  k.dirty = Object.entries(k.fields).some(([name, f]) => fields[name]?.[1] !== f.s);
+  return changed;
+}
+
+function applyInbox(): boolean {
+  reconcile();
+  inbox.sort((a, b) => a.seq - b.seq);
+  let changed = false;
+  for (const { seq, rec } of inbox) changed = mergeRecord(seq, rec) || changed;
+  inbox = [];
+  // Whatever points at a page that isn't here goes to the top level; it then counts as a local change.
+  const ids = new Set(rows.map((r) => r.id));
+  for (const r of rows) if (r.parentId && !ids.has(r.parentId)) r.parentId = null;
+  const tops = new Map<string | null, Row[]>();
+  for (const r of rows) tops.set(r.parentId, [...(tops.get(r.parentId) ?? []), r]);
+  // Pages that came in go after the others of their parent.
+  for (const list of tops.values()) list.sort((x, y) => x.position - y.position).forEach((r, i) => (r.position = i));
+  reconcile();
+  return changed;
+}
+
+const b64 = (bytes: Uint8Array) => toB64(bytes);
+
+const syncCommand = (cmd: string, a: Record<string, any>, find: (id: string) => Row): unknown => {
+  const mock = (window as any).__syncMock;
+  mock.calls.push(cmd);
+  mock.args.push({ cmd, ...a });
+  if (mock.fail[cmd]) {
+    const message = mock.fail[cmd];
+    delete mock.fail[cmd];
+    throw message;
+  }
+  switch (cmd) {
+    case 'sync_vault_create': {
+      const recoveryKey: string = (window as any).__syncRecoveryKey ?? 'ABCDE-FGHJK-MNPQR-STVWX-YZ012-34567';
+      syncVaults.set(a.account, plainKey(recoveryKey));
+      keepProof(a.account, plainKey(recoveryKey));
+      syncOpen.add(a.account);
+      keepOpen();
+      return { recoveryKey, wrappedKey: 'wrapped.' + plainKey(recoveryKey) };
+    }
+    case 'sync_vault_join':
+      if ('wrapped.' + plainKey(String(a.recoveryKey)) !== a.wrappedKey) throw "That recovery key doesn't open your synced notes.";
+      keepProof(a.account, plainKey(String(a.recoveryKey)));
+      syncOpen.add(a.account);
+      keepOpen();
+      return null;
+    case 'sync_vault_proof': {
+      // Without the key there is no proof.
+      const account = syncStand.account ?? [...syncOpen][0];
+      if (!account || !syncOpen.has(account)) throw 'Sync is locked';
+      return syncProofs[account] ?? proofOf(account);
+    }
+    case 'sync_vault_open':
+      return syncOpen.has(a.account);
+    case 'sync_vault_forget':
+      syncOpen.delete(a.account);
+      keepOpen();
+      return null;
+    case 'sync_status':
+      return { ...syncStand, ...mock.status };
+    case 'sync_turn_on': {
+      // The same account again: what was kept (records, text states, the cursor) is resumed; the audit finds what changed meanwhile.
+      const resume = kept && kept.account === a.account ? kept : null;
+      kept = null;
+      if (resume) {
+        tracked = true;
+        // Another synced copy: the stamps stay, and everything is sent again from the start.
+        if (resume.wrappedKey !== a.wrappedKey) for (const k of known.values()) Object.assign(k, { seq: 0, dirty: true });
+        Object.assign(syncStand, { enabled: true, account: a.account, ready: false, cursor: resume.wrappedKey === a.wrappedKey ? resume.cursor : 0, wrappedKey: a.wrappedKey, backup: true });
+        saveSync();
+        return null;
+      }
+      resetSync();
+      tracked = true;
+      if (a.joining) {
+        // The welcome page as the app made it, untouched: the real notes are coming, and the other copy has its own.
+        rows = rows.filter((r) => !(r.title === 'Getting started' && r.icon === 'icon:compass:blue' && !r.deletedAt && r.content.startsWith('<') && !rows.some((c) => c.parentId === r.id)));
+      }
+      // Everything that exists is stamped from its last change, so a copied notes folder merges on what is really newer.
+      for (const row of rows) {
+        const s = `${pad(row.updatedAt, 13)}-0000-${DEVICE}`;
+        const fields: Known['fields'] = {};
+        for (const [name, key] of Object.entries(PAGE_FIELDS)) fields[name] = { s, v: clone(row[key]) };
+        known.set(row.id, { fields, seq: 0, dirty: true });
+      }
+      // The copy of the notes from before sync is made on every turn-on.
+      Object.assign(syncStand, { enabled: true, account: a.account, ready: false, cursor: 0, wrappedKey: a.wrappedKey, backup: true });
+      saveSync();
+      return null;
+    }
+    case 'sync_mark_ready':
+      syncStand.ready = true;
+      saveSync();
+      return null;
+    case 'sync_turn_off':
+      // The triggers go and the key is forgotten elsewhere; everything else is kept for turning on again.
+      if (syncStand.account) kept = { account: syncStand.account, wrappedKey: String((syncStand as any).wrappedKey ?? ''), cursor: syncStand.cursor };
+      tracked = false;
+      Object.assign(syncStand, { enabled: false, account: null, ready: false, cursor: 0, wrappedKey: null });
+      saveSync();
+      return null;
+    case 'sync_ingest': {
+      let skipped = 0;
+      for (const item of a.items ?? []) {
+        const sealed = fromB64(item.data);
+        if (item.kind === 'r') {
+          try {
+            inbox.push({ seq: item.seq, rec: JSON.parse(unutf8.decode(sealed)) });
+          } catch {
+            skipped++;
+          }
+          continue;
+        }
+        // Text: the page id, a newline, the update. An empty update marks a page deleted elsewhere.
+        const split = sealed.indexOf(10);
+        const pageId = split < 0 ? '' : unutf8.decode(sealed.subarray(0, split));
+        if (!pageId || nameKey('body/' + pageId) !== item.key) {
+          skipped++;
+          continue;
+        }
+        const update = sealed.subarray(split + 1);
+        if (!update.length) {
+          // If an edit here beat the delete, the mailbox dropped our text and gets all of it again.
+          const y = syncY.get(pageId);
+          if (y && rows.some((r) => r.id === pageId)) {
+            syncOut.push({ id: ++outCounter, pageId, data: y.state, first: false });
+            y.logBytes += fromB64(y.state).length;
+          }
+          continue;
+        }
+        const list = (mock.incoming[pageId] ??= []);
+        const at = list.findIndex((u: { seq: number }) => u.seq === item.seq);
+        const entry = { seq: item.seq, kind: item.kind, data: b64(update) };
+        if (at >= 0) list[at] = entry;
+        else list.push(entry);
+      }
+      syncStand.cursor = a.cursor ?? syncStand.cursor;
+      saveSync();
+      return { skipped };
+    }
+    case 'sync_apply':
+      return { entities: applyInbox() ? ['page'] : [], skipped: mock.applySkipped };
+    case 'sync_records_rebase':
+      // The key has this seq on the server now, and this computer has seen it: it is the new base.
+      for (const x of a.items ?? []) {
+        const k = x.entity === 'page' ? known.get(x.id) : undefined;
+        if (k) k.seq = Math.max(k.seq, x.seq);
+      }
+      return null;
+    case 'sync_audit': {
+      // A look at every record: what differs from what was last known is noted (stamped), as a change here.
+      const found = unseen();
+      reconcile();
+      return found ? 1 : 0;
+    }
+    case 'sync_backup_delete':
+      syncStand.backup = false;
+      delete mock.status.backup;
+      saveSync();
+      return null;
+    case 'sync_seal_records': {
+      reconcile();
+      const out = [...mock.records];
+      let bytes = 0;
+      for (const [id, k] of known) {
+        if (!k.dirty) continue;
+        const rec = k.gone ? { e: 'page', id, gone: k.gone } : { e: 'page', id, f: Object.fromEntries(Object.entries(k.fields).map(([name, f]) => [name, [f.v, f.s]])) };
+        const data = b64(utf8.encode(JSON.stringify(rec)));
+        out.push({ entity: 'page', id, key: nameKey(`page/${id}`), kind: 'r', base: k.seq, data });
+        bytes += data.length;
+        if (bytes >= (a.maxBytes ?? Infinity)) break;
+      }
+      return out;
+    }
+    case 'sync_records_sent': {
+      const sent = new Set((a.items ?? []).map((x: { id: string }) => x.id));
+      mock.records = mock.records.filter((r: { id: string }) => !sent.has(r.id));
+      for (const x of a.items ?? []) {
+        const k = known.get(x.id);
+        if (k && x.entity === 'page') Object.assign(k, { seq: x.seq, dirty: false });
+      }
+      return null;
+    }
+    case 'sync_has_changes':
+      return syncStand.enabled && (mock.bodies.length > 0 || unseen());
+    case 'sync_text_todo': {
+      if (!syncStand.enabled) return { bodies: [], incoming: [] };
+      mock.bodies = mock.bodies.filter((id: string) => rows.some((r) => r.id === id));
+      // Noted, or never seeded and with something to seed.
+      const bodies = rows.filter((r) => !r.sharedRoom && (mock.bodies.includes(r.id) || (tracked && !syncY.has(r.id) && r.content !== ''))).map((r) => r.id);
+      const incoming = rows.filter((r) => !r.sharedRoom && mock.incoming[r.id]?.length).map((r) => r.id);
+      return { bodies, incoming };
+    }
+    case 'sync_text_read': {
+      const row = find(a.pageId);
+      const updates = [...(mock.incoming[a.pageId] ?? [])].sort((x, y) => x.seq - y.seq);
+      return { state: syncY.get(a.pageId)?.state ?? '', content: row.content, updates };
+    }
+    case 'sync_text_commit': {
+      const row = rows.find((r) => r.id === a.pageId);
+      if (!row) return false;
+      // Only when the body is still the one the engine started from (null: an open page, whose document is the truth).
+      if (a.base != null && a.base !== row.content) return false;
+      const y = syncY.get(a.pageId) ?? { state: '', logBytes: 0 };
+      y.state = a.state;
+      syncY.set(a.pageId, y);
+      if (a.update) {
+        syncOut.push({ id: ++outCounter, pageId: a.pageId, data: a.update, first: !!a.first });
+        y.logBytes += fromB64(a.update).length;
+      }
+      if (a.consumed !== undefined && mock.incoming[a.pageId]) {
+        const done = mock.incoming[a.pageId].filter((u: { seq: number }) => u.seq <= a.consumed);
+        y.logBytes += done.reduce((n: number, u: { data: string }) => n + fromB64(u.data).length, 0);
+        mock.incoming[a.pageId] = mock.incoming[a.pageId].filter((u: { seq: number }) => u.seq > a.consumed);
+      }
+      // Not an edit: `updated_at` is a record field and arrives by itself.
+      if (a.content !== undefined) {
+        row.content = a.content;
+        noteBody(row.id);
+      }
+      if (a.text !== undefined) row.text = a.text;
+      // Last, because writing the body noted it again. Without a base this says nothing about the body.
+      if (a.base != null) mock.bodies = mock.bodies.filter((id: string) => id !== a.pageId);
+      mock.commits.push({ ...a });
+      return true;
+    }
+    case 'sync_seal_text': {
+      const out: Record<string, unknown>[] = [];
+      let bytes = 0;
+      const add = (ref: string, pageId: string, kind: 'y' | 's', update: Uint8Array, extra: Record<string, unknown> = {}) => {
+        const plain = new Uint8Array([...utf8.encode(pageId + '\n'), ...update]);
+        const data = b64(plain);
+        bytes += data.length;
+        out.push({ ref, pageId, key: nameKey('body/' + pageId), kind, data, ...extra });
+        return bytes >= (a.maxBytes ?? Infinity) || out.length >= 1000;
+      };
+      for (const o of syncOut) if (add(`out:${o.id}`, o.pageId, 'y', fromB64(o.data), o.first ? { first: true } : {})) return out;
+      // A snapshot says "everything up to here is in this", so it waits for text received and not merged yet.
+      for (const [pageId, y] of syncY) {
+        const row = rows.find((r) => r.id === pageId);
+        if (!row || row.sharedRoom || y.logBytes <= Math.max(65536, 2 * fromB64(y.state).length)) continue;
+        if (syncOut.some((o) => o.pageId === pageId) || mock.incoming[pageId]?.length) continue;
+        if (add(`snap:${pageId}`, pageId, 's', fromB64(y.state), { upto: syncStand.cursor })) return out;
+      }
+      for (const pageId of syncGone) if (add(`gone:${pageId}`, pageId, 's', new Uint8Array(0), { upto: syncStand.cursor })) return out;
+      return out;
+    }
+    case 'sync_text_sent':
+      for (const item of a.items ?? []) {
+        const ref = String(item.ref);
+        if (ref.startsWith('out:')) syncOut = syncOut.filter((o) => o.id !== Number(ref.slice(4)));
+        else if (ref.startsWith('snap:')) {
+          const y = syncY.get(ref.slice(5));
+          if (y) y.logBytes = 0;
+        } else if (ref.startsWith('gone:')) syncGone.delete(ref.slice(5));
+      }
+      return null;
+    case 'sync_text_refused':
+      // Someone else seeded the page: what this copy made of it is dropped, and what comes is adopted.
+      syncY.delete(a.pageId);
+      syncOut = syncOut.filter((o) => o.pageId !== a.pageId);
+      return null;
+    case 'sync_file_done':
+      for (const list of Object.values(mock.files) as { id: string }[][]) {
+        const at = list.findIndex((j) => j.id === a.id);
+        if (at >= 0) list.splice(at, 1);
+      }
+      return null;
+    case 'sync_files_todo':
+      return { upload: [...mock.files.upload], download: [...mock.files.download], remove: [...mock.files.remove] };
+    case 'sync_file_names':
+      return Array.from({ length: a.chunks }, (_, i) => `${i.toString(16)}`.padStart(32, '0'));
+    case 'sync_file_seal':
+      return new Uint8Array(0).buffer;
+    default:
+      return undefined;
+  }
+};
+
 mockIPC((cmd, payload) => {
   const a = (payload ?? {}) as Record<string, any>;
   const find = (id: string) => {
@@ -519,6 +1072,10 @@ mockIPC((cmd, payload) => {
     return r;
   };
   try {
+    if (cmd.startsWith('sync_')) {
+      const answer = syncCommand(cmd, a, find);
+      if (answer !== undefined) return answer;
+    }
     switch (cmd) {
       case 'list_databases':
         return Object.values(dbData.schemas).map(({ nextNumber: _n, ...d }) => clone({ ...d, automations: d.automations ?? [] }));
@@ -607,7 +1164,10 @@ mockIPC((cmd, payload) => {
         const p = a.patch ?? {};
         if (p.title !== undefined) r.title = p.title;
         if (p.icon !== undefined) r.icon = p.icon;
-        if (p.content !== undefined) r.content = p.content;
+        if (p.content !== undefined) {
+          r.content = p.content;
+          noteBody(r.id);
+        }
         if (p.text !== undefined) r.text = p.text;
         if (p.favorite !== undefined) r.favorite = p.favorite ? Date.now() : 0;
         if (p.fullWidth !== undefined) r.fullWidth = p.fullWidth;
@@ -665,10 +1225,12 @@ mockIPC((cmd, payload) => {
       }
       case 'delete_page': {
         const gone = new Set(subtree(a.id).map((r) => r.id));
+        forgetText([...gone]);
         rows = rows.filter((r) => !gone.has(r.id));
         return null;
       }
       case 'empty_trash':
+        forgetText(rows.filter((r) => r.deletedAt).map((r) => r.id));
         rows = rows.filter((r) => !r.deletedAt);
         planner.assignments = planner.assignments.filter((x) => !x.deletedAt);
         planner.events = planner.events.filter((x) => !x.deletedAt);
@@ -836,6 +1398,7 @@ mockIPC((cmd, payload) => {
         });
         if (!found) throw 'That to-do changed. Refresh and try again.';
         r.content = JSON.stringify(doc);
+        noteBody(r.id);
         r.updatedAt = Date.now();
         return r.updatedAt;
       }
@@ -1000,6 +1563,7 @@ mockIPC((cmd, payload) => {
       yjs.set(id, new Uint8Array(args as Uint8Array));
       return null;
     }
+    if (cmd === 'sync_file_open') return true;
     if (cmd === 'export_document') {
       const name = decodeURIComponent(options?.headers?.['x-name'] ?? 'Untitled');
       const ext = options?.headers?.['x-ext'] ?? 'bin';

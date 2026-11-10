@@ -28,6 +28,8 @@
   import SettingsModal from './lib/components/SettingsModal.svelte';
   import ShortcutsHelp from './lib/components/ShortcutsHelp.svelte';
   import Welcome from './lib/components/Welcome.svelte';
+  import SyncWelcome from './lib/ui/SyncWelcome.svelte';
+  import { initSync } from './lib/sync/entry.svelte';
   import SplitPane from './lib/components/SplitPane.svelte';
   import { split } from './lib/split.svelte';
   import { zoomIn, zoomOut, zoomReset } from './lib/zoom.svelte';
@@ -240,6 +242,7 @@
         void account.init();
         friends.init();
         cowork.init();
+        initSync();
         void cards.load();
         void warnIfFolderMissing();
       } catch (e) {
@@ -444,6 +447,7 @@
 </div>
 
 {#if !prefs.welcomed}<Welcome />{/if}
+<SyncWelcome />
 {#if ui.searchOpen}<SearchPalette />{/if}
 {#if ui.settingsOpen}<SettingsModal />{/if}
 {#if ui.shortcutsHelp}<ShortcutsHelp />{/if}

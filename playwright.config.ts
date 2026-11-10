@@ -7,6 +7,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const CI = !!process.env.CI;
+/** The test relay's port: TD_RELAY_PORT, for when 8788 is taken (see tests/e2e/relay.ts). */
+const RELAY = process.env.TD_RELAY_PORT ?? '8788';
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -38,8 +40,9 @@ export default defineConfig({
     {
       // The live-session relay (server/) in test mode: it lets the fake cloud's
       // sign-ins in, on localhost only. Port 8788, apart from one you run by hand.
-      command: 'npm --prefix server run test-relay',
-      url: 'http://localhost:8788',
+      command: RELAY === '8788' ? 'npm --prefix server run test-relay' : `npx wrangler dev --env dev --port ${RELAY} --var AUTH_MODE:test`,
+      cwd: RELAY === '8788' ? undefined : 'server',
+      url: `http://localhost:${RELAY}`,
       reuseExistingServer: !CI,
       timeout: 90_000,
       env: { WRANGLER_SEND_METRICS: 'false' },

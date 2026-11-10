@@ -33,6 +33,102 @@
     "signIn": "Iniciar sesión…",
     "@signIn": "Configuración → Cuenta: botón que abre la hoja para iniciar sesión"
   },
+  "sync": {
+    "label": "Almacenamiento de sincronización",
+    "used": "{used} de {limit} usados",
+    "left": "{used} de {limit} usados · quedan {left}",
+    "full": "El almacenamiento de sincronización está lleno. Los cambios nuevos se quedan en este equipo hasta que liberes espacio.",
+    "loading": "Comprobando el almacenamiento de sincronización…",
+    "failed": "Ahora mismo no se puede comprobar el almacenamiento de sincronización.",
+    "welcome": {
+      "title": "Tienes 1 GB de almacenamiento de sincronización gratis",
+      "body": "Ten tus notas en todos tus equipos, cifradas para que solo tú puedas leerlas.",
+      "gotIt": "Entendido",
+      "setUp": "Configurar sincronización"
+    },
+    "offHint": "Ten tus notas en todos tus equipos, cifradas para que solo tú puedas leerlas.",
+    "turnOn": "Activar sincronización",
+    "create": {
+      "title": "Guarda tu clave de recuperación",
+      "hint": "Si pierdes esta clave y todos tus equipos, no se podrá abrir la copia sincronizada. Tus notas en tus equipos están a salvo.",
+      "keyLabel": "Clave de recuperación",
+      "copy": "Copiar",
+      "copied": "Clave de recuperación copiada",
+      "saved": "He guardado mi clave de recuperación",
+      "continue": "Continuar",
+      "copyNote": "El portapapeles se vacía 30 segundos después de copiar."
+    },
+    "join": {
+      "title": "Escribe tu clave de recuperación",
+      "hint": "La sincronización ya está activada en esta cuenta. Escribe la clave de recuperación que guardaste entonces.",
+      "placeholder": "Clave de recuperación",
+      "wrong": "Esa clave de recuperación no abre tus notas sincronizadas. Compruébala e inténtalo de nuevo.",
+      "empty": "Esta copia sincronizada aún no tiene nada. Si no tienes su clave de recuperación, puedes empezar una nueva.",
+      "startOver": "Empezar una copia nueva"
+    },
+    "unlock": {
+      "title": "La sincronización necesita tu clave de recuperación",
+      "hint": "Este equipo ya no tiene la clave de tus notas sincronizadas. Escribe tu clave de recuperación para seguir sincronizando.",
+      "button": "Desbloquear"
+    },
+    "setup": {
+      "title": "Configurando la sincronización. Puedes seguir trabajando.",
+      "starting": "Empezando…",
+      "pulling": "Recibiendo tus notas…",
+      "text": "Combinando tus páginas…",
+      "pushing": "Enviando tus notas…",
+      "offline": "Esperando conexión…"
+    },
+    "status": {
+      "idle": "Al día",
+      "syncing": "Sincronizando…",
+      "offline": "Sin conexión, se pondrá al día",
+      "clock": "El reloj de tu equipo no está en hora",
+      "update": "Actualiza Thought Desk para seguir sincronizando",
+      "full": "El almacenamiento de sincronización está lleno",
+      "gone": "La copia sincronizada se eliminó. Tus notas aquí están a salvo. Desactiva y vuelve a activar la sincronización para empezar una nueva.",
+      "error": "La sincronización tuvo un problema y lo intentará de nuevo",
+      "signedOut": "Inicia sesión de nuevo para seguir sincronizando",
+      "conflicts": "La sincronización encuentra cambios de otro equipo y lo intentará de nuevo"
+    },
+    "lastSynced": "Última sincronización: {time}",
+    "never": "Aún sin sincronizar",
+    "syncNow": "Sincronizar ahora",
+    "turnOff": "Desactivar sincronización",
+    "turnOffConfirm": {
+      "title": "¿Desactivar la sincronización?",
+      "message": "Este equipo dejará de sincronizar. Tus notas se quedan aquí, y la copia sincronizada también. Al volver a activar la sincronización se te pedirá la clave de recuperación.",
+      "confirm": "Desactivar sincronización"
+    },
+    "deleteCopy": "Eliminar copia sincronizada",
+    "deleteConfirm": {
+      "title": "¿Eliminar la copia sincronizada?",
+      "message": "Esto borra de la nube todo lo que Thought Desk sincronizó y no se puede deshacer: no se podrá recuperar nada del servidor. Tus otros equipos dejarán de sincronizar. Las notas en tus equipos se quedan.",
+      "confirm": "Eliminar copia sincronizada"
+    },
+    "errors": {
+      "offline": "No se puede conectar con el servidor de sincronización. Revisa tu conexión e inténtalo de nuevo.",
+      "clock": "El reloj de este equipo se desvía más de diez minutos. Corrige la hora e inténtalo de nuevo.",
+      "update": "Actualiza Thought Desk para usar la sincronización.",
+      "taken": "La sincronización se acaba de configurar en otro equipo. Escribe su clave de recuperación.",
+      "generic": "No se pudo iniciar la sincronización. Inténtalo de nuevo en un momento.",
+      "gone": "La copia sincronizada de este equipo ya se eliminó o se reemplazó, así que no se borró nada.",
+      "signedOut": "Inicia sesión de nuevo para usar la sincronización."
+    },
+    "unreadable": {
+      "one": "No se pudo leer {count} elemento en este equipo",
+      "other": "No se pudieron leer {count} elementos en este equipo"
+    },
+    "backup": {
+      "text": "En este equipo se conserva una copia de tus notas de antes de activar la sincronización.",
+      "delete": "Eliminar copia de seguridad",
+      "deleteConfirm": {
+        "title": "¿Eliminar la copia de seguridad?",
+        "message": "Esto elimina la copia de tus notas hecha antes de activar la sincronización. No se puede deshacer, y tus notas en Thought Desk no se tocan.",
+        "confirm": "Eliminar copia de seguridad"
+      }
+    }
+  },
   "appearance": {
     "title": "Apariencia",
     "@title": "Configuración: el panel Apariencia, en su lista y como título de ese panel (que sea corto: la lista es estrecha)",

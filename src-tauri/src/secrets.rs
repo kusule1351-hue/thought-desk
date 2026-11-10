@@ -10,6 +10,7 @@ use crate::db::{Error, Result};
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use zeroize::Zeroize;
 
 /// Mixed into the encryption, so the file can't be decrypted without it.
 #[cfg(windows)]
@@ -85,6 +86,46 @@ impl Secrets {
             _ => Ok(()),
         }
     }
+
+    /// The sync vault key, kept per account so two accounts on one computer
+    /// don't share one. Stored as hex like any other secret.
+    pub fn store_vault_key(&self, account: &str, key: &[u8; 32]) -> Result<()> {
+        let mut hex: String = key.iter().map(|b| format!("{b:02x}")).collect();
+        let stored = self.set(&vault_key_name(account), &hex);
+        hex.zeroize();
+        stored
+    }
+
+    /// `None` when there is none, or it can't be read.
+    pub fn load_vault_key(&self, account: &str) -> Option<[u8; 32]> {
+        let mut hex = self.get(&vault_key_name(account)).ok()??;
+        let key = parse_key(&hex);
+        hex.zeroize();
+        key
+    }
+
+    pub fn delete_vault_key(&self, account: &str) {
+        let _ = self.remove(&vault_key_name(account));
+    }
+}
+
+fn parse_key(hex: &str) -> Option<[u8; 32]> {
+    if hex.len() != 64 || !hex.is_ascii() {
+        return None;
+    }
+    let mut key = [0u8; 32];
+    for (i, byte) in key.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(key)
+}
+
+/// The account id is hashed so the name is always a safe file name of fixed length.
+fn vault_key_name(account: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(account.as_bytes());
+    let id: String = digest[..16].iter().map(|b| format!("{b:02x}")).collect();
+    format!("thoughtdesk.sync-key-{id}")
 }
 
 /// The secrets folder, readable by this user only (macOS and Linux; on
@@ -238,6 +279,44 @@ mod tests {
         let mode = |p: &Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode(&dir), 0o700);
         assert_eq!(mode(&dir.join("s.bin")), 0o600);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn vault_keys_are_kept_per_account() {
+        let (secrets, dir) = fresh();
+        assert_eq!(secrets.load_vault_key("user_a"), None);
+        secrets.store_vault_key("user_a", &[1u8; 32]).unwrap();
+        secrets.store_vault_key("user_b", &[2u8; 32]).unwrap();
+        assert_eq!(secrets.load_vault_key("user_a"), Some([1u8; 32]));
+        assert_eq!(secrets.load_vault_key("user_b"), Some([2u8; 32]));
+        secrets.delete_vault_key("user_a");
+        assert_eq!(secrets.load_vault_key("user_a"), None);
+        assert_eq!(secrets.load_vault_key("user_b"), Some([2u8; 32]));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_file_and_its_folder_are_private_from_the_start() {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = |p: &std::path::Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        // The folder is tightened even when it already exists with the defaults.
+        let (_, dir) = fresh();
+        fs::create_dir_all(&dir).unwrap();
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+        make_private_dir(&dir).unwrap();
+        assert_eq!(mode(&dir), 0o700);
+        let nested = dir.join("a").join("b");
+        make_private_dir(&nested).unwrap();
+        assert_eq!(mode(&nested), 0o700);
+        // The file never exists with wider permissions, and a stale one is replaced.
+        let file = dir.join("one.bin");
+        fs::write(&file, b"old").unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).unwrap();
+        write_private(&file, b"secret").unwrap();
+        assert_eq!(mode(&file), 0o600);
+        assert_eq!(fs::read(&file).unwrap(), b"secret");
         let _ = fs::remove_dir_all(dir);
     }
 

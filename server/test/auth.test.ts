@@ -1,7 +1,7 @@
 // Who gets into a room. Run with `npm test` (Node's own test runner).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SignJWT, generateKeyPair, type JWTVerifyGetKey } from 'jose';
+import { SignJWT, UnsecuredJWT, generateKeyPair, type JWTVerifyGetKey } from 'jose';
 import { authorize, isLocal, personOf, tokenFrom, type AuthDeps, type AuthEnv } from '../src/auth.ts';
 
 const DEV = 'https://example-dev.clerk.accounts.dev';
@@ -28,11 +28,25 @@ const keys = (issuer: string): JWTVerifyGetKey => async () => {
   return key;
 };
 
-/** A Clerk session token, with what Clerk puts in one. */
-function token({ sub = ANA, iss = DEV, azp = 'http://tauri.localhost' as string | undefined, sts = 'active', expires = '1m', key = clerk.privateKey } = {}) {
+/** A Clerk session token, with what Clerk puts in one. `issued` is seconds before now; `expires` null leaves `exp` out. */
+function token({
+  sub = ANA as string | null,
+  iss = DEV,
+  azp = 'http://tauri.localhost' as string | undefined,
+  sts = 'active',
+  expires = '1m' as string | null,
+  issued = 0 as number | null,
+  act = undefined as unknown,
+  key = clerk.privateKey,
+} = {}) {
   const claims: Record<string, unknown> = { sid: 'sess_1', sts, v: 2, role: 'authenticated' };
   if (azp !== undefined) claims.azp = azp;
-  return new SignJWT(claims).setProtectedHeader({ alg: 'RS256', kid: 'ins_1' }).setSubject(sub).setIssuer(iss).setIssuedAt().setExpirationTime(expires).sign(key);
+  if (act !== undefined) claims.act = act;
+  const jwt = new SignJWT(claims).setProtectedHeader({ alg: 'RS256', kid: 'ins_1' }).setIssuer(iss);
+  if (sub !== null) jwt.setSubject(sub);
+  if (issued !== null) jwt.setIssuedAt(Math.floor(Date.now() / 1000) - issued);
+  if (expires !== null) jwt.setExpirationTime(expires);
+  return jwt.sign(key);
 }
 
 /** Supabase's answer to "is this session active and mine?", and what it was asked. */
@@ -79,6 +93,11 @@ test('no token, an expired one, or one not from our Clerk for the app is refused
     'made on another page': await token({ azp: 'https://evil.example' }),
     'a session waiting on a step': await token({ sts: 'pending' }),
     'no user': await token({ sub: '' }),
+    'no subject at all': await token({ sub: null }),
+    'no expiry': await token({ expires: null }),
+    'no issue time': await token({ issued: null }),
+    'issued 11 minutes ago, though still valid': await token({ issued: 11 * 60, expires: '5m' }),
+    'unsigned (alg none)': new UnsecuredJWT({ sid: 'sess_1', sts: 'active' }).setIssuer(DEV).setSubject(ANA).setIssuedAt().setExpirationTime('1m').encode(),
   };
   for (const [what, t] of Object.entries(refused)) {
     const verdict = await authorize(t, ROOM, false, env, deps);
@@ -86,6 +105,21 @@ test('no token, an expired one, or one not from our Clerk for the app is refused
     assert.equal(!verdict.ok && verdict.status, 401, what);
   }
   assert.equal(asked.length, 0, 'never asks Supabase about a bad token');
+});
+
+test('a token a few minutes old is still fine; impersonation depends on the caller', async () => {
+  assert.equal(await personOf(await token({ issued: 9 * 60, expires: '5m' }), env, keys), ANA);
+  const acting = await token({ act: { sub: 'user_support' } });
+  assert.equal(await personOf(acting, env, keys), ANA, 'rooms accept it as before');
+  assert.equal(await personOf(acting, env, keys, { impersonation: false }), null, 'the mailbox does not');
+  assert.equal(await personOf(await token(), env, keys, { impersonation: false }), ANA);
+});
+
+test('production config trusts only the production instance', async () => {
+  const production = { ...env, CLERK_ISSUERS: PROD, APP_ORIGINS: 'http://tauri.localhost,tauri://localhost' };
+  assert.equal(await personOf(await token({ iss: PROD }), production, keys), ANA);
+  assert.equal(await personOf(await token({ iss: DEV }), production, keys), null, 'the development instance');
+  assert.equal(await personOf(await token({ azp: 'http://localhost:1420', iss: PROD }), production, keys), null, 'the browser preview');
 });
 
 test('test sign-ins work only in test mode, and only from this computer', async () => {
