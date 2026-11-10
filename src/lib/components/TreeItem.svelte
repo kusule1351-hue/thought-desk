@@ -1,7 +1,10 @@
 <script lang="ts" module>
   import { tabs } from '../tabs.svelte';
+  import { store } from '../store.svelte';
   import { renderIcon } from '../page-icon';
+  import { iconMarkup } from './Icon.svelte';
   import { t } from '../i18n';
+  import type { PageMeta } from '../types';
   /**
    * The page being dragged (shared by every row): from the sidebar, or from
    * the title bar or the side pane's header (`from`), which only split view
@@ -22,22 +25,20 @@
     });
   }
 
-  const PAGE_GLYPH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2v6h6"/></svg>';
-
   /**
    * What follows the pointer while a page is dragged: a small pill with its
    * icon and name, instead of a snapshot of whatever row it came from.
    */
-  export function pageDragImage(e: DragEvent, title: string, icon?: string | null) {
+  export function pageDragImage(e: DragEvent, page: PageMeta) {
     if (!e.dataTransfer) return;
     const chip = document.createElement('div');
     chip.className = 'drag-chip';
     const ico = document.createElement('span');
     ico.className = 'drag-chip-icon';
-    if (icon) renderIcon(ico, icon);
-    else ico.innerHTML = PAGE_GLYPH;
+    if (page.icon) renderIcon(ico, page.icon);
+    else ico.innerHTML = iconMarkup(store.defaultIcon(page), 14, 1.9);
     const name = document.createElement('span');
-    name.textContent = title || t('common.untitled');
+    name.textContent = page.title || (page.kind === 'database' ? t('common.untitledDatabase') : t('common.untitled'));
     chip.append(ico, name);
     document.body.appendChild(chip);
     e.dataTransfer.setDragImage(chip, 16, 16);
@@ -59,15 +60,16 @@
   import Icon from './Icon.svelte';
   import TreeItem from './TreeItem.svelte';
   import { prefs } from '../prefs.svelte';
-  import { store } from '../store.svelte';
   import { ui } from '../ui.svelte';
+  import { swap } from '../motion';
   import { pageMenuItems } from '../page-actions';
   import { Progressive, sliceKeeping } from '../progressive.svelte';
-  import type { PageMeta } from '../types';
 
   let { page, depth = 0, favorite = false }: { page: PageMeta; depth?: number; favorite?: boolean } = $props();
 
   const kids = $derived(favorite ? [] : store.children(page.id));
+  /** The icon shown when the page has none of its own: it branches once pages go under it. */
+  const glyph = $derived(store.defaultIcon(page));
   const expanded = $derived(!favorite && !!prefs.expanded[page.id]);
   // A folder of thousands of pages renders its rows as you scroll to them.
   const lazy = new Progressive(100, 200);
@@ -76,6 +78,10 @@
 
   let zone = $state<'before' | 'inside' | 'after' | null>(null);
   let expandTimer: ReturnType<typeof setTimeout> | undefined;
+  // A page given its first sub-page here (dropped on it, or its +) still has
+  // the pointer on it: its new icon stays in view, instead of the chevron
+  // rows with sub-pages show on hover, until the pointer moves off.
+  let settling = $state(false);
 
   function toggle(e: MouseEvent) {
     e.stopPropagation();
@@ -103,7 +109,7 @@
     drag.from = undefined;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', page.title || t('common.untitled'));
-    pageDragImage(e, page.title, page.icon);
+    pageDragImage(e, page);
   }
 
   function onDragEnd() {
@@ -141,6 +147,7 @@
     if (!id || !where || store.isInside(page.id, id)) return;
     e.preventDefault();
     if (where === 'inside') {
+      settling = !kids.length;
       const count = store.children(page.id).filter((p) => p.id !== id).length;
       void store.move(id, page.id, count);
       return;
@@ -159,6 +166,7 @@
   class:drop-before={zone === 'before'}
   class:drop-after={zone === 'after'}
   class:drop-inside={zone === 'inside'}
+  class:settling
   style:padding-left="{8 + depth * 16}px"
   role="treeitem"
   aria-selected={active}
@@ -175,10 +183,11 @@
   ondragover={onDragOver}
   ondragleave={onDragLeave}
   ondrop={onDrop}
+  onpointerleave={() => (settling = false)}
 >
   <span class="lead">
     <span class="glyph" class:has-kids={kids.length > 0}>
-      {#if page.icon}<span class="emoji"><PageIcon icon={page.icon} /></span>{:else}<Icon name={page.kind === 'database' ? 'database' : 'page'} />{/if}
+      {#if page.icon}<span class="emoji"><PageIcon icon={page.icon} /></span>{:else}{#key glyph}<span class="swap" transition:swap><Icon name={glyph} /></span>{/key}{/if}
     </span>
     {#if kids.length}
       <button class="chev" class:open={expanded} onclick={toggle} tabindex="-1" aria-label={expanded ? t('shell.tree.collapse') : t('shell.tree.expand')}>
@@ -195,6 +204,7 @@
         tabindex="-1"
         onclick={(e) => {
           e.stopPropagation();
+          settling = !kids.length;
           void store.create(page.id);
         }}
         data-tip={t('shell.tree.addInside')}><Icon name="plus" size={15} stroke={2} /></button
@@ -284,6 +294,11 @@
     font-size: 15px;
     line-height: 1;
   }
+  /* While the icon changes, the old and new one share the slot. */
+  .swap {
+    grid-area: 1 / 1;
+    display: grid;
+  }
   .chev {
     position: absolute;
     inset: 0;
@@ -305,10 +320,10 @@
   .chev:hover {
     background: var(--fill-2);
   }
-  .row:hover .chev {
+  .row:hover:not(.settling) .chev {
     opacity: 1;
   }
-  .row:hover .glyph.has-kids {
+  .row:hover:not(.settling) .glyph.has-kids {
     opacity: 0;
   }
 

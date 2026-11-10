@@ -76,7 +76,7 @@
     <div class="group">
       {#each shown.pages as p (p.id)}
         <button class="group-row link-row" onclick={() => store.open(p.id)}>
-          <span class="icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={16} />{/if}</span>
+          <span class="icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name={store.defaultIcon(p)} size={16} />{/if}</span>
           <span class="title">{p.title || t('common.untitled')}</span>
           <span class="meta">{relativeTime(p.updatedAt)}</span>
         </button>

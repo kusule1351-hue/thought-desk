@@ -385,7 +385,7 @@
           </div>
           {#if page && !page.deletedAt}
             <button class="btn small raised" onclick={notesPage}>
-              {#if page.icon}<span><PageIcon icon={page.icon} /></span>{:else}<Icon name="page" size={14} />{/if}
+              {#if page.icon}<span><PageIcon icon={page.icon} /></span>{:else}<Icon name={store.defaultIcon(page)} size={14} />{/if}
               <span class="page-name">{page.title || t('common.untitled')}</span>
               <Icon name="arrow-right" size={13} stroke={2} />
             </button>
