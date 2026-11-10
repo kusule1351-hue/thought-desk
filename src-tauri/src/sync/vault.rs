@@ -259,9 +259,11 @@ mod tests {
     use crate::sync::testkit::{bare_replica, keys, mail, replica, temp_db};
     use std::path::PathBuf;
 
+    /// One computer's key store. Files only: on a Mac, or a Linux with a keyring, every
+    /// `Secrets` shares the system's one keystore, and two of them would be one computer.
     fn temp_secrets() -> (Secrets, PathBuf) {
         let dir = std::env::temp_dir().join(format!("td-vault-{}", uuid::Uuid::new_v4().simple()));
-        (Secrets::new(dir.clone()), dir)
+        (Secrets::files_only(dir.clone()), dir)
     }
 
     fn b64(bytes: &[u8]) -> String {

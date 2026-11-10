@@ -26,11 +26,30 @@ fn valid(name: &str) -> bool {
 
 pub struct Secrets {
     dir: PathBuf,
+    /// Whether the system's keystore is tried first (macOS, Linux). A test
+    /// that stands for two computers turns it off: one machine has one
+    /// keystore, whatever folder each `Secrets` is given.
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    keystore: bool,
 }
 
 impl Secrets {
     pub fn new(dir: PathBuf) -> Self {
-        Self { dir }
+        Self {
+            dir,
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            keystore: true,
+        }
+    }
+
+    /// Kept in files in `dir` alone, never in the system's keystore.
+    #[cfg(test)]
+    pub fn files_only(dir: PathBuf) -> Self {
+        Self {
+            dir,
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            keystore: false,
+        }
     }
 
     fn path(&self, name: &str) -> Result<PathBuf> {
@@ -43,7 +62,7 @@ impl Secrets {
     pub fn get(&self, name: &str) -> Result<Option<String>> {
         let path = self.path(name)?;
         #[cfg(any(target_os = "macos", target_os = "linux"))]
-        if let Some(value) = keystore::get(name) {
+        if let Some(value) = self.keystore.then(|| keystore::get(name)).flatten() {
             return Ok(Some(value));
         }
         let sealed = match fs::read(&path) {
@@ -65,7 +84,7 @@ impl Secrets {
     pub fn set(&self, name: &str, value: &str) -> Result<()> {
         let path = self.path(name)?;
         #[cfg(any(target_os = "macos", target_os = "linux"))]
-        if keystore::set(name, value) {
+        if self.keystore && keystore::set(name, value) {
             // A copy left from a time without a keystore goes.
             let _ = fs::remove_file(&path);
             return Ok(());
@@ -80,7 +99,9 @@ impl Secrets {
 
     pub fn remove(&self, name: &str) -> Result<()> {
         #[cfg(any(target_os = "macos", target_os = "linux"))]
-        keystore::remove(name);
+        if self.keystore {
+            keystore::remove(name);
+        }
         match fs::remove_file(self.path(name)?) {
             Err(e) if e.kind() != ErrorKind::NotFound => Err(Error(e.to_string())),
             _ => Ok(()),

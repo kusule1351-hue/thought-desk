@@ -598,6 +598,10 @@ test.describe('the editor on a synced page', () => {
   });
 
   test('a picture shows for this platform whichever form the document holds, and keeps its width', async ({ page }) => {
+    // The picture is made up, so it is answered here and the page never goes looking for a server:
+    // on Linux that is refused at once, and the refusal is an error in the page.
+    const dot = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    await page.route('**/abc123.png', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: dot }));
     await openSynced(page);
     const id = await pageId(page);
     const result = await page.evaluate(async (id) => {
