@@ -250,7 +250,7 @@
           <div class="group">
             {#each dayPages as p (p.id)}
               <button class="group-row page-row" onclick={() => store.open(p.id)}>
-                <span class="page-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={16} />{/if}</span>
+                <span class="page-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name={store.defaultIcon(p)} size={16} />{/if}</span>
                 <span class="page-title">{p.title || t('common.untitled')}</span>
                 <span class="page-meta">{toISODate(new Date(p.createdAt)) === calendar.selected ? t('planner.calendar.created') : t('planner.calendar.edited')}</span>
               </button>

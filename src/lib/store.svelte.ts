@@ -254,6 +254,17 @@ class Store {
     return this.#pagesOf(this.#childIds.get(id ?? '') ?? []);
   }
 
+  /** Whether a page has pages under it in the tree (follows only moves, not edits). */
+  hasChildren(id: string): boolean {
+    return !!this.#childIds.get(id)?.length;
+  }
+
+  /** The line icon of a page without one of its own: a page with pages under it shows a branch. */
+  defaultIcon(p: { id: string; kind?: string } | undefined): string {
+    if (p?.kind === 'database') return 'database';
+    return p && this.hasChildren(p.id) ? 'page-tree' : 'page';
+  }
+
   /** Ancestors from the top level down to (not including) the page. */
   ancestors(id: string): PageMeta[] {
     const out: PageMeta[] = [];

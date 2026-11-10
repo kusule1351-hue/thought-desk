@@ -1884,8 +1884,10 @@ html.printing .prose > :is(ul, ol) > li {
   content: none;
 }
 
-/* A whole block selected (via the handle or arrow keys). */
-.prose .ProseMirror-selectednode:not(img):not([data-resize-container]):not(hr) {
+/* A whole block selected (via the handle or arrow keys). A database has an
+   outline of its own instead (below): washed over, its header strip and row
+   rules show through as if the table had come apart. */
+.prose .ProseMirror-selectednode:not(img):not([data-resize-container]):not(hr):not(.database-block) {
   border-radius: var(--r-xs);
   background: var(--selection);
   box-shadow: 0 0 0 3px var(--selection);

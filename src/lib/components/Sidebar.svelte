@@ -307,7 +307,7 @@
                     drag.id = d.id;
                     drag.from = undefined;
                     e.dataTransfer?.setData('text/plain', d.title || t('common.untitledDatabase'));
-                    pageDragImage(e, d.title || t('common.untitledDatabase'), d.icon);
+                    pageDragImage(e, d);
                   }}
                   ondragend={() => (drag.id = null)}
                 >

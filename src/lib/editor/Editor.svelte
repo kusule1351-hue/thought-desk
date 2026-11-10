@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Editor, type JSONContent } from '@tiptap/core';
-  import { Selection } from '@tiptap/pm/state';
+  import { GapCursor } from '@tiptap/pm/gapcursor';
+  import { NodeSelection, Selection } from '@tiptap/pm/state';
   import { onMount } from 'svelte';
   import { normalizeFileUrl } from '../api';
   import { prefs } from '../prefs.svelte';
@@ -82,6 +83,21 @@
     view.focus();
   }
 
+  /**
+   * A new editor's selection is at the very start of the page. On a page that
+   * opens with a block chosen only as a whole (a database, a file, a formula),
+   * that is the block itself, so it would be drawn selected, wash and outline,
+   * before anyone touched it. The selection rests in the first line of text
+   * instead, or, on a page with no text at all, in the gap before the block.
+   */
+  function restSelection(ed: Editor) {
+    const { state, view } = ed;
+    if (!(state.selection instanceof NodeSelection)) return;
+    const top = state.doc.resolve(0);
+    const rest = Selection.findFrom(top, 1, true) ?? new GapCursor(top);
+    view.dispatch(state.tr.setSelection(rest).setMeta('addToHistory', false));
+  }
+
   export function focusStart() {
     focusAt('start');
   }
@@ -153,6 +169,7 @@
       });
       ed = made;
       editor = made;
+      restSelection(made);
       if (import.meta.env.DEV) (window as any).__editor = made;
       onempty?.(made.isEmpty);
       stats();

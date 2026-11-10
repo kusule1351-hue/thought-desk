@@ -95,13 +95,13 @@
         ondragstart={(e) => {
           const id = showing.id;
           e.dataTransfer?.setData('text/plain', showing.title || t('common.untitled'));
-          pageDragImage(e, showing.title, showing.icon);
+          pageDragImage(e, showing);
           dragLater(id, 'side');
         }}
         ondragend={endDrag}
         data-tip={t('shell.splitPane.dragHint')}
       >
-        <span class="lead">{#if showing.icon}<PageIcon icon={showing.icon} />{:else}<Icon name={showing.kind === 'database' ? 'database' : 'page'} size={14} />{/if}</span>
+        <span class="lead">{#if showing.icon}<PageIcon icon={showing.icon} />{:else}<Icon name={store.defaultIcon(showing)} size={14} />{/if}</span>
         <span class="name">{showing.title || t('common.untitled')}</span>
       </button>
     {:else}
@@ -140,7 +140,7 @@
           {#each choices as p (p.id)}
             <li>
               <button onclick={() => split.show(p.id)}>
-                <span class="lead">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name={p.kind === 'database' ? 'database' : 'page'} size={15} />{/if}</span>
+                <span class="lead">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name={store.defaultIcon(p)} size={15} />{/if}</span>
                 <span class="name">{p.title || t('common.untitled')}</span>
                 <span class="when">{relativeTime(p.updatedAt)}</span>
               </button>

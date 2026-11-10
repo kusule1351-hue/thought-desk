@@ -168,7 +168,7 @@
           ondragstart={(e) => {
             const id = c.id;
             e.dataTransfer?.setData('text/plain', c.title || t('common.untitled'));
-            pageDragImage(e, c.title, c.icon);
+            pageDragImage(e, c);
             dragLater(id, 'main');
           }}
           ondragend={endDrag}

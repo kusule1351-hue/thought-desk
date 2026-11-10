@@ -47,15 +47,18 @@
 
   // ---- the panes
 
-  /** The panes in the list's order; the account is its own row above them. */
-  const PANES: { id: SettingsPane; label: string; icon: string }[] = [
-    { id: 'general', label: t('settings.general.title'), icon: 'settings' },
-    { id: 'appearance', label: t('settings.appearance.title'), icon: 'palette' },
-    { id: 'sidebar', label: t('settings.sidebar.title'), icon: 'sidebar' },
-    { id: 'calendar', label: t('settings.calendar.title'), icon: 'calendar' },
-    { id: 'courses', label: t('settings.courses.title'), icon: 'book' },
-    { id: 'keyboard', label: t('settings.keyboard.title'), icon: 'keyboard' },
-    { id: 'storage', label: t('settings.storage.title'), icon: 'folder' },
+  /**
+   * The panes in the list's order; the account is its own row above them.
+   * `group` only spaces the list: the app itself, what you study, the machine.
+   */
+  const PANES: { id: SettingsPane; label: string; icon: string; group: number }[] = [
+    { id: 'general', label: t('settings.general.title'), icon: 'settings', group: 0 },
+    { id: 'appearance', label: t('settings.appearance.title'), icon: 'palette', group: 0 },
+    { id: 'sidebar', label: t('settings.sidebar.title'), icon: 'sidebar', group: 0 },
+    { id: 'calendar', label: t('settings.calendar.title'), icon: 'calendar', group: 1 },
+    { id: 'courses', label: t('settings.courses.title'), icon: 'book', group: 1 },
+    { id: 'keyboard', label: t('settings.keyboard.title'), icon: 'keyboard', group: 2 },
+    { id: 'storage', label: t('settings.storage.title'), icon: 'folder', group: 2 },
   ];
   const ORDER: SettingsPane[] = ['account', ...PANES.map((p) => p.id)];
 
@@ -300,46 +303,56 @@
     if (username) return email ? t('settings.account.usernameEmail', { username, email }) : t('settings.account.username', { username });
     return email ? t('settings.account.noUsernameEmail', { email }) : t('settings.account.noUsername');
   });
+  /** The same for the list, where there's room for one of them: the handle, else the email. */
+  const accountShort = $derived.by(() => {
+    const username = account.profile?.username;
+    return username ? t('settings.account.username', { username }) : (account.user?.email ?? t('settings.account.noUsername'));
+  });
 </script>
 
 <Modal onclose={close} width={860} top="8vh" windowCorners label={t('common.views.settings')}>
   <div class="settings">
-    <div class="list" role="tablist" aria-orientation="vertical" aria-label={t('common.views.settings')}>
-      <button
-        class="row me"
-        class:on={pane === 'account'}
-        role="tab"
-        id="settings-tab-account"
-        aria-selected={pane === 'account'}
-        tabindex={pane === 'account' ? 0 : -1}
-        data-tip={narrow ? (account.user ? account.name : t('settings.account.title')) : undefined}
-        onclick={() => show('account')}
-        onkeydown={onListKey}
-      >
-        {#if account.user}
-          <Avatar name={account.name} url={account.profile?.avatarUrl} seed={account.user.id} size={32} />
-          <span class="who"><span class="label">{account.name}</span><small>{accountLine}</small></span>
-        {:else}
-          <span class="no-avatar round"><Icon name="user" /></span>
-          <span class="who"><span class="label">{t('settings.account.title')}</span><small>{t('settings.account.signedOut')}</small></span>
-        {/if}
-      </button>
-      {#each PANES as p (p.id)}
+    <div class="side">
+      <div class="list" role="tablist" aria-orientation="vertical" aria-label={t('common.views.settings')}>
         <button
-          class="row"
-          class:on={pane === p.id}
+          class="row me"
+          class:on={pane === 'account'}
           role="tab"
-          id="settings-tab-{p.id}"
-          aria-selected={pane === p.id}
-          tabindex={pane === p.id ? 0 : -1}
-          data-tip={narrow ? p.label : undefined}
-          onclick={() => show(p.id)}
+          id="settings-tab-account"
+          aria-selected={pane === 'account'}
+          tabindex={pane === 'account' ? 0 : -1}
+          data-tip={narrow ? (account.user ? account.name : t('settings.account.title')) : undefined}
+          onclick={() => show('account')}
           onkeydown={onListKey}
         >
-          <span class="lead"><Icon name={p.icon} /></span>
-          <span class="label">{p.label}</span>
+          {#if account.user}
+            <Avatar name={account.name} url={account.profile?.avatarUrl} seed={account.user.id} size={narrow ? 28 : 36} />
+            <span class="who"><span class="label">{account.name}</span><small>{accountShort}</small></span>
+          {:else}
+            <span class="no-avatar round"><Icon name="user" /></span>
+            <span class="who"><span class="label">{t('settings.account.title')}</span><small>{t('settings.account.signedOut')}</small></span>
+          {/if}
         </button>
-      {/each}
+        {#each PANES as p, i (p.id)}
+          <button
+            class="row"
+            class:on={pane === p.id}
+            class:rule={i === 0}
+            class:gap={i > 0 && p.group !== PANES[i - 1].group}
+            role="tab"
+            id="settings-tab-{p.id}"
+            aria-selected={pane === p.id}
+            tabindex={pane === p.id ? 0 : -1}
+            data-tip={narrow ? p.label : undefined}
+            onclick={() => show(p.id)}
+            onkeydown={onListKey}
+          >
+            <span class="lead"><Icon name={p.icon} size={14} stroke={1.9} /></span>
+            <span class="label">{p.label}</span>
+          </button>
+        {/each}
+      </div>
+      {#if info?.version}<p class="foot">{t('settings.about.version', { version: info.version })}</p>{/if}
     </div>
 
     <div class="detail" role="tabpanel" aria-labelledby="settings-tab-{pane}">
@@ -757,30 +770,35 @@
     height: 640px;
   }
 
-  /* The list of panes, drawn like the app's own sidebar (Sidebar.svelte,
-     .nav-row): its colours, 32px rows inset 8px with 14px labels, 16px
-     icons in a 20px slot tinted the same way, and the same quiet fill for
-     the chosen one. */
-  .list {
+  /* The list of panes, in the sidebar's colours. Each pane has a small tile
+     for its icon, the way System Settings does, but in black and white: the
+     chosen pane's tile turns to ink, so the eye finds it without any colour.
+     The account sits above a rule, and the version rests at the foot. */
+  .side {
     flex: none;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    width: 220px;
-    padding: 8px 0;
-    overflow-y: auto;
+    width: 240px;
     background: var(--bg-sidebar);
     box-shadow: inset -1px 0 0 var(--separator);
+  }
+  .list {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px;
+    overflow-y: auto;
   }
   .row {
     position: relative;
     flex: none;
     display: flex;
     align-items: center;
-    gap: 8px;
-    height: var(--h-row);
-    margin: 0 8px;
-    padding: 0 8px;
+    gap: 10px;
+    height: 34px;
+    padding: 0 8px 0 6px;
     border-radius: var(--r-sm);
     font-size: var(--fs-body-ui);
     color: var(--text-sidebar);
@@ -802,13 +820,27 @@
     outline: none;
     box-shadow: inset 0 0 0 1.5px var(--focus);
   }
+  /* The tile: a small raised square, 8px row corners − 2px = 6px. */
   .lead {
     flex: none;
     display: grid;
     place-items: center;
-    width: 20px;
-    height: 20px;
-    color: var(--tint);
+    width: 22px;
+    height: 22px;
+    border-radius: var(--r-xs);
+    background: var(--raised);
+    box-shadow:
+      0 0 0 0.5px var(--hairline),
+      var(--shadow-sm);
+    color: var(--text-2);
+    transition:
+      background-color var(--dur) var(--ease),
+      color var(--dur) var(--ease);
+  }
+  .row.on .lead {
+    background: var(--text);
+    box-shadow: none;
+    color: var(--bg);
   }
   .label {
     min-width: 0;
@@ -819,21 +851,40 @@
   .row > .label {
     flex: 1;
   }
+  /* Between the groups, air; under the account, a rule as well. */
+  .row.gap {
+    margin-top: 10px;
+  }
+  .row.rule {
+    margin-top: 17px;
+  }
+  .row.rule::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    top: -10px;
+    height: 1px;
+    background: var(--separator-strong);
+    opacity: 0.6;
+  }
 
   /* The account first: a taller row with its picture, level with the pane's title. */
   .me {
-    height: 48px;
+    height: 52px;
     gap: 10px;
-    margin-bottom: 6px;
+    padding: 0 8px;
   }
   .who {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
+    gap: 1px;
   }
   .who .label {
     font-weight: var(--fw-600);
+    color: var(--text);
   }
   .who small {
     overflow: hidden;
@@ -847,11 +898,21 @@
     flex: none;
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background: var(--fill-2);
     color: var(--text-2);
+  }
+  .foot {
+    flex: none;
+    margin: 0;
+    padding: 10px 18px 14px;
+    font-size: var(--fs-caption);
+    color: var(--text-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* The chosen pane: its title (and tools) over its rows. */
@@ -869,8 +930,11 @@
      narrower than the old one-column sheet. The labels stay for screen
      readers (and as tooltips), just out of sight. */
   @media (max-width: 840px) {
-    .list {
+    .side {
       width: 56px;
+    }
+    .list {
+      padding: 10px 8px;
     }
     .row {
       justify-content: center;
@@ -878,6 +942,13 @@
     }
     .me {
       height: 40px;
+    }
+    .no-avatar {
+      width: 28px;
+      height: 28px;
+    }
+    .foot {
+      display: none;
     }
     .row > .label,
     .who {

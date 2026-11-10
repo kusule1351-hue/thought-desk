@@ -107,7 +107,7 @@
           <div class="group">
             {#each used.pages as p (p.id)}
               <button class="group-row compact use" onclick={() => openPage(p.id)}>
-                <span class="use-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={15} />{/if}</span>
+                <span class="use-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name={store.defaultIcon(p)} size={15} />{/if}</span>
                 <span class="use-name">{p.title || t('common.untitled')}</span>
                 <Icon name="chevron-right" size={13} stroke={2} />
               </button>

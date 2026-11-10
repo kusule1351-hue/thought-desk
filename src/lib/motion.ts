@@ -63,3 +63,15 @@ export function fade(_node: Element, { duration = 200 } = {}) {
     css: (t: number) => `opacity: ${t};`,
   };
 }
+
+/**
+ * One small icon giving way to another in the same spot (a page's icon as
+ * it gains or loses sub-pages): the old one shrinks away as the new grows in.
+ */
+export function swap(_node: Element, { duration = 200, scale = 0.6 } = {}) {
+  return {
+    duration: reduced() ? 0 : duration,
+    easing: cubicOut,
+    css: (t: number, u: number) => `opacity: ${t}; transform: scale(${1 - u * (1 - scale)});`,
+  };
+}

@@ -149,7 +149,7 @@
           <div class="group">
             {#each shownTodos as { group: g, items } (g.page.id)}
               <button class="group-row compact todo-page" onclick={() => store.open(g.page.id)}>
-                <span class="page-icon">{#if g.page.icon}<PageIcon icon={g.page.icon} />{:else}<Icon name="page" size={14} />{/if}</span>
+                <span class="page-icon">{#if g.page.icon}<PageIcon icon={g.page.icon} />{:else}<Icon name={store.defaultIcon(g.page)} size={14} />{/if}</span>
                 <span class="page-title">{g.page.title || t('common.untitled')}</span>
                 <Icon name="chevron-right" size={12} stroke={2.2} />
               </button>
@@ -183,7 +183,7 @@
         <div class="group">
           {#each recentPages as p (p.id)}
             <button class="group-row compact link-row" onclick={() => store.open(p.id)}>
-              <span class="page-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name="page" size={16} />{/if}</span>
+              <span class="page-icon">{#if p.icon}<PageIcon icon={p.icon} />{:else}<Icon name={store.defaultIcon(p)} size={16} />{/if}</span>
               <span class="page-title">{p.title || t('common.untitled')}</span>
               <span class="meta">{relativeTime(p.updatedAt)}</span>
             </button>
