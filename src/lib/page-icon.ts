@@ -3,7 +3,7 @@
  * colour ("icon:book-open" or "icon:book-open:blue").
  */
 
-import { PALETTE, type ColorKey } from './colors';
+import { PALETTE, colorVar, type ColorKey } from './colors';
 import { PAGE_ICONS, PAGE_ICON_GROUPS, PAGE_ICON_GROUP_LABELS, type PageIconDef } from './page-icons-data';
 
 export { PAGE_ICONS, PAGE_ICON_GROUPS, PAGE_ICON_GROUP_LABELS };
@@ -37,13 +37,17 @@ export function randomIcon(): string {
   return lineIcon(def.name, ICON_COLORS[Math.floor(Math.random() * ICON_COLORS.length)]);
 }
 
-/** Draws an icon into a plain element (for editor node views, outside Svelte). */
+/**
+ * Draws an icon into a plain element (for editor node views, outside Svelte). Nothing from the stored value
+ * reaches the markup: the glyph comes from the app's own table, and the colour goes through the palette's
+ * allowlist (`colorVar`) onto an element's style, so a value from another computer can't inject anything.
+ */
 export function renderIcon(el: HTMLElement, value: string | null | undefined) {
   const parsed = parseIcon(value);
   if (parsed?.kind !== 'icon') {
     el.textContent = parsed?.text ?? '';
     return;
   }
-  const color = parsed.color ? `style="color:var(--c-${parsed.color})"` : '';
-  el.innerHTML = `<svg class="page-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ${color} aria-hidden="true">${parsed.def.svg}</svg>`;
+  el.innerHTML = `<svg class="page-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${parsed.def.svg}</svg>`;
+  if (parsed.color) (el.firstElementChild as SVGElement | null)?.style.setProperty('color', colorVar(parsed.color));
 }

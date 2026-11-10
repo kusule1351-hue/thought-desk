@@ -268,6 +268,48 @@ test('in a page written together, a picture from the web waits for a click', asy
   await ben.context().close();
 });
 
+test('a picture from the web in a page that was written together still waits for a click once the session ends', async ({ page: ana, browser }) => {
+  test.setTimeout(120_000);
+  const { ben } = await twoFriends(ana, browser);
+  const fetched: string[] = [];
+  await ben.route('https://pictures.example/**', (route) => {
+    fetched.push(route.request().url());
+    return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"/>' });
+  });
+  await inviteBen(ana);
+  await openFriends(ben);
+  await ben.getByRole('button', { name: 'Join Ana Lima' }).click();
+  await expect(editor(ben)).toContainText('Before the midterm', LIVE);
+  await ana.evaluate(() =>
+    (window as unknown as { __editor: { chain(): any } }).__editor
+      .chain()
+      .focus('end')
+      .insertContent({ type: 'image', attrs: { src: 'https://pictures.example/dog.svg' } })
+      .run(),
+  );
+  await expect(ben.locator('.remote-image')).toContainText('Picture from pictures.example', LIVE);
+
+  await ben.locator('.live-chip').click();
+  await ben.getByRole('button', { name: 'End Session' }).click();
+  await ben.getByRole('button', { name: 'End Session' }).last().click();
+  await expect(ben.locator('.tab-live')).toHaveCount(0, LIVE);
+  await expect(ben.locator('.remote-image')).toContainText('Picture from pictures.example');
+
+  // Opened again as an ordinary page (after a restart too), it still waits.
+  await ben.waitForTimeout(800);
+  await ben.reload();
+  await ben.locator('.sidebar').getByText('Study plan', { exact: true }).last().click();
+  const waiting = ben.locator('.remote-image');
+  await expect(waiting).toContainText('Picture from pictures.example');
+  await ben.waitForTimeout(500);
+  expect(fetched, 'nothing loads before the click').toEqual([]);
+  await waiting.getByRole('button', { name: 'Show' }).click();
+  await expect(waiting.locator('img')).toBeVisible();
+  expect(fetched).toEqual(['https://pictures.example/dog.svg']);
+
+  await ben.context().close();
+});
+
 test('asking to write together: the host picks the page, and closing the tab ends it', async ({ page: ana, browser }) => {
   test.setTimeout(90_000);
   const { cloud, ben } = await twoFriends(ana, browser);

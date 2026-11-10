@@ -443,10 +443,11 @@ pub fn export_reveal(app: AppHandle, export: State<Export>) -> Result<()> {
 // ---------------------------------------------------------------- account
 
 /// Starts the one-time listener the browser comes back to after signing in
-/// with Google or GitHub (see auth.rs); returns its port.
+/// with Google or GitHub (see auth.rs); returns its port. A `state` makes the
+/// listener ignore any return that doesn't carry it as `td_state`.
 #[tauri::command(async)]
-pub fn auth_listen(app: AppHandle) -> Result<u16> {
-    Ok(crate::auth::listen(app)?)
+pub fn auth_listen(app: AppHandle, state: Option<String>) -> Result<u16> {
+    Ok(crate::auth::listen(app, state)?)
 }
 
 /// The sign-in, kept encrypted on this computer (see secrets.rs).

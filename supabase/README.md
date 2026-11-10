@@ -7,7 +7,7 @@ Thought Desk keeps notes on the device. Supabase (project `thought-desk-europe`,
 
 ## Who's asking
 
-Every policy and function asks `private.me()`, never `auth.uid()`. Clerk's user ids look like `user_2abc…`, not UUIDs, and `auth.uid()` casts the token's `sub` to a UUID. `private.me()` returns the `sub` of the request's token, but only if one of our Clerk instances issued it (`iss` is the development instance, `https://smiling-sunbird-3571.clerk.accounts.dev`, or production, `https://clerk.thoughtdesk.org`) and its session is fully signed in (`sts` isn't `pending`). Anything else, a token from Supabase Auth included, gets null, which these rules treat as signed out. The user id columns are `text`.
+Every policy and function asks `private.me()`, never `auth.uid()`. Clerk's user ids look like `user_2abc…`, not UUIDs, and `auth.uid()` casts the token's `sub` to a UUID. `private.me()` returns the `sub` of the request's token, but only if one of our Clerk instances issued it (`iss` is production, `https://clerk.thoughtdesk.org`, or the development instance, `https://smiling-sunbird-3571.clerk.accounts.dev`, which counts only for user ids the owner listed in `private.dev_accounts`: empty by default, no access from the API) and its session is fully signed in (`sts` isn't `pending`). Anything else, a token from Supabase Auth included, gets null, which these rules treat as signed out. The user id columns are `text`.
 
 ## Tables
 
@@ -27,7 +27,7 @@ Signed-in users can write only these columns. Everything else comes from default
 | `profiles` | none | `username`, `display_name` (own row) | none |
 | `friendships` | `requester`, `addressee`, `status` | `status`, by the addressee, to `accepted` | either person |
 | `presence` | none | none | none |
-| `cowork_sessions` | `id`, `host`, `guest`, `kind`, `title`, `status` | none | none |
+| `cowork_sessions` | `host`, `guest`, `kind`, `title`, `status` (a request must have an empty `title`: only the host names the page, when accepting) | none | none |
 
 Signed-out callers (`anon`) can't read or write any of these tables, or call any of the functions.
 
@@ -63,11 +63,13 @@ Live updates are signals, not rows. Whenever a friendship or a session changes (
 
 Why not `postgres_changes`: it checks each listener's sign-in, and Realtime can't check sign-ins from Clerk on a domain of its own ([supabase/realtime#1791](https://github.com/supabase/realtime/issues/1791)), so in production the updates never came. It also sent a deleted row's key to every listener. Neither table is in the `supabase_realtime` publication any more (`tests/rls.sql` checks that). The wake-ups between the two people in a live session (`nudge:<session id>`) are public broadcasts too, sent by the apps.
 
-Only the database can send these signals: `realtime.messages` has no policies, so signed-in users can't write to it, and `private.signal_change()` runs as its owner. Someone who learned an inbox's name could listen to it, or send it signals of their own; they would learn only when that person's friends or sessions changed, and could make their app refresh its lists.
+Only the database can send these signals: `realtime.messages` has no policies, so signed-in users can't write to it, and `private.signal_change()` runs as its owner. Someone who learned an inbox's name (or a session id) could listen to it, or send it signals of their own; they would learn only when that person's friends or sessions changed, and could make their app refresh its lists or reconnect to the relay. An ex-guest keeps the session id and can keep nudging.
+
+**Pending: private channels.** `pending/20261108_private_realtime_channels.sql` makes both channels private (policies on `realtime.messages`), with a client patch and tests beside it. It is not applied and not in `migrations/`, because Realtime may not be able to verify tokens from Clerk's production domain ([supabase/realtime#1791](https://github.com/supabase/realtime/issues/1791)): apply it, together with the client change, only once a production token is verified to join a private channel. The file's header says how.
 
 ## Apply migrations
 
-The migrations in `migrations/` are applied to `thought-desk-europe`: `accounts_friends_sessions` (the schema), `friendships_opaque_key` (an opaque key for friendships, see [Realtime](#realtime)), `harden_avatars_requests_lookups` (avatars set by sign-up alone, from known picture hosts; at most 20 friend requests waiting and 50 sent a day; at most 100 username lookups an hour), `limit_logs_primary_keys` (keys for the two logs those limits keep) and `accounts_on_clerk` (accounts move to Clerk: the tables rebuilt with Clerk's text ids, `private.me()` and `ensure_profile()` in place of `auth.uid()` and the sign-up trigger, with the same rules and limits) and `signal_changes_to_inboxes` (live updates as signals to private inboxes, see [Realtime](#realtime)). To change the schema, add a new migration; never edit one that has been applied.
+The migrations in `migrations/` are applied to `thought-desk-europe`: `accounts_friends_sessions` (the schema), `friendships_opaque_key` (an opaque key for friendships, see [Realtime](#realtime)), `harden_avatars_requests_lookups` (avatars set by sign-up alone, from known picture hosts; at most 20 friend requests waiting and 50 sent a day; at most 100 username lookups an hour), `limit_logs_primary_keys` (keys for the two logs those limits keep) and `accounts_on_clerk` (accounts move to Clerk: the tables rebuilt with Clerk's text ids, `private.me()` and `ensure_profile()` in place of `auth.uid()` and the sign-up trigger, with the same rules and limits) `signal_changes_to_inboxes` (live updates as signals to inboxes, see [Realtime](#realtime)) and `security_audit_fixes` (development instance only for listed accounts, database-made session ids, only the host names a session). To change the schema, add a new migration; never edit one that has been applied.
 
 With the [Supabase CLI](https://supabase.com/docs/guides/cli):
 
@@ -119,5 +121,5 @@ On request (the privacy policy says how): delete the user in the Clerk dashboard
 ## Known limits
 
 - **Unfriending doesn't end sessions.** It stops new invites and requests, and a pending one can no longer be accepted, but an active session runs until someone ends it.
-- **Clerk's development instance is trusted alongside production** until the release. Remove it then, from Third-Party Auth and from `private.me()` with a new migration (see [SETUP.md](SETUP.md)): anyone can sign up there with Clerk's test addresses, which need no real email.
+- **Clerk's development instance is trusted only for listed accounts** (`private.dev_accounts`, see [SETUP.md](SETUP.md)). Anyone can sign up there with Clerk's test addresses, which need no real email, so keep the list to the developers. Removing the domain from Third-Party Auth is the stricter option.
 - **`service_role` can't read or write these tables.** This project's default privileges don't give `service_role` select, insert, update or delete on new tables, and the migration doesn't add them, because nothing needs them: the app and the relay use each user's own token. If a server ever needs the service key here, grant it explicitly in a new migration.

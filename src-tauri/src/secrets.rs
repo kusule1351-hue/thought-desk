@@ -9,7 +9,7 @@
 use crate::db::{Error, Result};
 use std::fs;
 use std::io::ErrorKind;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Mixed into the encryption, so the file can't be decrypted without it.
 #[cfg(windows)]
@@ -52,9 +52,10 @@ impl Secrets {
         };
         match unseal(&sealed).and_then(|plain| String::from_utf8(plain).ok()) {
             Some(value) => Ok(Some(value)),
-            // Damaged, or another Windows account's: forget it (signing in again makes a new one).
+            // Damaged, or another Windows account's: set it aside (signing in again
+            // makes a new one) rather than delete what may be someone's only copy.
             None => {
-                let _ = fs::remove_file(&path);
+                let _ = fs::rename(&path, path.with_extension("bad"));
                 Ok(None)
             }
         }
@@ -68,17 +69,11 @@ impl Secrets {
             let _ = fs::remove_file(&path);
             return Ok(());
         }
-        fs::create_dir_all(&self.dir).map_err(|e| Error(e.to_string()))?;
+        make_private_dir(&self.dir).map_err(|e| Error(e.to_string()))?;
         let sealed = seal(value.as_bytes()).ok_or_else(|| Error("Windows couldn't encrypt the sign-in".into()))?;
         // Written whole, then moved into place, so a crash never leaves half a file.
         let tmp = path.with_extension("tmp");
-        fs::write(&tmp, sealed).map_err(|e| Error(e.to_string()))?;
-        // Only this user may read it (on Windows, the encryption does that).
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&tmp, fs::Permissions::from_mode(0o600)).map_err(|e| Error(e.to_string()))?;
-        }
+        write_private(&tmp, &sealed).map_err(|e| Error(e.to_string()))?;
         fs::rename(&tmp, &path).map_err(|e| Error(e.to_string()))
     }
 
@@ -90,6 +85,35 @@ impl Secrets {
             _ => Ok(()),
         }
     }
+}
+
+/// The secrets folder, readable by this user only (macOS and Linux; on
+/// Windows the encryption does that).
+fn make_private_dir(dir: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+        fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
+        // One made by an older version may be open to others.
+        fs::set_permissions(dir, fs::Permissions::from_mode(0o700))
+    }
+    #[cfg(not(unix))]
+    fs::create_dir_all(dir)
+}
+
+/// Writes a file that is private from the moment it exists (mode 0600), not
+/// readable by others in between creating and restricting it.
+fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        // A leftover from a crash may have wider rights, which `mode` doesn't change.
+        let _ = fs::remove_file(path);
+        fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?.write_all(bytes)
+    }
+    #[cfg(not(unix))]
+    fs::write(path, bytes)
 }
 
 #[cfg(windows)]
@@ -198,7 +222,22 @@ mod tests {
         assert!(!raw.windows(13).any(|w| w == b"refresh-token"), "not stored in plain text");
         fs::write(&file, b"not something DPAPI made").unwrap();
         assert_eq!(secrets.get("td-test.auth").unwrap(), None);
-        assert!(!file.exists(), "a file that can't be read is removed");
+        assert!(!file.exists(), "a file that can't be read is moved out of the way");
+        assert_eq!(fs::read(dir.join("td-test.auth.bad")).unwrap(), b"not something DPAPI made", "and kept");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_fallback_file_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        // The pieces `set` uses (a keyring, where there is one, may take the secret instead).
+        let (_, dir) = fresh();
+        make_private_dir(&dir).unwrap();
+        write_private(&dir.join("s.bin"), b"v").unwrap();
+        let mode = |p: &Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&dir), 0o700);
+        assert_eq!(mode(&dir.join("s.bin")), 0o600);
         let _ = fs::remove_dir_all(dir);
     }
 

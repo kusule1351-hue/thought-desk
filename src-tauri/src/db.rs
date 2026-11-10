@@ -37,6 +37,24 @@ fn err<T>(msg: &str) -> Result<T> {
     Err(Error(msg.to_string()))
 }
 
+/// Generous limits, far past anything a person writes or adds: they only stop
+/// a runaway or hostile caller from filling the disk or memory.
+pub(crate) const MAX_FILE_BYTES: u64 = 2 << 30;
+/// A page body, and a live session's saved state (the editor stops a session
+/// at 32 MB, see MAX_DOC in cowork.svelte.ts).
+pub(crate) const MAX_PAGE_BYTES: u64 = 64 << 20;
+
+pub(crate) fn check_size(len: usize, max: u64, message: &str) -> Result<()> {
+    if len as u64 > max {
+        return Err(Error(message.to_string()));
+    }
+    Ok(())
+}
+
+pub(crate) fn check_page_size(content: &str) -> Result<()> {
+    check_size(content.len(), MAX_PAGE_BYTES, "This page is too large to save (the limit is 64 MB)")
+}
+
 /// Tables whose rows go to the trash. Table names never come from the
 /// frontend as text, so they can't be used to inject SQL.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
@@ -707,6 +725,7 @@ impl Db {
             touched = true;
         }
         if let Some(content) = &patch.content {
+            check_page_size(content)?;
             tx.execute("UPDATE page_content SET content = ?1 WHERE rid = ?2", params![content, rid])?;
             index_content(&tx, rid, content)?;
             crate::databases::cover_changed(&tx, id, content)?;
@@ -1174,6 +1193,7 @@ pub(crate) fn insert_page_as(
     content: &str,
     text: &str,
 ) -> Result<()> {
+    check_page_size(content)?;
     let ts = now();
     tx.execute(
         "INSERT INTO pages (id, parent_id, title, icon, position, created_at, updated_at)
@@ -1407,6 +1427,24 @@ mod tests {
             .collect();
         pages.sort_by_key(|p| p.position);
         pages.into_iter().map(|p| p.title).collect()
+    }
+
+    #[test]
+    fn refuses_a_page_body_over_the_limit() {
+        let (db, _) = temp_db();
+        let page = db.create_page(None, None, "Big", "").unwrap();
+        let limit = MAX_PAGE_BYTES as usize;
+        let patch = |content: String| PagePatch { content: Some(content), ..Default::default() };
+        db.update_page(&page.id, patch("a".repeat(limit))).unwrap();
+        let refused = db.update_page(&page.id, patch("a".repeat(limit + 1))).unwrap_err();
+        assert!(refused.0.contains("too large"), "{}", refused.0);
+        assert_eq!(db.get_page(&page.id).unwrap().content.len(), limit, "the saved body is untouched");
+        let tx_refused = {
+            let mut conn = db.conn();
+            let tx = conn.transaction().unwrap();
+            insert_page(&tx, None, "New", "", &"a".repeat(limit + 1), "").is_err()
+        };
+        assert!(tx_refused, "new pages are capped too");
     }
 
     #[test]

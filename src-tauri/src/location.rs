@@ -135,6 +135,13 @@ impl Db {
                 return Err(Error("That folder already has notes".into()));
             }
             set_aside(dir)?;
+        } else if has_files(dir) {
+            // Someone's own `files` folder, not ours: copying in would mix the two
+            // (and the app tidies up strays there). With `replace` it's set aside.
+            if !replace {
+                return Err(Error("That folder already has a \"files\" folder with things in it. Choose an empty folder instead.".into()));
+            }
+            set_aside(dir)?;
         }
         let target = dir.join(DB);
         self.conn().execute("VACUUM INTO ?1", [target.to_string_lossy()])?;
@@ -147,6 +154,11 @@ impl Db {
         }
         Ok(())
     }
+}
+
+/// Whether `dir` has a `files` folder with anything in it.
+fn has_files(dir: &Path) -> bool {
+    std::fs::read_dir(dir.join("files")).is_ok_and(|mut entries| entries.next().is_some())
 }
 
 /// Whether two paths are the same folder (whatever case or spelling).
@@ -208,6 +220,43 @@ mod tests {
             .collect();
         assert_eq!(aside.len(), 1);
         assert!(aside[0].path().join(DB).is_file(), "the old notes are kept");
+    }
+
+    #[test]
+    fn refuses_a_folder_with_someone_elses_files() {
+        let (home, other) = (temp("mine"), temp("theirs"));
+        let db = Db::open(&home).unwrap();
+        db.import_file(b"bytes", "note.txt", "text/plain").unwrap();
+        std::fs::create_dir_all(other.join("files")).unwrap();
+        std::fs::write(other.join("files").join("holiday.jpg"), b"jpg").unwrap();
+
+        let refused = db.copy_to(&other, false).unwrap_err();
+        assert!(refused.0.contains("files"), "{}", refused.0);
+        assert!(other.join("files").join("holiday.jpg").is_file());
+        assert!(!other.join(DB).exists(), "nothing was copied in");
+
+        // An empty `files` folder is fine.
+        let empty = temp("empty");
+        std::fs::create_dir_all(empty.join("files")).unwrap();
+        db.copy_to(&empty, false).unwrap();
+        assert!(inspect(&empty).has_notes);
+
+        // A folder that already holds notes keeps the "open those notes" path.
+        drop(Db::open(&other).unwrap());
+        assert!(inspect(&other).has_notes);
+        assert!(db.copy_to(&other, false).unwrap_err().0.contains("already has notes"));
+    }
+
+    #[test]
+    fn replacing_sets_someone_elses_files_aside() {
+        let (home, other) = (temp("mine2"), temp("theirs2"));
+        let db = Db::open(&home).unwrap();
+        std::fs::create_dir_all(other.join("files")).unwrap();
+        std::fs::write(other.join("files").join("holiday.jpg"), b"jpg").unwrap();
+        db.copy_to(&other, true).unwrap();
+        let aside = std::fs::read_dir(&other).unwrap().flatten().find(|e| e.file_name().to_string_lossy().starts_with("Replaced ")).unwrap();
+        assert!(aside.path().join("files").join("holiday.jpg").is_file());
+        assert!(!other.join("files").join("holiday.jpg").exists());
     }
 
     #[test]

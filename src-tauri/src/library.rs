@@ -2,7 +2,7 @@
 //! an assignment, dropped into a page) gets a row here. The bytes live in the
 //! `files/` folder under a random name; `name` is what the user sees.
 
-use crate::db::{fail, new_id, now, Db, Result};
+use crate::db::{check_size, fail, new_id, now, Db, Result, MAX_FILE_BYTES};
 use rusqlite::{params, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -168,6 +168,7 @@ fn collect_alts(node: &serde_json::Value, out: &mut HashMap<String, String>) {
 impl Db {
     /// Writes `bytes` into the library under a new name and records it.
     pub fn import_file(&self, bytes: &[u8], name: &str, mime: &str) -> Result<FileMeta> {
+        check_size(bytes.len(), MAX_FILE_BYTES, "That file is too large to add (the limit is 2 GB)")?;
         let name = clean_name(name);
         let stored = format!("{}.{}", uuid::Uuid::new_v4().simple(), extension(&name));
         let mime = if mime.is_empty() || mime.len() > 100 { mime_for(&stored).to_string() } else { mime.to_string() };
@@ -287,6 +288,16 @@ mod tests {
         assert_eq!(extension(".bashrc"), "bin");
         assert_eq!(extension("README"), "bin");
         assert_eq!(mime_for("x.HTML"), "text/plain; charset=utf-8", "never served as HTML");
+    }
+
+    #[test]
+    fn refuses_files_over_the_limit() {
+        // The check runs on the length, so no 2 GB buffer is needed.
+        assert!(check_size(MAX_FILE_BYTES as usize, MAX_FILE_BYTES, "x").is_ok());
+        assert!(check_size(MAX_FILE_BYTES as usize + 1, MAX_FILE_BYTES, "x").is_err());
+        assert_eq!(MAX_FILE_BYTES, 2 * 1024 * 1024 * 1024);
+        let db = Db::open(&temp_dir()).unwrap();
+        assert!(db.import_file(b"small", "ok.txt", "").is_ok());
     }
 
     #[test]

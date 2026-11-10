@@ -17,12 +17,12 @@ The relay that lets two friends write one page together, at **relay.thoughtdesk.
 ```bash
 cd server
 npm install
-npm run dev          # ws://localhost:8787, with real sign-in checks (needs internet)
+npm run dev          # ws://localhost:8787, with real sign-in checks (needs internet), `env.dev`
 npm test             # the sign-in checks: tokens, sessions, test mode
 npm run check        # type-checks the Worker
 ```
 
-The interface tests start the relay themselves with `npm run test-relay`: port 8788, with `AUTH_MODE=test`, which accepts the fake cloud's `test.<user id>` tokens. Test mode works only for requests from this computer (`CF-Connecting-IP` is a loopback address, which Cloudflare never lets an outside request claim), whatever the setting says.
+The interface tests start the relay themselves with `npm run test-relay`: port 8788, with `AUTH_MODE=test` (also `env.dev`), which accepts the fake cloud's `test.<user id>` tokens. Test mode works only for requests from this computer (`CF-Connecting-IP` is a loopback address, which Cloudflare never lets an outside request claim), whatever the setting says.
 
 ## Deploy it
 
@@ -31,7 +31,9 @@ You need a free Cloudflare account. Durable Objects that store data in SQLite ar
 ```bash
 cd server
 npx wrangler login     # once: approve in the browser
-npm run deploy         # relay.thoughtdesk.org
+npm run deploy         # relay.thoughtdesk.org (the top level of wrangler.jsonc, as `--env=""`)
 ```
 
-`wrangler.jsonc` puts it on relay.thoughtdesk.org (a custom domain on the same Cloudflare account) and nowhere else (`workers_dev: false`). The app connects there unless `VITE_COWORK_URL` says otherwise at build time, and its content security policy (`src-tauri/tauri.conf.json`, `connect-src`) allows only `wss://relay.thoughtdesk.org`. The Supabase project's address and publishable key, the Clerk instances' issuers (`CLERK_ISSUERS`) and where the app runs (`APP_ORIGINS`) are in `wrangler.jsonc` (`vars`); all are public by design. Until the release, the development Clerk instance is trusted too (see [supabase/SETUP.md](../supabase/SETUP.md)).
+`wrangler.jsonc` puts it on relay.thoughtdesk.org (a custom domain on the same Cloudflare account) and nowhere else (`workers_dev: false`). The app connects there unless `VITE_COWORK_URL` says otherwise at build time, and its content security policy (`src-tauri/tauri.conf.json`, `connect-src`) allows only `wss://relay.thoughtdesk.org`. The Supabase project's address and publishable key, the Clerk instances' issuers (`CLERK_ISSUERS`) and where the app runs (`APP_ORIGINS`) are in `wrangler.jsonc` (`vars`); all are public by design.
+
+What is deployed trusts only the production Clerk instance (`https://clerk.thoughtdesk.org`) and the desktop app's origins (`http://tauri.localhost`, `tauri://localhost`). The development Clerk instance and the Vite dev server (`http://localhost:1420`) live in `env.dev`, which `npm run dev` and `npm run test-relay` use and `npm run deploy` never does. Wrangler inherits no bindings, migrations or vars into an environment, so `env.dev` repeats them (and sets `routes: []`, or it would inherit the custom domain); keep the two in step when you change either. Check what a deploy would send without sending it: `npx wrangler deploy --dry-run --env=""` and `npx wrangler deploy --dry-run --env dev`. Never run `wrangler deploy --env dev`: it would put a second Worker on your account.

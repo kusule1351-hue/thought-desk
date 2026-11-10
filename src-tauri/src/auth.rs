@@ -6,7 +6,7 @@
 //! app keeps, so nothing else on this computer can use it.
 
 use std::io::{ErrorKind, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
@@ -18,13 +18,20 @@ const PATH: &str = "/auth/callback";
 static CURRENT: AtomicU64 = AtomicU64::new(0);
 /// How long a sign-in may take in the browser.
 const WAIT: Duration = Duration::from_secs(600);
+/// The query parameter that carries the per-sign-in secret, when the app
+/// started the sign-in with one.
+const STATE_KEY: &str = "td_state";
 /// Clerk's codes for "new here: make the account", which aren't failures.
 const TRANSFERS: [&str; 2] = ["external_account_not_found", "external_account_exists"];
 
 /// Starts listening and returns the port. When the browser comes back, the
 /// window is brought forward and `auth-callback` carries the query string
 /// (`rotating_token_nonce=…`, or `__clerk_status=failed&__clerk_error_code=…`).
-pub fn listen(app: AppHandle) -> Result<u16, String> {
+/// Requests that aren't a real return (any web page can send one to this
+/// port) are answered with a 404 and otherwise ignored: the app keeps
+/// waiting and the window stays where it is. With a `state`, the return must
+/// also carry it as `td_state=…`.
+pub fn listen(app: AppHandle, state: Option<String>) -> Result<u16, String> {
     let me = CURRENT.fetch_add(1, Ordering::SeqCst) + 1;
     let listener = bind(PORT)?;
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;
@@ -33,7 +40,7 @@ pub fn listen(app: AppHandle) -> Result<u16, String> {
         while Instant::now() < deadline && CURRENT.load(Ordering::SeqCst) == me {
             match listener.accept() {
                 Ok((stream, _)) => {
-                    if let Some(query) = answer(stream) {
+                    if let Some(query) = answer(stream, state.as_deref()) {
                         let _ = app.emit("auth-callback", query);
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.unminimize();
@@ -69,17 +76,23 @@ fn bind(port: u16) -> Result<TcpListener, String> {
     }
 }
 
-/// Answers one browser request. The callback gets a page saying how sign-in
-/// went, and its query string is returned (empty when the browser brought
-/// nothing back, which the app reports as not finished rather than waiting
-/// on); anything else (a favicon) gets a 404.
-fn answer(mut stream: TcpStream) -> Option<String> {
+/// Answers one browser request. A real return from Clerk gets a page saying
+/// how sign-in went, and its query string is returned; anything else (a
+/// favicon, a stray page poking at the port, a request from another
+/// computer) gets a 404 and returns None, so the sign-in stays pending.
+fn answer(mut stream: TcpStream, state: Option<&str>) -> Option<String> {
+    if !stream.peer_addr().is_ok_and(|a| is_local(&a)) {
+        return None;
+    }
     let _ = stream.set_nonblocking(false);
     let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
     let mut buf = [0u8; 8192];
     let n = stream.read(&mut buf).ok()?;
     let request = String::from_utf8_lossy(&buf[..n]);
-    let query = callback_query(&request).map(str::to_string);
+    let port = stream.local_addr().map(|a| a.port()).unwrap_or(PORT);
+    let query = callback_query(&request)
+        .filter(|query| host_is(&request, port) && is_return(query, state))
+        .map(str::to_string);
     let reply = match &query {
         Some(query) => page(!query.is_empty() && !failed(query)),
         None => "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string(),
@@ -101,6 +114,27 @@ fn callback_query(request: &str) -> Option<&str> {
     let target = parts.next()?;
     let (path, query) = target.split_once('?').unwrap_or((target, ""));
     (path == PATH).then_some(query)
+}
+
+/// Only this computer's own loopback address counts.
+fn is_local(peer: &SocketAddr) -> bool {
+    peer.ip() == std::net::Ipv4Addr::LOCALHOST
+}
+
+/// The browser asked for 127.0.0.1 on our port (a web page that tricked the
+/// browser into another name for it asks for that name).
+fn host_is(request: &str, port: u16) -> bool {
+    let host = request.lines().skip(1).find_map(|l| l.split_once(':').filter(|(k, _)| k.eq_ignore_ascii_case("host")).map(|(_, v)| v.trim()));
+    host == Some(&format!("127.0.0.1:{port}"))
+}
+
+/// Whether a callback's query is Clerk's return (a nonce, or its status
+/// parameters for a failure) and, if the sign-in has a secret, carries it.
+fn is_return(query: &str, state: Option<&str>) -> bool {
+    let pairs: Vec<(&str, &str)> = query.split('&').filter_map(|p| p.split_once('=')).collect();
+    let has = |key: &str| pairs.iter().any(|&(k, v)| k == key && !v.is_empty());
+    (has("rotating_token_nonce") || has("__clerk_status"))
+        && state.is_none_or(|s| pairs.iter().any(|&(k, v)| k == STATE_KEY && v == s))
 }
 
 /// Whether the sign-in came back failed (not merely "new here").
@@ -158,8 +192,12 @@ mod tests {
     /// reads the reply, then hangs up (as browsers do after "Connection:
     /// close") or, if `lingers`, waits for the app to.
     fn browse(port: u16, path: &str, lingers: bool) -> String {
+        browse_host(port, path, &format!("127.0.0.1:{port}"), lingers)
+    }
+
+    fn browse_host(port: u16, path: &str, host: &str, lingers: bool) -> String {
         let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
-        s.write_all(format!("GET {path} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").as_bytes()).unwrap();
+        s.write_all(format!("GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n").as_bytes()).unwrap();
         let mut reply = Vec::new();
         let mut buf = [0u8; 4096];
         loop {
@@ -178,7 +216,7 @@ mod tests {
         let path = format!("{PATH}?{query}");
         let browser = std::thread::spawn(move || browse(port, &path, lingers));
         let (stream, _) = listener.accept().unwrap();
-        assert_eq!(answer(stream).as_deref(), Some(query));
+        assert_eq!(answer(stream, None).as_deref(), Some(query));
         browser.join().unwrap()
     }
 
@@ -194,13 +232,60 @@ mod tests {
         assert!(sign_in(port, "rotating_token_nonce=abc", false).contains("You're signed in"));
     }
 
-    #[test]
-    fn coming_back_with_nothing_says_it_didnt_finish() {
-        let port = bind(0).unwrap().local_addr().unwrap().port();
-        let listener = bind(port).unwrap();
-        let browser = std::thread::spawn(move || browse(port, PATH, false));
+    /// One request to `listener`: what the app heard (None: it keeps
+    /// waiting, and the window isn't brought forward) and what the browser got.
+    fn hear(listener: &TcpListener, state: Option<&str>, path: &str, host: Option<&str>) -> (Option<String>, String) {
+        let port = listener.local_addr().unwrap().port();
+        let (path, host) = (path.to_string(), host.map(str::to_string).unwrap_or(format!("127.0.0.1:{port}")));
+        let browser = std::thread::spawn(move || browse_host(port, &path, &host, false));
         let (stream, _) = listener.accept().unwrap();
-        assert_eq!(answer(stream).as_deref(), Some(""), "the app hears about it, so it stops waiting");
-        assert!(browser.join().unwrap().contains("Sign-in didn't finish"));
+        let heard = answer(stream, state);
+        let reply = browser.join().unwrap();
+        (heard, reply)
+    }
+
+    #[test]
+    fn strays_neither_end_the_wait_nor_count() {
+        let listener = bind(0).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let state = Some("s3cret");
+        let strays = [
+            (PATH.to_string(), None),
+            (format!("{PATH}?x=1"), None),
+            (format!("{PATH}?rotating_token_nonce="), None),
+            (format!("{PATH}?error=access_denied"), None),
+            (format!("{PATH}?rotating_token_nonce=abc"), None),
+            (format!("{PATH}?rotating_token_nonce=abc&td_state=other"), None),
+            (format!("{PATH}?__clerk_status=failed"), None),
+            (format!("{PATH}?rotating_token_nonce=abc&td_state=s3cret"), Some("evil.example.com")),
+            (format!("{PATH}?rotating_token_nonce=abc&td_state=s3cret"), Some("localhost:1")),
+            ("/favicon.ico".to_string(), None),
+        ];
+        for (path, host) in strays {
+            let (heard, reply) = hear(&listener, state, &path, host);
+            assert_eq!(heard, None, "{path} {host:?}");
+            assert!(reply.starts_with("HTTP/1.1 404"), "{path}: {reply}");
+        }
+        // The real return still arrives on the same listener afterwards.
+        let real = "rotating_token_nonce=abc&td_state=s3cret".to_string();
+        let (heard, reply) = hear(&listener, state, &format!("{PATH}?{real}"), None);
+        assert_eq!(heard.as_deref(), Some(real.as_str()));
+        assert!(reply.contains("You're signed in"));
+        // Without a secret, a nonce or Clerk's failure status is enough.
+        let failed = "__clerk_status=failed&__clerk_error_code=oauth_access_denied";
+        let (heard, reply) = hear(&listener, None, &format!("{PATH}?{failed}"), Some(&format!("127.0.0.1:{port}")));
+        assert_eq!(heard.as_deref(), Some(failed));
+        assert!(reply.contains("Sign-in didn't finish"));
+    }
+
+    #[test]
+    fn only_this_computers_loopback_counts() {
+        assert!(is_local(&"127.0.0.1:5000".parse().unwrap()));
+        for other in ["192.168.1.20:5000", "10.0.0.2:80", "[::1]:5000", "[::ffff:192.168.1.2]:80"] {
+            assert!(!is_local(&other.parse().unwrap()), "{other}");
+        }
+        assert!(host_is("GET / HTTP/1.1\r\nHost: 127.0.0.1:47823\r\n\r\n", 47823));
+        assert!(!host_is("GET / HTTP/1.1\r\nHost: localhost:47823\r\n\r\n", 47823));
+        assert!(!host_is("GET / HTTP/1.1\r\n\r\n", 47823));
     }
 }

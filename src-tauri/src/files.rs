@@ -8,11 +8,39 @@ use std::time::{Duration, SystemTime};
 use tauri::http::{Request, Response, StatusCode};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
+/// Whether `name` is safe to join onto the files folder: plain letters,
+/// digits and dots, and nothing Windows treats specially (device names such
+/// as `NUL` or `COM1.png`, a trailing dot or space) or the app uses for
+/// half-written files (`.part`). Every caller goes through this one check.
 pub fn is_valid_name(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or("");
     !name.is_empty()
         && name.len() <= 64
         && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '.')
         && !name.starts_with('.')
+        && !name.ends_with(['.', ' '])
+        && !name.to_ascii_lowercase().ends_with(".part")
+        && !is_device(stem)
+}
+
+/// `CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9` and `LPT1`-`LPT9`, in any case.
+fn is_device(stem: &str) -> bool {
+    let up = stem.to_ascii_uppercase();
+    matches!(up.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || ["COM", "LPT"].iter().any(|p| up.strip_prefix(p).is_some_and(|n| matches!(n.as_bytes(), [b'1'..=b'9'])))
+}
+
+/// Whether `name` has the shape of a file the app stored itself: 32 hex
+/// digits, a dot and an extension (`library.rs` makes these; images saved
+/// before the library existed look the same). Only these are ever deleted.
+pub fn is_app_name(name: &str) -> bool {
+    is_valid_name(name)
+        && name.split_once('.').is_some_and(|(stem, ext)| {
+            stem.len() == 32
+                && stem.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                && !ext.is_empty()
+                && ext.bytes().all(|b| b.is_ascii_alphanumeric())
+        })
 }
 
 pub fn protocol<R: Runtime>(
@@ -31,11 +59,30 @@ pub fn protocol<R: Runtime>(
         } else {
             None
         };
-        let response = response.unwrap_or_else(|| Response::builder().status(StatusCode::NOT_FOUND).body(Vec::new()));
+        let response = response.unwrap_or_else(not_found);
         if let Ok(r) = response {
             responder.respond(r);
         }
     });
+}
+
+fn not_found() -> tauri::http::Result<Response<Vec<u8>>> {
+    Response::builder().status(StatusCode::NOT_FOUND).header("Content-Security-Policy", csp_for("")).body(Vec::new())
+}
+
+/// What a response may do if the webview shows it as a page (in an iframe,
+/// say): nothing but display itself. No script or plugins, whatever the
+/// bytes are (an SVG, or a file that isn't what its name says). `sandbox`
+/// also gives it an empty origin, so it can't reach the app; it's left off
+/// PDFs, which Chromium's viewer may refuse to open when sandboxed.
+fn csp_for(mime: &str) -> &'static str {
+    match mime {
+        "application/pdf" => "default-src 'none'; style-src 'unsafe-inline'",
+        m if m.starts_with("audio/") || m.starts_with("video/") => {
+            "default-src 'none'; media-src 'self'; style-src 'unsafe-inline'; sandbox"
+        }
+        _ => "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    }
 }
 
 /// Largest slice sent for one range request. Audio, video and PDFs ask for
@@ -63,6 +110,7 @@ fn serve(path: &std::path::Path, name: &str, range: Option<(u64, Option<u64>)>) 
     let builder = Response::builder()
         .header("Content-Type", mime)
         .header("X-Content-Type-Options", "nosniff")
+        .header("Content-Security-Policy", csp_for(mime))
         // The app reads text files with fetch() for previews, and the app's
         // origin differs from this scheme's.
         .header("Access-Control-Allow-Origin", "*")
@@ -102,7 +150,9 @@ pub fn collect_garbage(db: &Db) {
     let cutoff = SystemTime::now() - Duration::from_secs(24 * 60 * 60);
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().into_owned();
-        if known.contains(&name) {
+        // Anything not shaped like a name the app makes isn't ours to delete
+        // (the folder may be one the user chose, with their own files in it).
+        if known.contains(&name) || !is_app_name(&name) {
             continue;
         }
         let old = entry
@@ -121,6 +171,80 @@ pub fn collect_garbage(db: &Db) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const HEX: &str = "0123456789abcdef0123456789abcdef";
+
+    #[test]
+    fn refuses_windows_device_and_unsafe_names() {
+        for ok in ["a.png", "abc123.png", &format!("{HEX}.pdf"), "COM10.png", "console.txt", "nul2", "LPT0.txt", "a.partial"] {
+            assert!(is_valid_name(ok), "{ok}");
+        }
+        for bad in [
+            "", ".hidden", "a/b", "a b", "../x", "CON", "con.txt", "Prn", "AUX.png", "NUL", "nul.tar.gz", "COM1.png", "com9",
+            "LPT1", "lpt9.txt", "name.", "name..", "a.part", "a.PART", &"x".repeat(65),
+        ] {
+            assert!(!is_valid_name(bad), "{bad}");
+        }
+        assert!(!is_valid_name("name "), "a trailing space");
+    }
+
+    #[test]
+    fn recognises_names_the_app_makes() {
+        for ok in [format!("{HEX}.png"), format!("{HEX}.bin"), format!("{HEX}.JPG")] {
+            assert!(is_app_name(&ok), "{ok}");
+        }
+        for other in ["holiday.jpg", "abc123.png", HEX, &format!("{HEX}."), &format!("{HEX}.tar.gz"), &format!("{}.png", &HEX[1..]), &format!("{}.png", HEX.to_uppercase())] {
+            assert!(!is_app_name(other), "{other}");
+        }
+    }
+
+    #[test]
+    fn garbage_collection_only_deletes_files_the_app_made() {
+        let dir = std::env::temp_dir().join(format!("td-gc-{}", uuid::Uuid::new_v4().simple()));
+        let db = Db::open(&dir).unwrap();
+        let old = SystemTime::now() - Duration::from_secs(3 * 24 * 60 * 60);
+        let put = |name: &str| {
+            let path = db.files_dir.join(name);
+            std::fs::write(&path, b"x").unwrap();
+            std::fs::File::options().write(true).open(&path).unwrap().set_modified(old).unwrap();
+            path
+        };
+        let stray = put(&format!("{HEX}.png"));
+        let strangers = [put("holiday.jpg"), put("thesis.docx"), put("abc123.png")];
+        let kept = db.import_file(b"mine", "mine.txt", "").unwrap();
+        std::fs::File::options().write(true).open(db.files_dir.join(&kept.stored)).unwrap().set_modified(old).unwrap();
+
+        collect_garbage(&db);
+        assert!(!stray.exists(), "an old stray the app made goes");
+        assert!(strangers.iter().all(|p| p.exists()), "other people's files stay");
+        assert!(db.files_dir.join(&kept.stored).exists(), "listed files stay");
+    }
+
+    fn csp_of(name: &str, range: Option<(u64, Option<u64>)>) -> String {
+        let dir = std::env::temp_dir().join(format!("td-csp-{}", uuid::Uuid::new_v4().simple()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(name), b"<svg onload=alert(1)>").unwrap();
+        let r = serve(&dir.join(name), name, range).unwrap().unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        r.headers()["content-security-policy"].to_str().unwrap().to_string()
+    }
+
+    #[test]
+    fn every_response_carries_a_policy_that_forbids_script() {
+        for name in ["a.png", "a.svg", "a.txt", "a.html", "a.xyz", "a.mp3", "a.mp4"] {
+            let csp = csp_of(name, None);
+            assert!(csp.starts_with("default-src 'none'"), "{name}: {csp}");
+            assert!(!csp.contains("script-src") && !csp.contains("unsafe-eval"), "{name}: {csp}");
+            assert!(csp.contains("sandbox"), "{name}: {csp}");
+        }
+        assert!(csp_of("a.mp4", None).contains("media-src 'self'"));
+        let pdf = csp_of("a.pdf", None);
+        assert!(pdf.starts_with("default-src 'none'") && !pdf.contains("sandbox"), "the PDF viewer needs no sandbox: {pdf}");
+        // Ranges and misses carry it too.
+        assert_eq!(csp_of("a.pdf", Some((0, None))), pdf);
+        assert!(csp_of("a.svg", Some((0, None))).contains("sandbox"));
+        assert!(not_found().unwrap().headers()["content-security-policy"].to_str().unwrap().contains("default-src 'none'"));
+    }
 
     #[test]
     fn refuses_a_range_that_ends_before_it_starts() {

@@ -44,7 +44,7 @@
     "@tiptap/suggestion": "^3.32.0",
     "@tiptap/y-tiptap": "^3.0.10",
     "d3-force": "^3.0.0",
-    "katex": "^0.16.22",
+    "katex": "^0.18.10",
     "y-partyserver": "^2.2.0",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.33"

@@ -17,13 +17,34 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Page"] }],
   // The Supabase project that knows who is in which session (its publishable
   // key is public by design: row-level security protects the data), the Clerk
-  // instances people sign in with (development, then production), and where
-  // the app runs (the desktop app on Windows, then on macOS and Linux, and the
-  // browser preview while developing).
+  // instance people sign in with (production only) and where the app runs (the
+  // desktop app on Windows, then on macOS and Linux). What `npm run deploy`
+  // puts on the internet trusts nothing from development: that is `env.dev`.
   "vars": {
     "SUPABASE_URL": "https://nbzojbfkkpeisitbkwpg.supabase.co",
     "SUPABASE_KEY": "sb_publishable_6W6p3hj5pIszsSA36NWUbQ_TXB4YwLD",
-    "CLERK_ISSUERS": "https://smiling-sunbird-3571.clerk.accounts.dev,https://clerk.thoughtdesk.org",
-    "APP_ORIGINS": "http://tauri.localhost,tauri://localhost,http://localhost:1420"
+    "CLERK_ISSUERS": "https://clerk.thoughtdesk.org",
+    "APP_ORIGINS": "http://tauri.localhost,tauri://localhost"
+  },
+  "env": {
+    // For this computer only (`npm run dev`, `npm run test-relay`): the
+    // development Clerk instance and the Vite dev server's origin. It takes
+    // no route (wrangler would inherit the custom domain) and is never deployed. Wrangler inherits none of the bindings,
+    // migrations or vars above into an environment, so all of them repeat.
+    "dev": {
+      "name": "thought-desk-cowork-dev",
+      "routes": [],
+      "workers_dev": false,
+      "durable_objects": {
+        "bindings": [{ "name": "Page", "class_name": "Page" }]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Page"] }],
+      "vars": {
+        "SUPABASE_URL": "https://nbzojbfkkpeisitbkwpg.supabase.co",
+        "SUPABASE_KEY": "sb_publishable_6W6p3hj5pIszsSA36NWUbQ_TXB4YwLD",
+        "CLERK_ISSUERS": "https://smiling-sunbird-3571.clerk.accounts.dev",
+        "APP_ORIGINS": "http://localhost:1420"
+      }
+    }
   }
 }

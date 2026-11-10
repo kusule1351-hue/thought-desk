@@ -26,7 +26,18 @@ Invoke-RestMethod -Method Patch -Uri https://api.clerk.com/v1/instance -Headers 
 ## 2. Supabase: trust Clerk
 
 1. Supabase → **Authentication** → **Sign In / Providers** → **Third-Party Auth** → **Add provider** → **Clerk**. Enter the domain with `https://`: `https://smiling-sunbird-3571.clerk.accounts.dev`.
-2. On the same page, under Supabase's own sign-in: turn off **Allow new users to sign up**, and turn off the **Email**, **Google** and **GitHub** providers if they're on. Nobody needs an account with Supabase itself, and the database ignores its tokens anyway (`private.me()` in [README.md](README.md)).
+2. The database accepts the development instance only for accounts you list (see **Development accounts** below), so nobody else can use it even though Supabase trusts it. On the same page, under Supabase's own sign-in: turn off **Allow new users to sign up**, and turn off the **Email**, **Google** and **GitHub** providers if they're on. Nobody needs an account with Supabase itself, and the database ignores its tokens anyway (`private.me()` in [README.md](README.md)).
+
+### Development accounts
+
+`private.me()` accepts tokens from the development instance only for Clerk user ids in `private.dev_accounts`, which is empty until you add rows (the API can't read or write it). Anyone can make unlimited accounts on a development instance, so without this every per-account limit could be multiplied. To develop against this project: sign in once from a development build, copy your user id from Clerk's dashboard (**Users**, `user_…`), and run in the Supabase SQL editor:
+
+```sql
+insert into private.dev_accounts (user_id) values ('user_2abc…');
+-- and to stop: delete from private.dev_accounts where user_id = 'user_2abc…';
+```
+
+Production tokens (`https://clerk.thoughtdesk.org`) need no listing. The stricter alternative: remove the development domain from **Third-Party Auth** in the dashboard. Then the database refuses development tokens whatever the list says, and developing against this project ends (use a separate Supabase project for development instead).
 
 ## 3. Google and GitHub
 
@@ -44,7 +55,7 @@ Clerk's development instance is for development: it's marked as such, and anyone
 2. **Its settings**, as in step 1: the same session token claims, passwords off, throwaway domains blocked, the Native API on. Allowed origins: just `["http://tauri.localhost"]`, set with the production secret key (`sk_live_…`). Under **Native applications**, add `http://127.0.0.1:47823/auth/callback` to the allowlist for SSO redirects. Production takes it (checked on 2026-10-25): it sends Google and GitHub sign-ins back to exactly that address, refuses any other port, and takes signed-in requests only from `http://tauri.localhost`.
 3. **Google:** in your Google OAuth client, add `https://clerk.thoughtdesk.org/v1/oauth_callback` under **Authorized redirect URIs**, and put the client ID and secret in Clerk production's Google settings.
 4. **GitHub:** an OAuth app has only one callback, so make a second one for production, with the callback `https://clerk.thoughtdesk.org/v1/oauth_callback`, and put its ID and secret in Clerk production's GitHub settings.
-5. **Supabase:** add Clerk again under **Third-Party Auth**, with the domain `https://clerk.thoughtdesk.org`. Once nobody uses development any more, remove its domain there, from `private.me()` (in a new migration) and from the relay's `CLERK_ISSUERS`.
+5. **Supabase:** add Clerk again under **Third-Party Auth**, with the domain `https://clerk.thoughtdesk.org`. The development instance stays trusted for the accounts in `private.dev_accounts` only; once nobody develops against this project any more, remove its domain there too, empty the table, and take it out of `private.me()` (in a new migration) and from the relay's `CLERK_ISSUERS`.
 6. **The app:** done. Release builds (`npm run build`, `npm run bundle`) use the production key (`pk_live_…`), and development builds (`npm run dev`, `npm run app`) the development one; `VITE_CLERK_KEY` overrides either (`src/lib/cloud/clerk.ts`).
 7. **How long a sign-in lasts:** done. Production is on Clerk Pro, and a sign-in lasts 90 days (**Configure** → **Sessions** → maximum lifetime), then people sign in again; signing out ends it at once. Development keeps a week.
 

@@ -1,0 +1,82 @@
+diff --git a/src/lib/cloud/supabase.ts b/src/lib/cloud/supabase.ts
+index 320673f..29776d7 100644
+--- a/src/lib/cloud/supabase.ts
++++ b/src/lib/cloud/supabase.ts
+@@ -2,7 +2,7 @@
+  * The real cloud: Supabase, for profiles, friends, sessions and live updates.
+  * Signing in is Clerk's (clerk.ts): Supabase trusts the session tokens Clerk
+  * issues, and every request carries one. Live updates come as signals over
+- * Realtime, which carries no sign-in (see signals).
++ * private Realtime channels, which carry it too (see signals).
+  */
+ 
+ import { createClient, type PostgrestError } from '@supabase/supabase-js';
+@@ -70,12 +70,11 @@ type Channel = ReturnType<SupabaseCloud['signals']['channel']>;
+ class SupabaseCloud implements Cloud {
+   /** Requests, each with the Clerk session token. */
+   readonly client = createClient(SUPABASE_URL, SUPABASE_KEY, { accessToken: () => clerk.sessionToken() });
+-  /** Realtime, with no sign-in at all: Realtime can't check sign-ins from
+-   *  Clerk on a domain of its own (clerk.thoughtdesk.org,
+-   *  supabase/realtime#1791), and what goes through it here needs none:
+-   *  empty signals to an inbox only its owner knows the name of, and
+-   *  wake-ups between the two people in a session. */
+-  readonly signals = createClient(SUPABASE_URL, SUPABASE_KEY, { accessToken: async () => null });
++  /** Realtime, on private channels: the database checks, with the Clerk
++   *  token, who may listen and send (supabase/README.md, Realtime). The token
++   *  callback is Realtime's source of truth: it is asked on connect and on
++   *  every heartbeat, so a refreshed token reaches open channels. */
++  readonly signals = createClient(SUPABASE_URL, SUPABASE_KEY, { accessToken: () => clerk.sessionToken() });
+   /** Who's listening for changes, and the inbox they share. */
+   #listeners = new Set<(change: CloudChange) => void>();
+   #inbox: { user: string; stop: () => void } | null = null;
+@@ -239,14 +238,15 @@ class SupabaseCloud implements Cloud {
+     const tell = (change: CloudChange) => () => {
+       for (const cb of this.#listeners) cb(change);
+     };
+-    inbox.stop = this.#keep('inbox:' + box, (ch) => ch.on('broadcast', { event: 'friends' }, tell('friends')).on('broadcast', { event: 'sessions' }, tell('sessions'))).stop;
++    inbox.stop = this.#keep('inbox:' + box, (ch) => ch.on('broadcast', { event: 'friends' }, tell('friends')).on('broadcast', { event: 'sessions' }, tell('sessions')), { config: { private: true } }).stop;
+   }
+ 
+   nudges(sessionId: string, onNudge: () => void) {
+-    // A broadcast, stored nowhere, on a channel named by the session's
+-    // unguessable id. It only makes the other app reconnect to the relay,
++    // A broadcast, stored nowhere, on a private channel named by the
++    // session's id (only its host and guest, while it is active, can join).
++    // It only makes the other app reconnect to the relay,
+     // which checks who may join.
+-    const kept = this.#keep('nudge:' + sessionId, (ch) => ch.on('broadcast', { event: 'nudge' }, () => onNudge()), { config: { broadcast: { self: false } } });
++    const kept = this.#keep('nudge:' + sessionId, (ch) => ch.on('broadcast', { event: 'nudge' }, () => onNudge()), { config: { private: true, broadcast: { self: false } } });
+     return {
+       send: () => void kept.current()?.send({ type: 'broadcast', event: 'nudge', payload: {} }),
+       stop: kept.stop,
+@@ -270,8 +270,15 @@ class SupabaseCloud implements Cloud {
+     /** When the current channel joined (0: it hasn't). */
+     let since = 0;
+     let retry: ReturnType<typeof setTimeout> | undefined;
+-    const open = () => {
++    const open = async () => {
+       if (stopped) return;
++      // Private channels are joined with the sign-in, so set it first.
++      try {
++        await this.signals.realtime.setAuth();
++      } catch {
++        /* the join fails and is retried */
++      }
++      if (stopped || current) return;
+       const ch = setup(this.signals.channel(name, params));
+       current = ch;
+       ch.on('system', {}, (message: { status?: string }) => message.status === 'error' && retire(ch));
+@@ -288,11 +295,11 @@ class SupabaseCloud implements Cloud {
+       if (since && Date.now() - since > 60_000) wait = 1000;
+       since = 0;
+       void this.signals.removeChannel(ch).finally(() => {
+-        if (!stopped) retry = setTimeout(open, wait);
++        if (!stopped) retry = setTimeout(() => void open(), wait);
+         wait = Math.min(wait * 2, 60_000);
+       });
+     };
+-    open();
++    void open();
+     return {
+       current: () => current,
+       stop: () => {

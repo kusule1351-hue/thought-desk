@@ -1,5 +1,5 @@
 -- Row-level security tests for the accounts, friends and sessions schema
--- (supabase/migrations/, as of *_signal_changes_to_inboxes.sql).
+-- (supabase/migrations/, as of *_security_audit_fixes.sql).
 --
 -- Run the whole file as one script against a database that has the
 -- migrations: the Supabase SQL editor, psql, or the Supabase MCP execute_sql
@@ -61,7 +61,9 @@ language sql immutable as $$
 $$;
 
 -- The claims of a Clerk session token for `who` from the development
--- instance, with `extra` added or overriding.
+-- instance, with `extra` added or overriding. (The development instance is
+-- trusted only for ids in private.dev_accounts: Ana, Ben and Cat are listed
+-- below. Production tokens add '{"iss": "https://clerk.thoughtdesk.org"}'.)
 create function pg_temp.token(who text, extra jsonb default '{}') returns text
 language sql immutable as $$
   select (jsonb_build_object(
@@ -87,6 +89,9 @@ $$;
 
 
 -- Setup: Ana, Ben and Cat sign up --------------------------------------------
+
+-- The owner lists the test users as development accounts.
+insert into private.dev_accounts (user_id) values ('user_ana'), ('user_ben'), ('user_cat');
 
 -- Signing in makes the profile (ensure_profile), from the name and picture
 -- in the token.
@@ -226,6 +231,66 @@ begin
   -- The right issuer with an id that isn't Clerk's.
   perform set_config('request.jwt.claims', pg_temp.token('ana', '{"sub": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}'), true);
   perform pg_temp.fails('select public.ensure_profile()', '23514', 'a profile id must be a Clerk user id, even from Clerk''s issuer');
+end;
+$$;
+
+
+-- The development instance counts only for listed accounts ---------------------
+
+reset role;
+
+do $$
+begin
+  perform pg_temp.fails($q$insert into private.dev_accounts (user_id) values ('not a clerk id')$q$,
+    '23514', 'the list holds Clerk user ids only');
+end;
+$$;
+
+set local role authenticated;
+
+do $$
+begin
+  perform pg_temp.fails('select * from private.dev_accounts', '42501', 'signed-in people cannot read the development accounts');
+  perform pg_temp.fails($q$insert into private.dev_accounts (user_id) values ('user_eve')$q$,
+    '42501', 'nor add themselves to it');
+  perform pg_temp.fails('delete from private.dev_accounts', '42501', 'nor remove anyone from it');
+
+  -- An unlisted development account gets nothing, with an otherwise valid token.
+  perform set_config('request.jwt.claims', pg_temp.token('eve'), true);
+  perform pg_temp.ok((select private.me()) is null, 'an unlisted development account is signed out');
+  perform pg_temp.fails('select public.ensure_profile()', '42501', 'it cannot make a profile');
+  perform pg_temp.fails('select public.my_inbox()', '42501', 'nor an inbox');
+  perform pg_temp.ok(not exists (select 1 from public.find_profile('ana')), 'nor look anyone up');
+
+  -- A production token needs no listing.
+  perform set_config('request.jwt.claims', pg_temp.token('dan', '{"iss": "https://clerk.thoughtdesk.org"}'), true);
+  perform pg_temp.ok((select private.me()) = pg_temp.uid('dan'), 'a production token works without being listed');
+  perform pg_temp.ok((select id from public.ensure_profile()) = pg_temp.uid('dan'), 'and makes a profile');
+  -- A pending production session still counts for nothing.
+  perform set_config('request.jwt.claims', pg_temp.token('dan', '{"iss": "https://clerk.thoughtdesk.org", "sts": "pending"}'), true);
+  perform pg_temp.ok((select private.me()) is null, 'a pending production session is signed out');
+end;
+$$;
+
+-- The owner lists Eve: now she is in. Unlisting her ends it at once.
+reset role;
+insert into private.dev_accounts (user_id) values ('user_eve');
+set local role authenticated;
+select set_config('request.jwt.claims', pg_temp.token('eve'), true);
+
+do $$
+begin
+  perform pg_temp.ok((select private.me()) = pg_temp.uid('eve'), 'a listed development account is signed in');
+end;
+$$;
+
+reset role;
+delete from private.dev_accounts where user_id = 'user_eve';
+set local role authenticated;
+
+do $$
+begin
+  perform pg_temp.ok((select private.me()) is null, 'removing her from the list signs her out');
 end;
 $$;
 
@@ -422,6 +487,8 @@ begin
     '42501', 'a request must come from the guest');
   perform pg_temp.fails($q$insert into public.cowork_sessions (host, guest, kind, status) values (pg_temp.uid('ana'), pg_temp.uid('ben'), 'invite', 'active')$q$,
     '42501', 'a session cannot start active');
+  perform pg_temp.fails($q$insert into public.cowork_sessions (id, host, guest, kind) values (gen_random_uuid(), pg_temp.uid('ana'), pg_temp.uid('ben'), 'invite')$q$,
+    '42501', 'session ids are made by the database, not chosen');
   perform pg_temp.fails($q$insert into public.cowork_sessions (host, guest, kind, created_at) values (pg_temp.uid('ana'), pg_temp.uid('ben'), 'invite', now() + interval '1 year')$q$,
     '42501', 'created_at cannot be set (it decides expiry)');
 
@@ -509,6 +576,11 @@ begin
   returning id into new_id;
   perform set_config('rls_test.withdraw_me', new_id::text, true);
 
+  -- Only the host names a page: a guest's request starts with no title.
+  perform pg_temp.fails($q$insert into public.cowork_sessions (host, guest, kind, title) values (pg_temp.uid('ana'), pg_temp.uid('ben'), 'request', 'Sneaky title')$q$,
+    '42501', 'a guest cannot name the host''s page when asking');
+  perform pg_temp.fails($q$update public.cowork_sessions set title = 'Sneaky title'$q$,
+    '42501', 'nor rename a session afterwards');
   perform pg_temp.fails($q$select public.respond_session(pg_temp.sid('request'), true, 'My page')$q$,
     '42501', 'the guest cannot accept his own request', 'only the host%');
   select * into s from public.end_session(pg_temp.sid('withdraw_me'));

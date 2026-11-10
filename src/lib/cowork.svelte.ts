@@ -38,7 +38,7 @@ import { ui } from './ui.svelte';
 /** The relay: VITE_COWORK_URL, a local one while developing, the one a test
  *  sets, or ours (the only one the app's content security policy allows). */
 function relayHost(): string {
-  const test = (window as { __coworkHost?: string }).__coworkHost;
+  const test = import.meta.env.DEV ? (window as { __coworkHost?: string }).__coworkHost : undefined;
   const url = test ?? (import.meta.env.VITE_COWORK_URL as string | undefined) ?? (import.meta.env.DEV ? 'localhost:8787' : 'relay.thoughtdesk.org');
   return url.replace(/^\w+:\/\//, '').replace(/\/$/, '');
 }
@@ -59,7 +59,7 @@ const EVERY = 60_000;
  *  side and nobody at the page here, since an open room is paid for by the
  *  second (a test sets a shorter one). */
 const IDLE_AFTER = 10 * 60_000;
-const idleAfter = () => (window as { __coworkIdleMs?: number }).__coworkIdleMs ?? IDLE_AFTER;
+const idleAfter = () => (import.meta.env.DEV ? (window as { __coworkIdleMs?: number }).__coworkIdleMs : undefined) ?? IDLE_AFTER;
 /** Wake-ups to the other person's app go at most this often. */
 const NUDGE_EVERY = 10_000;
 /** A sign-in token lasts a minute, and the relay lets a connection go if it
@@ -91,6 +91,13 @@ export interface Person {
 }
 
 let schema: ReturnType<typeof getSchema> | null = null;
+
+/** Marks every picture from a web address `shared`, so the page keeps asking before it loads one
+ *  once the session is over (SharedImage in editor/extensions.ts). */
+function markRemoteImages(node: JNode) {
+  if (node.type === 'image' && /^https?:\/\//i.test(String(node.attrs?.src ?? ''))) node.attrs = { ...node.attrs, shared: true };
+  for (const child of node.content ?? []) markRemoteImages(child);
+}
 
 /** A page body's words, for search (a block per line). */
 function textOf(node: JNode): string {
@@ -381,6 +388,7 @@ export class Session {
     const fragment = this.doc.getXmlFragment(FIELD);
     if (!fragment.length && !this.synced) return null;
     const json = yXmlFragmentToProsemirrorJSON(fragment) as JNode;
+    markRemoteImages(json);
     return { content: JSON.stringify(json), text: textOf(json) };
   }
 
