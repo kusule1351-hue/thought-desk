@@ -35,6 +35,10 @@ flate2 = "1"
 getrandom = "0.2"
 # Wipes the vault key from memory (sync/crypto.rs, secrets.rs); already in the build.
 zeroize = "1"
+# The thoughtdesk:// link on the page the browser shows after signing in. It
+# only brings the window forward: single-instance's "deep-link" feature, which
+# would hand the link's text to the app, stays off (see main.rs).
+tauri-plugin-deep-link = "2"
 
 # Small, fast release binary: the app is mostly I/O bound, so favour size.
 [profile.release]

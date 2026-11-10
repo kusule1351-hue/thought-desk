@@ -3,7 +3,8 @@
 //! apps, RFC 8252), on a fixed port because Clerk sends people back only to
 //! addresses on its allowlist. What comes back (a nonce that lets the app
 //! take over the sign-in it started) is useless without the client token the
-//! app keeps, so nothing else on this computer can use it.
+//! app keeps, so nothing else on this computer can use it. The page the
+//! browser is left on links back to the app (`OPEN_LINK`).
 
 use std::io::{ErrorKind, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
@@ -145,6 +146,16 @@ fn failed(query: &str) -> bool {
     pairs.iter().any(|&(k, _)| k == "error") || (has("__clerk_status", "failed") && !transfer)
 }
 
+/// The page's way back to the app, for when the system won't let the window
+/// come forward by itself (Linux on Wayland, a browser someone is typing in):
+/// a click on a link is something the system does hand the front over for.
+/// The installers register the scheme (tauri.conf.json). The link is this
+/// fixed text, and the app reads none of it: any website can open a
+/// thoughtdesk:// link, and all one ever does is show the window (main.rs).
+const OPEN_LINK: &str = "thoughtdesk://open";
+
+/// The page the browser is left on. No scripts, and nothing from the request
+/// is written into it.
 fn page(ok: bool) -> String {
     let (title, text) = if ok {
         ("You're signed in", "You can close this tab and go back to Thought Desk.")
@@ -155,9 +166,15 @@ fn page(ok: bool) -> String {
         "<!doctype html><html><head><meta charset=\"utf-8\"><title>{title} · Thought Desk</title>\
          <meta name=\"viewport\" content=\"width=device-width\"><style>\
          body{{margin:0;height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;\
-         background:#f6f6f7;color:#1d1d1f}}@media(prefers-color-scheme:dark){{body{{background:#0f0f10;color:#f5f5f7}}}}\
+         background:#f6f6f7;color:#1d1d1f}}\
          main{{text-align:center;padding:24px}}h1{{font-size:22px;font-weight:600;margin:0 0 8px}}p{{margin:0;opacity:.7}}\
-         </style></head><body><main><h1>{title}</h1><p>{text}</p></main></body></html>"
+         a{{display:inline-block;margin-top:20px;padding:9px 18px;border-radius:8px;background:#1d1d1f;color:#f6f6f7;\
+         font-size:14px;font-weight:500;text-decoration:none}}a:hover{{opacity:.85}}\
+         a:focus-visible{{outline:2px solid #1d1d1f;outline-offset:2px}}\
+         @media(prefers-color-scheme:dark){{body{{background:#0f0f10;color:#f5f5f7}}\
+         a{{background:#f5f5f7;color:#0f0f10;outline-color:#f5f5f7}}}}\
+         </style></head><body><main><h1>{title}</h1><p>{text}</p>\
+         <a href=\"{OPEN_LINK}\">Open Thought Desk</a></main></body></html>"
     );
     format!(
         "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n{body}",
@@ -226,10 +243,102 @@ mod tests {
         let reply = sign_in(port, "rotating_token_nonce=xyz", false);
         assert!(reply.starts_with("HTTP/1.1 200 OK"), "{reply}");
         assert!(reply.contains("You're signed in"));
+        assert!(reply.contains(BUTTON), "{reply}");
+        // The length the browser is told is the page's own, button and all.
+        let (head, body) = reply.split_once("\r\n\r\n").unwrap();
+        assert!(head.contains(&format!("Content-Length: {}\r\n", body.len())), "{head}");
         // Another sign-in right after listens on the same port, even after a
         // browser that didn't hang up.
-        assert!(sign_in(port, "__clerk_status=failed&__clerk_error_code=oauth_access_denied", true).contains("Sign-in didn't finish"));
+        let failed = sign_in(port, "__clerk_status=failed&__clerk_error_code=oauth_access_denied", true);
+        assert!(failed.contains("Sign-in didn't finish") && failed.contains(BUTTON), "{failed}");
         assert!(sign_in(port, "rotating_token_nonce=abc", false).contains("You're signed in"));
+    }
+
+    /// The button on the page, as the browser gets it.
+    const BUTTON: &str = "<a href=\"thoughtdesk://open\">Open Thought Desk</a>";
+
+    #[test]
+    fn the_page_links_back_and_runs_nothing() {
+        for ok in [true, false] {
+            let page = page(ok);
+            assert_eq!(page.matches("href=").count(), 1, "one link: {page}");
+            assert_eq!(page.matches(BUTTON).count(), 1, "{page}");
+            // No scripts, and nothing a script could hide in.
+            let lower = page.to_lowercase();
+            for banned in ["<script", "javascript:", "<iframe", "<form", "<img", "http-equiv", "src="] {
+                assert!(!lower.contains(banned), "{banned:?} in {page}");
+            }
+            // Nor an event handler (onclick=…) on anything.
+            assert!(!lower.split_whitespace().any(|word| word.starts_with("on") && word.contains('=')), "{page}");
+        }
+        // Nothing the browser sent ends up in the page: every return gets one of the two.
+        let listener = bind(0).unwrap();
+        let (_, first) = hear(&listener, None, &format!("{PATH}?rotating_token_nonce=<b>one</b>"), None);
+        let (_, second) = hear(&listener, None, &format!("{PATH}?rotating_token_nonce=two&x=thoughtdesk://other"), None);
+        assert_eq!(first, second);
+        assert_eq!(first, page(true));
+    }
+
+    /// Every file under `dir` whose name ends in one of `kinds`, with its text.
+    fn sources(dir: &std::path::Path, kinds: &[&str]) -> Vec<(std::path::PathBuf, String)> {
+        let mut found = Vec::new();
+        for entry in std::fs::read_dir(dir).unwrap_or_else(|e| panic!("{}: {e}", dir.display())) {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                found.extend(sources(&path, kinds));
+            } else if kinds.iter().any(|kind| path.to_string_lossy().ends_with(kind)) {
+                let text = std::fs::read_to_string(&path).unwrap();
+                found.push((path, text));
+            }
+        }
+        found
+    }
+
+    /// Any website can open a thoughtdesk:// link, so the link may only ever
+    /// bring the window forward. This fails when something starts reading
+    /// it: read the notes in main.rs before changing what it checks.
+    #[test]
+    fn the_link_only_brings_the_window_forward() {
+        let tauri = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let read = |name: &str| std::fs::read_to_string(tauri.join(name)).unwrap();
+
+        // The scheme the installers register is the page's, and the only one.
+        let conf: serde_json::Value = serde_json::from_str(&read("tauri.conf.json")).unwrap();
+        let schemes = &conf["plugins"]["deep-link"];
+        assert_eq!(schemes, &serde_json::json!({ "desktop": { "schemes": ["thoughtdesk"] } }));
+        assert_eq!(OPEN_LINK, "thoughtdesk://open");
+
+        // The interface may not ask what link opened the app, nor register others.
+        for (path, text) in sources(&tauri.join("capabilities"), &[".json"]) {
+            assert!(!text.contains("deep-link"), "{} lets the interface use the link", path.display());
+        }
+        let package = std::fs::read_to_string(tauri.join("../package.json")).unwrap();
+        assert!(!package.contains("plugin-deep-link"), "the interface doesn't need the link's plugin");
+        for (path, text) in sources(&tauri.join("../src"), &[".ts", ".svelte", ".js"]) {
+            for reads in ["deep-link", "onOpenUrl"] {
+                assert!(!text.contains(reads), "{} reads the link ({reads})", path.display());
+            }
+        }
+
+        // Nor does the app: no handler for the link, no look at how it was
+        // started. (The names are in pieces so this file doesn't find itself.)
+        let reads = [
+            concat!("on_open", "_url"),
+            concat!("DeepLink", "Ext"),
+            concat!("deep_", "link()"),
+            concat!("handle_cli", "_arguments"),
+            concat!("env::", "args"),
+        ];
+        for (path, text) in sources(&tauri.join("src"), &[".rs"]) {
+            for reads in reads {
+                assert!(!text.contains(reads), "{} reads the link ({reads})", path.display());
+            }
+        }
+        // Single-instance would hand the link to the plugin with this feature on…
+        let single = read("Cargo.toml").lines().find(|l| l.starts_with("tauri-plugin-single-instance")).unwrap().to_string();
+        assert!(!single.contains("deep-link"), "{single}");
+        // …and its own callback takes the arguments without looking at them.
+        assert!(read("src/main.rs").contains("tauri_plugin_single_instance::init(|app, _args, _cwd| {"));
     }
 
     /// One request to `listener`: what the app heard (None: it keeps

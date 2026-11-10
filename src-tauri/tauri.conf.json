@@ -50,6 +50,9 @@
     }
   },
   "plugins": {
+    "deep-link": {
+      "desktop": { "schemes": ["thoughtdesk"] }
+    },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ0MTUwQzM0MDIxNzgyQTgKUldTb2doY0NOQXdWUkQ5eURaZWdTUXhVdU55L1AzaFI0MnJuNkZQd2tGOWhQdTd4dXRSUjhQcCsK",
       "endpoints": ["https://github.com/kusule1351-hue/thought-desk/releases/latest/download/latest.json"],

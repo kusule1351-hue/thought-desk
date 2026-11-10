@@ -35,6 +35,12 @@ npm run dev                   # the interface, on localhost:1420
 
 Open http://localhost:1420 in a normal window and in a private window (each has its own workspace and its own sign-in). Sign in as two different people, add each other as friends, and invite one to a page. The interface tests do all of this without accounts: they use a fake cloud shared by two browser profiles (`tests/e2e/fake-cloud.ts`) and the relay in test mode.
 
+## The `thoughtdesk://` link
+
+The page the browser shows after signing in with Google or GitHub has an **Open Thought Desk** button, a link to `thoughtdesk://open`. The scheme is declared once, in `src-tauri/tauri.conf.json` (`plugins.deep-link`), and registered by the installers only: the Windows installer writes it to the registry, the Mac app carries it in its `Info.plist`, and the `.deb` in its `.desktop` file. A build run from source (`npm run app`) and an AppImage that was never integrated into the desktop don't register it, so there the button does nothing and the page's text still says to go back to the app.
+
+Any website can open such a link, so it does one thing whatever it says: bring the window forward (or start the app). Nothing in the app reads the link, and a test in `src-tauri/src/auth.rs` fails if something starts to.
+
 ## Data
 
 Everything lives in one SQLite database (`thoughtdesk.db`, WAL mode) plus a `files/` folder for the file library (stored under random names; the database keeps their real names). On Windows that's `%APPDATA%\app.thoughtdesk.desktop\`, and **Settings → Storage** shows the exact path. Back up that folder to back up your notes.
@@ -81,7 +87,7 @@ src-tauri/src/
   export.rs              writing the whole-workspace export into its folder (+ tests)
   location.rs            the folder notes are kept in: remembering a chosen one, copying the workspace there (+ tests)
   cowork.rs              pages in a live session: their room and the Yjs state kept for reconnecting (+ tests)
-  auth.rs                the 127.0.0.1 listener Google and GitHub sign-in comes back to (+ tests)
+  auth.rs                the 127.0.0.1 listener Google and GitHub sign-in comes back to, and its page's link back to the app (+ tests)
   secrets.rs             the sign-in, kept encrypted by Windows (DPAPI) in the app's own folder (+ tests)
   files.rs               `tdfile://` protocol (byte ranges), stray-file cleanup
   stress.rs              heavy-workspace benchmark (`cargo test --release stress -- --ignored`)
