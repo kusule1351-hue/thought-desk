@@ -30,9 +30,10 @@ const TRANSFERS: [&str; 2] = ["external_account_not_found", "external_account_ex
 /// (`rotating_token_nonce=…`, or `__clerk_status=failed&__clerk_error_code=…`).
 /// Requests that aren't a real return (any web page can send one to this
 /// port) are answered with a 404 and otherwise ignored: the app keeps
-/// waiting and the window stays where it is. With a `state`, the return must
-/// also carry it as `td_state=…`.
+/// waiting and the window stays where it is. With a `state` (the app always
+/// gives one), the real return is the one that carries it as `td_state=…`.
 pub fn listen(app: AppHandle, state: Option<String>) -> Result<u16, String> {
+    let state = state.filter(|s| !s.is_empty());
     let me = CURRENT.fetch_add(1, Ordering::SeqCst) + 1;
     let listener = bind(PORT)?;
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;
@@ -120,7 +121,7 @@ fn answer(mut stream: TcpStream, state: Option<&str>) -> Option<String> {
         .filter(|query| host_is(&request, port) && is_return(query, state))
         .map(str::to_string);
     let reply = match &query {
-        Some(query) => page(!query.is_empty() && !failed(query)),
+        Some(query) => page(signed_in(query)),
         None => "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string(),
     };
     let _ = stream.write_all(reply.as_bytes());
@@ -154,13 +155,23 @@ fn host_is(request: &str, port: u16) -> bool {
     host == Some(&format!("127.0.0.1:{port}"))
 }
 
-/// Whether a callback's query is Clerk's return (a nonce, or its status
-/// parameters for a failure) and, if the sign-in has a secret, carries it.
+/// Whether a callback's query is the real return. With a secret (the app
+/// always starts a sign-in with one), carrying it is the whole test: Clerk
+/// brings a cancelled sign-in back to the bare address, with nothing but
+/// what the app put there. Without one, it must at least look like Clerk's:
+/// a nonce, or its status parameters for a failure.
 fn is_return(query: &str, state: Option<&str>) -> bool {
     let pairs: Vec<(&str, &str)> = query.split('&').filter_map(|p| p.split_once('=')).collect();
-    let has = |key: &str| pairs.iter().any(|&(k, v)| k == key && !v.is_empty());
-    (has("rotating_token_nonce") || has("__clerk_status"))
-        && state.is_none_or(|s| pairs.iter().any(|&(k, v)| k == STATE_KEY && v == s))
+    match state {
+        Some(secret) => pairs.iter().any(|&(k, v)| k == STATE_KEY && v == secret),
+        None => ["rotating_token_nonce", "__clerk_status"].iter().any(|key| pairs.iter().any(|&(k, v)| k == *key && !v.is_empty())),
+    }
+}
+
+/// Whether what came back signs someone in: a nonce to take the sign-in over
+/// with, and no failure (a cancelled sign-in brings neither).
+fn signed_in(query: &str) -> bool {
+    query.split('&').filter_map(|p| p.split_once('=')).any(|(k, v)| k == "rotating_token_nonce" && !v.is_empty()) && !failed(query)
 }
 
 /// Whether the sign-in came back failed (not merely "new here").
@@ -412,6 +423,27 @@ mod tests {
         assert!(reply.contains("Sign-in didn't finish"));
     }
 
+    #[test]
+    fn a_cancelled_sign_in_comes_back_with_only_the_secret() {
+        // Clerk returns a cancelled sign-in to the bare address the app gave it:
+        // with the secret that is the real return, and it signed nobody in.
+        let listener = bind(0).unwrap();
+        let (heard, reply) = hear(&listener, Some("s3cret"), &format!("{PATH}?td_state=s3cret"), None);
+        assert_eq!(heard.as_deref(), Some("td_state=s3cret"));
+        assert!(reply.contains("Sign-in didn't finish"), "{reply}");
+        // The wrong secret, or none where one is expected, is a stray.
+        for stray in ["td_state=other", "td_state=", "rotating_token_nonce=abc"] {
+            let (heard, reply) = hear(&listener, Some("s3cret"), &format!("{PATH}?{stray}"), None);
+            assert_eq!(heard, None, "{stray}");
+            assert!(reply.starts_with("HTTP/1.1 404"), "{stray}");
+        }
+        // Signed in only with a nonce and no failure.
+        assert!(signed_in("rotating_token_nonce=abc&td_state=s3cret"));
+        assert!(signed_in("__clerk_status=failed&__clerk_error_code=external_account_not_found&rotating_token_nonce=abc"));
+        for not in ["td_state=s3cret", "", "rotating_token_nonce=", "__clerk_status=failed&rotating_token_nonce=abc"] {
+            assert!(!signed_in(not), "{not}");
+        }
+    }
     #[test]
     fn only_this_computers_loopback_counts() {
         assert!(is_local(&"127.0.0.1:5000".parse().unwrap()));

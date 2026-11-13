@@ -63,7 +63,8 @@ export const api = {
     invoke<string>('export_markdown', { title, markdown }),
   dataInfo: () => invoke<DataInfo>('data_info'),
   /** Starts the one-time listener a Google or GitHub sign-in comes back to; returns its port. */
-  authListen: () => invoke<number>('auth_listen'),
+  /** `state`: a secret for this one sign-in; the listener takes only the return that carries it (auth.rs). */
+  authListen: (state: string) => invoke<number>('auth_listen', { state }),
   /** A system notification, for news while the window is in the background. */
   notify: (title: string, body: string) => invoke<void>('notify', { title, body }),
   /** The sign-in, kept encrypted by Windows in the app's own folder (secrets.rs). */

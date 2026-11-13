@@ -142,7 +142,9 @@ async function finish(c: ClerkJS, back: URLSearchParams) {
     if (signUp.status !== 'complete') throw new Error(t('social.cloud.accountNotMadeOauth'));
     session = signUp.createdSessionId;
   }
-  if (!session) throw new Error(t('social.cloud.signInUnfinished'));
+  // Clerk brings a cancelled sign-in back with nothing but our own secret; the reason is on the sign-in.
+  const cancelled = signIn.firstFactorVerification.error?.code === 'oauth_access_denied';
+  if (!session) throw new Error(t(cancelled ? 'social.cloud.signInCancelled' : 'social.cloud.signInUnfinished'));
   await c.setActive({ session });
 }
 
@@ -153,8 +155,11 @@ export async function signInWith(provider: Provider) {
   try {
     const c = await clerk();
     // The desktop listens on 127.0.0.1; the browser preview comes back to this page (finishRedirect).
-    const port = isDesktop() ? await api.authListen().catch((e) => Promise.reject(new Error(String(e)))) : 0;
-    const redirectUrl = port ? `http://127.0.0.1:${port}/auth/callback` : location.origin + location.pathname;
+    // A secret for this one sign-in. Clerk keeps it on the address it sends the browser back to, and the
+    // listener takes only the return that carries it: any web page can reach that port, but none knows this.
+    const state = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+    const port = isDesktop() ? await api.authListen(state).catch((e) => Promise.reject(new Error(String(e)))) : 0;
+    const redirectUrl = port ? `http://127.0.0.1:${port}/auth/callback?td_state=${state}` : location.origin + location.pathname;
     const signIn = await c.client!.signIn.create({ strategy: `oauth_${provider}`, redirectUrl });
     const url = signIn.firstFactorVerification.externalVerificationRedirectURL;
     if (!url) throw new Error(t('social.cloud.signInNotStarted'));
