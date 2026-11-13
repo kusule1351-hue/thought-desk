@@ -166,7 +166,9 @@
       "gone": "This computer's synced copy was already deleted or replaced, so nothing was deleted.",
       "@gone": "Settings → Account: shown when Delete Synced Copy was refused because this computer's copy was already deleted or replaced",
       "signedOut": "Sign in again to use sync.",
-      "@signedOut": "Settings → Account: shown when the sign-in was refused while turning sync on or off"
+      "@signedOut": "Settings → Account: shown when the sign-in was refused while turning sync on or off",
+      "closed": "Sync isn't open for this account yet.",
+      "@closed": "Settings → Account: shown when the sync server refuses an account because sync has not been opened to everyone yet"
     },
     "unreadable": {
       "one": "{count} item couldn't be read on this computer",

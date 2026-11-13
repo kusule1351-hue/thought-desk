@@ -935,13 +935,14 @@ async function openVault(account: string, recoveryKey: string, wrappedKey: strin
 }
 
 /** What went wrong, in a word the settings pane turns into a sentence. */
-export function describe(e: unknown): 'offline' | 'clock' | 'update' | 'taken' | 'wrong' | 'gone' | 'signedout' | 'generic' {
+export function describe(e: unknown): 'offline' | 'clock' | 'update' | 'taken' | 'wrong' | 'gone' | 'signedout' | 'closed' | 'generic' {
   if (e instanceof client.Offline) return 'offline';
   if (e instanceof client.ClockOff) return 'clock';
   if (e instanceof NeedsUpdate) return 'update';
   if (e instanceof AlreadySetUp) return 'taken';
   if (e instanceof WrongKey) return 'wrong';
   if (e instanceof CopyGone || e instanceof client.ProofRefused || e instanceof client.NoVault) return 'gone';
+  if (e instanceof client.SyncClosed) return 'closed';
   if (e instanceof client.SignedOut) return 'signedout';
   return 'generic';
 }

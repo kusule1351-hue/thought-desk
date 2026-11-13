@@ -1542,3 +1542,44 @@ describe('sign-in checks on the mailbox', () => {
     expect(await asks(await noSub)).toBe(401);
   });
 });
+
+// Who gets in at all (src/access.ts). The tests above run with sync open to every account
+// (vitest.config.ts); these pass the setting the deployed relay runs with.
+describe('sync is closed to accounts the owner has not listed', () => {
+  const closed = (testers: string) => ({ ...env, SYNC_ACCESS: 'testers', SYNC_TESTERS: testers });
+
+  it('a signed-in account that is not listed is told so, on every route, and nothing of it is stored', async () => {
+    const sub = account();
+    const worker = closed('user_someone_else');
+    const tries: [string, Call][] = [
+      ['/info', {}],
+      ['/key', { method: 'PUT', json: { wrappedKey: 'w', proof: makeProof() } }],
+      ['/push', { method: 'POST', json: { items: [rec('k1', 0)] } }],
+      ['/pull', {}],
+      [`/blob/${blobName(1)}`, { method: 'PUT', body: bytes(10), headers: { 'content-length': '10' } }],
+      ['/account', { method: 'DELETE' }],
+      ['/live', { headers: { Upgrade: 'websocket' } }],
+    ];
+    for (const [path, how] of tries) {
+      const res = await call(path, { ...how, as: path === '/live' ? false : sub, worker, headers: path === '/live' ? { Upgrade: 'websocket', 'Sec-WebSocket-Protocol': `thoughtdesk, ${await token(sub)}` } : how.headers });
+      expect(res.status, path).toBe(403);
+      expect(await res.json(), path).toEqual({ closed: true });
+    }
+    // With sync open, the same account has no vault and nothing in R2: none of that was let through.
+    expect((await info(sub)).wrappedKey).toBeNull();
+    expect(await objectsOf(sub)).toEqual([]);
+  });
+
+  it('a listed account uses sync as usual, and an empty list lets nobody in', async () => {
+    const sub = account();
+    const worker = closed(`user_other, ${sub}`);
+    expect((await call('/key', { method: 'PUT', json: { wrappedKey: 'w', proof: makeProof() }, as: sub, worker })).status).toBe(204);
+    expect((await call('/info', { as: sub, worker })).status).toBe(200);
+    expect((await call('/info', { as: sub, worker: closed('') })).status).toBe(403);
+    expect((await call('/info', { as: sub, worker: { ...env, SYNC_ACCESS: undefined, SYNC_TESTERS: undefined } })).status).toBe(403);
+  });
+
+  it('someone not signed in still gets 401, not a hint about the list', async () => {
+    expect((await call('/info', { worker: closed('user_x') })).status).toBe(401);
+  });
+});

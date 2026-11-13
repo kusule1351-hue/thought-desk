@@ -114,7 +114,8 @@
       "taken": "La sincronización se acaba de configurar en otro equipo. Escribe su clave de recuperación.",
       "generic": "No se pudo iniciar la sincronización. Inténtalo de nuevo en un momento.",
       "gone": "La copia sincronizada de este equipo ya se eliminó o se reemplazó, así que no se borró nada.",
-      "signedOut": "Inicia sesión de nuevo para usar la sincronización."
+      "signedOut": "Inicia sesión de nuevo para usar la sincronización.",
+      "closed": "La sincronización aún no está disponible para esta cuenta."
     },
     "unreadable": {
       "one": "No se pudo leer {count} elemento en este equipo",

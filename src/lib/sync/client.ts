@@ -54,6 +54,8 @@ export class Aborted extends Error {}
 export class ProofRefused extends Error {}
 /** The synced copy was deleted: there is no vault to write to. */
 export class NoVault extends Error {}
+/** Sync is not open to this account yet (the relay's list of testers). */
+export class SyncClosed extends Error {}
 /** This computer's clock is far from the server's. */
 export class ClockOff extends Error {
   constructor(readonly skewMs: number) {
@@ -171,8 +173,11 @@ async function send(method: string, path: string, body?: BodyInit | null, header
     skew = theirs - Date.now();
     if (Math.abs(skew) > MAX_SKEW) throw new ClockOff(skew);
   }
-  // `403 { proof: false }`: the proof belongs to another copy. Any other 401/403: the sign-in.
-  if (res.status === 403 && (await bodyOf(res)).proof === false) throw new ProofRefused('The vault proof was refused');
+  // `403 { proof: false }`: the proof belongs to another copy. `403 { closed: true }`: sync is not open to
+  // this account yet. Any other 401/403: the sign-in.
+  const refused = res.status === 403 ? await bodyOf(res) : {};
+  if (refused.proof === false) throw new ProofRefused('The vault proof was refused');
+  if (refused.closed === true) throw new SyncClosed('Sync is not open to this account');
   if (res.status === 401 || res.status === 403) throw new SignedOut('The sign-in was refused');
   if (res.status === 409 && (await bodyOf(res)).noVault === true) throw new NoVault('The synced copy is gone');
   return res;
