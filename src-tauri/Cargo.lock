@@ -4754,7 +4754,7 @@ dependencies = [
 
 [[package]]
 name = "thought-desk"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "chacha20poly1305",
  "flate2",
