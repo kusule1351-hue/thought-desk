@@ -17,8 +17,11 @@
       { "name": "VAULT", "class_name": "Vault" }
     ]
   },
-  // Sync's files and big items (see README.md: create the bucket once).
-  "r2_buckets": [{ "binding": "SYNC_BLOBS", "bucket_name": "thoughtdesk-sync" }],
+  // Sync's files and big items (see README.md: create the bucket once). The
+  // bucket is in Cloudflare's EU jurisdiction, so what it holds is stored and
+  // processed in the EU only; a bucket's jurisdiction is set when it is made
+  // and can't be changed after.
+  "r2_buckets": [{ "binding": "SYNC_BLOBS", "bucket_name": "thoughtdesk-sync", "jurisdiction": "eu" }],
   // SQLite-backed Durable Objects are on the free plan.
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Page"] },
@@ -33,6 +36,8 @@
     "SUPABASE_URL": "https://nbzojbfkkpeisitbkwpg.supabase.co",
     "SUPABASE_KEY": "sb_publishable_6W6p3hj5pIszsSA36NWUbQ_TXB4YwLD",
     "CLERK_ISSUERS": "https://clerk.thoughtdesk.org",
+    // Vaults (small synced items) are kept in the EU, like the bucket (src/region.ts).
+    "VAULT_JURISDICTION": "eu",
     "APP_ORIGINS": "http://tauri.localhost,tauri://localhost",
     // The most one account's sync mailbox may hold (1 GiB), R2 included.
     "SYNC_LIMIT_BYTES": "1073741824"
