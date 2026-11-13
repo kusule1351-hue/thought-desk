@@ -26,8 +26,10 @@ The same Worker also holds each account's encrypted sync mailbox, under `/sync` 
 A deployer creates the R2 bucket once, before the first deploy (the binding is `SYNC_BLOBS` in `wrangler.jsonc`):
 
 ```bash
-npx wrangler r2 bucket create thoughtdesk-sync
+npx wrangler r2 bucket create thoughtdesk-sync --jurisdiction eu
 ```
+
+Both places sync keeps things are in Cloudflare's EU jurisdiction, stored and processed in the EU only: the bucket (made that way above, and bound that way in `wrangler.jsonc`) and each account's `Vault` (`VAULT_JURISDICTION`, `src/region.ts`). Neither can be moved later: a bucket's jurisdiction is fixed when it is made, and a vault's id comes from its jurisdiction. On this computer (`npm run dev`, the tests) the setting is off, since the local runtime has no jurisdictions.
 
 ## Run it
 

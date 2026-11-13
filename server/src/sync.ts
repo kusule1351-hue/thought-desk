@@ -7,11 +7,14 @@
 
 import { clerkKeys, isLocal, listOf, personOf, tokenFrom, type AuthEnv } from './auth';
 import { HEAVY, LIGHT } from './limits';
+import { vaultsIn } from './region';
 import { BadRequest, BLOB_NAME, contentLength, MAX_BLOB, MAX_BODY, numberParam, parseKey, parsePush, readText } from './mailbox';
 import { r2Key, type Check, type Refusal, type Vault, type VaultEnv } from './vault';
 
 export interface SyncEnv extends AuthEnv, VaultEnv {
   VAULT: DurableObjectNamespace<Vault>;
+  /** "eu" where deployed: vaults are kept in the EU (region.ts). Unset locally. */
+  VAULT_JURISDICTION?: string;
 }
 
 const json = (body: unknown, status = 200, headers: HeadersInit = {}) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
@@ -77,7 +80,8 @@ async function answer(request: Request, env: SyncEnv): Promise<Response> {
 
 async function dispatch(request: Request, env: SyncEnv, sub: string, route: string, url: URL): Promise<Response> {
   const method = request.method;
-  const vault = env.VAULT.get(env.VAULT.idFromName(sub));
+  const vaults = vaultsIn(env.VAULT, env.VAULT_JURISDICTION);
+  const vault = vaults.get(vaults.idFromName(sub));
   const allowed = (...methods: string[]) => (methods.includes(method) ? null : empty(405, { Allow: methods.join(', ') }));
   const proof = request.headers.get('X-Vault-Proof');
   // Every call spends from the account's budget before anything is read, parsed or stored.
