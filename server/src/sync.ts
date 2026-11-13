@@ -8,10 +8,11 @@
 import { clerkKeys, isLocal, listOf, personOf, tokenFrom, type AuthEnv } from './auth';
 import { HEAVY, LIGHT } from './limits';
 import { vaultsIn } from './region';
+import { mayUseSync, type AccessEnv } from './access';
 import { BadRequest, BLOB_NAME, contentLength, MAX_BLOB, MAX_BODY, numberParam, parseKey, parsePush, readText } from './mailbox';
 import { r2Key, type Check, type Refusal, type Vault, type VaultEnv } from './vault';
 
-export interface SyncEnv extends AuthEnv, VaultEnv {
+export interface SyncEnv extends AuthEnv, VaultEnv, AccessEnv {
   VAULT: DurableObjectNamespace<Vault>;
   /** "eu" where deployed: vaults are kept in the EU (region.ts). Unset locally. */
   VAULT_JURISDICTION?: string;
@@ -68,6 +69,8 @@ async function answer(request: Request, env: SyncEnv): Promise<Response> {
   const route = url.pathname.slice('/sync'.length);
   const sub = await accountOf(request, env, route === '/live');
   if (!sub) return empty(401);
+  // Signed in, but sync is not open to this account yet (access.ts). Before anything of theirs is touched.
+  if (!mayUseSync(sub, env)) return json({ closed: true }, 403);
 
   try {
     return await dispatch(request, env, sub, route, url);

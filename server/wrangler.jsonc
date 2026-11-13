@@ -40,6 +40,9 @@
     "VAULT_JURISDICTION": "eu",
     "APP_ORIGINS": "http://tauri.localhost,tauri://localhost",
     // The most one account's sync mailbox may hold (1 GiB), R2 included.
+    // Sync is closed to everyone but the accounts in the SYNC_TESTERS secret, until it
+    // is opened by changing this to "everyone" (src/access.ts).
+    "SYNC_ACCESS": "testers",
     "SYNC_LIMIT_BYTES": "1073741824"
   },
   "env": {
@@ -70,6 +73,7 @@
         "SUPABASE_KEY": "sb_publishable_6W6p3hj5pIszsSA36NWUbQ_TXB4YwLD",
         "CLERK_ISSUERS": "https://smiling-sunbird-3571.clerk.accounts.dev",
         "APP_ORIGINS": "http://localhost:1420",
+        "SYNC_ACCESS": "everyone",
         "SYNC_LIMIT_BYTES": "1073741824"
       }
     }

@@ -82,6 +82,8 @@
         return t('settings.sync.errors.gone');
       case 'signedout':
         return t('settings.sync.errors.signedOut');
+      case 'closed':
+        return t('settings.sync.errors.closed');
       default:
         return t('settings.sync.errors.generic');
     }
