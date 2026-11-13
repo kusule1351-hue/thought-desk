@@ -194,8 +194,12 @@ async function start(page: Page) {
     const { prefs } = await import('/src/lib/prefs.svelte.ts');
     return Object.keys(prefs.syncWelcomed).length > 0;
   });
-  // It arrives a moment after the app does, so it is waited for.
-  if (!seen) await page.getByRole('button', { name: 'Got It' }).click();
+  // It arrives a moment after the app does, so it is waited for; and it fades out, so a test that
+  // goes straight on to the same words in Settings waits until it has gone.
+  if (!seen) {
+    await page.getByRole('button', { name: 'Got It' }).click();
+    await expect(page.getByLabel('You get 1 GB of free sync')).toHaveCount(0);
+  }
 }
 
 async function openAccount(page: Page) {
@@ -1125,6 +1129,8 @@ test.describe('recovery key handling', () => {
     await start(page);
     await openAccount(page);
     await page.getByRole('button', { name: 'Turn On Sync' }).click();
+    // The key is made with real timers: stopping the clock before it shows would leave it waiting.
+    await expect(page.getByRole('button', { name: 'Copy' })).toBeVisible();
     await page.clock.install();
     await page.getByRole('button', { name: 'Copy' }).click();
     await expect(page.getByText('Recovery key copied')).toBeVisible();

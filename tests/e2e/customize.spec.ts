@@ -109,8 +109,15 @@ test('text can be coloured and highlighted in colour, and keeps it', async ({ pa
 test('notes can move to a folder you pick, open notes a folder has, or go back', async ({ page }) => {
   await open(page);
   const openStorage = async () => {
-    await page.keyboard.press(`${MOD}+Comma`);
-    await page.getByRole('tab', { name: 'Storage' }).click();
+    // Right after a reload the shortcut is lost if the app isn't up yet, so it waits for the app and
+    // presses again until Settings is open (never while it is, which would close it).
+    await sidebar(page).waitFor();
+    const storage = page.getByRole('tab', { name: 'Storage' });
+    await expect(async () => {
+      if (!(await storage.isVisible())) await page.keyboard.press(`${MOD}+Comma`);
+      await expect(storage).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 10_000 });
+    await storage.click();
     await page.getByRole('button', { name: 'Change…' }).scrollIntoViewIfNeeded();
   };
   const moves = () => page.evaluate(() => (window as any).__folderMoves ?? []);

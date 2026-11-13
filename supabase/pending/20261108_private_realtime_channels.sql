@@ -22,7 +22,7 @@
 --   Either way nothing breaks hard, but live updates are lost until both are
 --   in place. Ship the app, then apply this soon after.
 --
--- How to apply: after 20261108120000_security_audit_fixes.sql, as a migration
+-- How to apply: after 20261110155728_security_audit_fixes.sql, as a migration
 -- (copy it to supabase/migrations/ with a fresh timestamp and `supabase db
 -- push`, or paste it into the SQL editor / apply_migration), then run
 -- supabase/pending/private_realtime_channels.test.sql (see its top).

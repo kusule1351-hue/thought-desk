@@ -1,6 +1,6 @@
 [package]
 name = "thought-desk"
-version = "0.8.3"
+version = "0.8.4"
 description = "Thought Desk - a fast, local-first notes workspace"
 authors = ["Kusule"]
 license = "AGPL-3.0-or-later"
