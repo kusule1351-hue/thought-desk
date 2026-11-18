@@ -270,3 +270,25 @@ test('a hostile icon on a page or in a callout reaches no markup in the sidebar 
   }));
   expect(found).toEqual({ evil: 0, styles: 0, inCallout: [] });
 });
+
+// On Linux this crashed the web view (WebKitGTK 2.50, issue #50): the line the caret left
+// began to skip painting while new lines were added beside it. Only Chromium skips now.
+test('several lines pasted into an empty page become paragraphs', async ({ page }) => {
+  await open(page, '?fresh');
+  await page.keyboard.press('Control+n');
+  await expect(page.locator('h1.title')).toBeFocused();
+  await page.keyboard.type('Pasted');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.ProseMirror')).toBeFocused();
+  await page.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', 'first line\nsecond line\nthird line');
+    document.querySelector('.ProseMirror')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  const lines = page.locator('.prose > p');
+  await expect(lines).toHaveText(['first line', 'second line', 'third line']);
+  // The caret's line is always drawn; the others skip painting while out of sight (Chromium).
+  expect(await lines.evaluateAll((els) => els.map((el) => getComputedStyle(el).contentVisibility))).toEqual(['auto', 'auto', 'visible']);
+  await page.keyboard.type(' and more');
+  await expect(lines.last()).toHaveText('third line and more');
+});

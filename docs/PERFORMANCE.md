@@ -27,7 +27,7 @@ Tested against a workspace of 7,500 pages (a 2 MB book among them), 2,000 files,
 - **Links, to-dos and flashcards are indexed on save.** Backlinks, file usage, Home and the flashcard counts are lookups, not a parse of every page (file usage went from 92 s to 7 ms).
 - **Storage work never runs on the UI thread,** so a slow query can't freeze the window.
 - **Long lists render as you scroll**: Home, Assignments, Files, Flashcards, tags, Trash and big sidebar folders.
-- **Long pages draw only what's on screen.** Blocks (and items of long lists) out of sight skip layout until they scroll near, so pages with thousands of blocks or a long checklist open 2–3× faster.
+- **Long pages draw only what's on screen.** Blocks (and items of long lists) out of sight skip layout until they scroll near, so pages with thousands of blocks or a long checklist open 2–3× faster. On Windows only: the web view on Linux and macOS (WebKit) could crash on it, so there the whole page is drawn.
 - **Big media streams in chunks.** Audio, video and PDFs are served as byte ranges instead of being read into memory whole.
 - **The database gives space back** when you delete things for good.
 

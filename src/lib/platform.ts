@@ -11,6 +11,12 @@ export function isDesktop(): boolean {
  *  (tauri.macos.conf.json). While developing, ?mac in the address pretends. */
 export const isMac = /Mac/i.test(navigator.platform) || (import.meta.env.DEV && new URLSearchParams(location.search).has('mac'));
 
+/** Whether blocks out of sight may skip layout and painting (app.css: html.skip-offscreen).
+ *  Only on Chromium (WebView2 on Windows, and the browser the interface tests run in).
+ *  WebKit (Linux, macOS) crashes its web process when a block changes from always drawn
+ *  to skipped while blocks are added beside it: WebKitGTK 2.50.4, issue #50. */
+export const skipsOffscreen = /Chrom(e|ium)\//.test(navigator.userAgent);
+
 /** The shortcut key and Alt, as this system names them (and, off a Mac, as
  *  keyboards in the interface's language print them: Strg in German). */
 export const MOD = isMac ? '⌘' : t('app.keys.ctrl');
