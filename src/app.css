@@ -1082,9 +1082,12 @@ input[type='time']::-webkit-calendar-picker-indicator {
    Not a block holding a database (marked by editor/float-safe.ts): skipping
    seals a block in, and the database's menus would be cut off at its edges.
    Nor the block with the caret: one Enter just made isn't drawn until the
-   next frame, and a key typed into it before then leaves the caret behind. */
-.prose > :not(.holds-float, .has-caret),
-.prose > :is(ul, ol) > li:not(.holds-float, .has-caret) {
+   next frame, and a key typed into it before then leaves the caret behind.
+   Only on Chromium (html.skip-offscreen, see skipsOffscreen in platform.ts):
+   WebKit's web process crashed when the caret left a block as others were
+   added beside it, so several lines pasted into an empty one froze the app. */
+html.skip-offscreen .prose > :not(.holds-float, .has-caret),
+html.skip-offscreen .prose > :is(ul, ol) > li:not(.holds-float, .has-caret) {
   content-visibility: auto;
   contain-intrinsic-size: auto 1.6em;
 }

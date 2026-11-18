@@ -8,7 +8,7 @@
 - The crash is inside **WebKitGTK 2.50.4**, the engine the AppImage bundles. It is triggered by the `content-visibility: auto` rule on editor blocks in `src/app.css` (line 1086).
 - It is not specific to pasting. Any change that adds several blocks at once while the caret is in an empty line crashes the same way.
 - Windows is not affected (WebView2 is Chromium). WebKitGTK 2.52.6 is not affected either.
-- **Recommended fix:** turn the `content-visibility` optimisation on only for Chromium. The patch is below; with it the crash is gone on 2.50.4.
+- **Fix:** the `content-visibility` optimisation is now on only for Chromium. With it the crash is gone on 2.50.4.
 
 ## What happens
 
@@ -21,7 +21,7 @@ The paste itself is lost, because the crash comes before the 350 ms autosave. Te
 
 ## Root cause
 
-`src/app.css`, lines 1086–1090:
+`src/app.css`, as it was in 0.8.4:
 
 ```css
 .prose > :not(.holds-float, .has-caret),
@@ -53,65 +53,23 @@ All runs were on Ubuntu 24.04 under Xvfb, with real `Ctrl+V` key events and the 
 | same | dev build, `contain-intrinsic-size` set to `none` or `1.6em` | same paste | still crashes |
 | same | dev build, caret block also `content-visibility: auto` | same paste | works |
 | same | dev build | 3 paragraphs added by `insertContent`, no clipboard | **crashes** |
-| same | dev build with the patch below | paste 3 lines into a new page | works |
+| same | dev build with the fix | paste 3 lines into a new page | works, 3 of 3 runs |
 
 The dev build is `npm run dev` with the in-memory backend, so the Rust side is not involved.
 
-## Recommended fix
+## The fix
 
-Keep the optimisation where it is known to be safe, and leave it off on WebKit.
+The optimisation stays where it is known to be safe, and is off on WebKit:
 
-```diff
---- a/src/lib/platform.ts
-+++ b/src/lib/platform.ts
-@@ -11,6 +11,12 @@ export function isDesktop(): boolean {
- export const isMac = /Mac/i.test(navigator.platform) || (import.meta.env.DEV && new URLSearchParams(location.search).has('mac'));
- 
-+/** Whether blocks out of sight may skip layout and painting (app.css: html.skip-offscreen).
-+ *  Only on Chromium (WebView2 on Windows, and the browser the interface tests run in).
-+ *  WebKit (Linux, macOS) crashes its web process when a block changes from always drawn
-+ *  to skipped while blocks are added beside it: WebKitGTK 2.50.4, issue #50. */
-+export const skipsOffscreen = /Chrom(e|ium)\//.test(navigator.userAgent);
-+
- /** The shortcut key and Alt, as this system names them (and, off a Mac, as
-```
+- `src/lib/platform.ts`: `skipsOffscreen` is true when the user agent says Chromium.
+- `src/main.ts`: sets the class `skip-offscreen` on `<html>` when it is.
+- `src/app.css`: the `content-visibility` rule applies only under `html.skip-offscreen`.
 
-```diff
---- a/src/main.ts
-+++ b/src/main.ts
-@@ -4,11 +4,14 @@
- import App from './App.svelte';
--import { isMac } from './lib/platform';
-+import { isMac, skipsOffscreen } from './lib/platform';
- 
- // macOS draws the window's buttons over the top-left corner (app.css: --traffic-lights).
- if (isMac) document.documentElement.classList.add('mac');
- 
-+// Long pages draw only what's on screen, where the engine can be trusted with it (app.css).
-+if (skipsOffscreen) document.documentElement.classList.add('skip-offscreen');
-+
-```
-
-```diff
---- a/src/app.css
-+++ b/src/app.css
-@@ -1083,8 +1083,8 @@
--.prose > :not(.holds-float, .has-caret),
--.prose > :is(ul, ol) > li:not(.holds-float, .has-caret) {
-+html.skip-offscreen .prose > :not(.holds-float, .has-caret),
-+html.skip-offscreen .prose > :is(ul, ol) > li:not(.holds-float, .has-caret) {
-   content-visibility: auto;
-   contain-intrinsic-size: auto 1.6em;
- }
-```
-
-Checked with this patch applied:
+Checked with the fix applied:
 
 - WebKitGTK 2.50.4: the paste that crashed now works.
-- Chromium: the class is set and blocks still compute to `content-visibility: auto`, so Windows keeps the optimisation.
+- Chromium: the class is set and blocks still compute to `content-visibility: auto`, so Windows keeps the optimisation. A test in `tests/e2e/basics.spec.ts` pastes three lines into a new page and checks this.
 - `npm run check` passes.
-
-The interface tests (`npm run e2e`) were not run against it.
 
 **Cost:** on Linux and macOS, long pages lose the faster opening described in `docs/PERFORMANCE.md`. Windows is unchanged.
 
@@ -125,7 +83,7 @@ The release job runs on `ubuntu-22.04` and bundles that system's WebKitGTK. Ubun
 
 1. **Recover when the web process ends.** On Linux, listen for WebKitGTK's `web-process-terminated` signal (through `with_webview`, as `memory.rs` and `pdf.rs` already do for other platforms) and reload the page. Any future engine crash then costs a reload, not a dead window.
 2. **Check the table view.** `.table.frozen .tr` in `src/lib/db/TableView.svelte` (line 1201) also switches rows between `content-visibility: visible` and `auto`. It may hit the same engine bug when columns are frozen or unfrozen.
-3. **Add a regression test.** A test that pastes three lines into a new page. The tests run only in Chromium, so it would not have caught this one; a WebKit project in Playwright would cover this class of bug better.
+3. **Run the tests on WebKit too.** They run only in Chromium, so the new paste test would not have caught this crash. A WebKit project in Playwright would cover this class of bug.
 
 ## Workaround for the reporter until a release
 
@@ -133,7 +91,7 @@ Paste into a line that already has some text (type a character first), or paste 
 
 ## Not verified
 
-- **macOS.** It also uses WebKit, but was not tested. The patch turns the optimisation off there too.
+- **macOS.** It also uses WebKit, but was not tested. The fix turns the optimisation off there too.
 - **The exact WebKit bug.** The stack has no symbols, so the upstream bug and the commit that fixed it between 2.50.4 and 2.52.6 are not identified.
 - **The reload-on-crash handler** in point 1 was not written or built.
 - **The table view** in point 2 was not tested.
