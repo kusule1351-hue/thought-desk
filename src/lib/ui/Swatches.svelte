@@ -84,13 +84,16 @@
   .sw:active {
     transform: scale(0.94);
   }
-  /* The selected swatch gets a ring with a gap, like macOS. */
-  .sw.on::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    box-shadow: 0 0 0 2px var(--sw);
+  /* The selected swatch gets a ring with a gap, like macOS. The ring is the
+     swatch's own outline, so the two share a centre at any zoom or display
+     scale; a separate layer snaps to the pixel grid by itself and drifts. */
+  .sw.on {
+    outline: 2px solid var(--sw);
+    outline-offset: 4px;
+  }
+  /* With the keyboard on it too, the focus ring sits inside the gap. */
+  .sw.on:focus-visible {
+    box-shadow: 0 0 0 2px var(--focus);
   }
   .auto {
     --sw: var(--fill-2);
@@ -116,7 +119,7 @@
     background: var(--sw);
     box-shadow: 0 0 0 2px var(--bg-grouped);
   }
-  .auto.on::after {
-    box-shadow: 0 0 0 2px var(--text-3);
+  .auto.on {
+    outline-color: var(--text-3);
   }
 </style>
