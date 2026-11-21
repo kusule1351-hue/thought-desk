@@ -7,7 +7,8 @@ test('a long note reopens where it was left, after another note and after a rest
   const top = () => scroller.evaluate((el) => Math.round(el.scrollTop));
 
   await page.click('.sidebar [aria-label="Pages"] >> text=Study plan');
-  await page.locator('.prose').first().click();
+  // A plain line: the middle of the note may hold something a click opens or ticks.
+  await page.locator('.prose p').last().click();
   await page.keyboard.press('Control+End');
   for (let i = 0; i < 90; i++) await page.keyboard.press('Enter');
   await page.keyboard.type('the far end');
