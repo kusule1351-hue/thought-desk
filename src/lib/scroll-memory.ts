@@ -8,8 +8,10 @@ const KEY = 'thoughtdesk.scroll.v1';
 /** The most recently read notes are kept; older places are forgotten. */
 const LIMIT = 500;
 const SAVE_AFTER = 600;
-/** How long a reopened note gets to grow tall enough to scroll back to its place. */
-const SETTLE_FOR = 1500;
+/** A reopened note is held at its place until it has stopped changing height for this long... */
+const CALM_FOR = 400;
+/** ...or, for a note that keeps changing, this long. */
+const SETTLE_FOR = 2500;
 
 function load(): Map<string, number> {
   try {
@@ -80,17 +82,34 @@ export function scrollMemory(pane: () => HTMLElement | undefined) {
       const top = places.get(id) ?? 0;
       el.scrollTop = top;
       if (top > 0) {
-        // The note is drawn over the next frames, pictures and shared notes
-        // later still: keep going back to the place until the note is tall
-        // enough to reach it, unless its reader starts moving it themselves.
+        // The note is drawn over the next frames, and parts of it later still
+        // (pictures, tables, a shared note's text). Each of those moves what's
+        // on screen, so the place is held until the note has settled, unless
+        // its reader starts moving it themselves. Nothing is remembered
+        // meanwhile: a place the drawing pushed the note to isn't one it was left at.
         let touched = false;
-        const touch = () => (touched = true);
+        const touch = () => {
+          touched = true;
+          // From here on it's the reader's own scrolling: remember it at once.
+          if (turn === mine) following = id;
+        };
         const signs = ['wheel', 'pointerdown', 'keydown', 'touchstart'] as const;
         for (const sign of signs) el.addEventListener(sign, touch, { passive: true, capture: true });
         const until = performance.now() + SETTLE_FOR;
-        while (turn === mine && !touched && Math.abs(el.scrollTop - top) > 1 && performance.now() < until) {
+        let height = -1;
+        let calmSince = 0;
+        while (turn === mine && !touched) {
+          const now = performance.now();
+          if (el.scrollHeight !== height) {
+            height = el.scrollHeight;
+            calmSince = now;
+          }
+          if (Math.abs(el.scrollTop - top) > 1) el.scrollTop = top;
+          // A note that got shorter can't reach its old place: its end will do.
+          const most = el.scrollHeight - el.clientHeight;
+          const there = Math.abs(el.scrollTop - top) <= 1 || (most > 0 && el.scrollTop >= most - 1);
+          if ((there && now - calmSince >= CALM_FOR) || now >= until) break;
           await frame();
-          if (turn === mine && !touched) el.scrollTop = top;
         }
         for (const sign of signs) el.removeEventListener(sign, touch, { capture: true });
       }
