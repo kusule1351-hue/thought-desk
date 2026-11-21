@@ -1,5 +1,6 @@
 <script lang="ts">
   import { paneSize } from './lib/pane-size';
+  import { scrollMemory } from './lib/scroll-memory';
   import SplitDrop from './lib/components/SplitDrop.svelte';
   import Logo from './lib/components/Logo.svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -203,10 +204,14 @@
   // Sharing a page (or stopping) reloads it: its editor works differently.
   const currentRoom = $derived(store.current?.sharedRoom ?? null);
 
+  /** Where each note was scrolled to, so it reopens there. */
+  const place = scrollMemory(() => scroller);
+
   // Load the full page (with content) whenever the selection changes.
   $effect(() => {
     const id = store.currentId;
     void currentRoom;
+    place.leave();
     // A database shows its rows, not a body.
     if (!id || currentKind === 'database') {
       page = null;
@@ -220,8 +225,9 @@
         const full = await api.getPage(id);
         if (cancelled) return;
         page = full;
-        if (scroller) scroller.scrollTop = 0;
-        scrolled = false;
+        // Back to where it was last read (the top, the first time).
+        void place.show(id);
+        scrolled = (scroller?.scrollTop ?? 0) > 2;
       } catch (e) {
         if (!cancelled) ui.error(e);
       }
@@ -378,7 +384,7 @@
     <div class="panes" class:split={showSplit || previewing} style:padding-right={makeRoom ? `${makeRoom}px` : null} bind:clientWidth={panesWidth}>
     <!-- Clicking or focusing a side marks it as the one in use (not an action). -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="scroller" class:active={showSplit && activePane === 'main'} class:fill={store.view === 'galaxy' && prefs.galaxyOn} class:targeted={split.preview === 'main'} onfocusin={() => (activePane = 'main')} onpointerdown={() => (activePane = 'main')} data-nav={store.navDirection} bind:this={scroller} use:paneSize onscroll={() => (scrolled = (scroller?.scrollTop ?? 0) > 2)}>
+    <div class="scroller" class:active={showSplit && activePane === 'main'} class:fill={store.view === 'galaxy' && prefs.galaxyOn} class:targeted={split.preview === 'main'} onfocusin={() => (activePane = 'main')} onpointerdown={() => (activePane = 'main')} data-nav={store.navDirection} bind:this={scroller} use:paneSize onscroll={() => ((scrolled = (scroller?.scrollTop ?? 0) > 2), place.scrolled())}>
       {#if store.view === 'home'}
         {#if planner.loaded && library.loaded}<HomeView />{/if}
       {:else if store.view === 'tag' && store.tag}

@@ -6,6 +6,7 @@
    * recent pages and a search to pick one.
    */
   import { paneSize } from '../pane-size';
+  import { scrollMemory } from '../scroll-memory';
   import { dragLater, endDrag, pageDragImage } from './TreeItem.svelte';
   import { tick } from 'svelte';
   import Icon from './Icon.svelte';
@@ -34,10 +35,14 @@
   const showingKind = $derived(showing?.kind);
   const showingRoom = $derived(showing?.sharedRoom ?? null);
 
+  /** Where each note was scrolled to, so it reopens there. */
+  const place = scrollMemory(() => scroller);
+
   // Load the page (with its body) whenever what the pane shows changes.
   $effect(() => {
     const id = showingId;
     void showingRoom;
+    place.leave();
     if (!id || showingKind === 'database') {
       page = null;
       return;
@@ -49,7 +54,7 @@
         const full = await api.getPage(id);
         if (cancelled) return;
         page = full;
-        if (scroller) scroller.scrollTop = 0;
+        void place.show(id);
       } catch (e) {
         if (!cancelled) ui.error(e);
       }
@@ -116,7 +121,7 @@
     </div>
   </header>
 
-  <div class="pane-scroller" bind:this={scroller} use:paneSize>
+  <div class="pane-scroller" bind:this={scroller} use:paneSize onscroll={place.scrolled}>
     {#if showing?.kind === 'database'}
       {#if databases.loaded}
         {#key showing.id}<DatabaseView id={showing.id} />{/key}
