@@ -26,6 +26,17 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
         on_focus_change(window, *focused);
         return;
     }
+    // Closed while minimized (from the taskbar): the page saves and then closes
+    // the window itself, which a suspended page can't do, so the app would sit
+    // there until the window was opened again. Wake it first.
+    if matches!(event, WindowEvent::CloseRequested { .. }) {
+        if LOW.swap(false, Ordering::Relaxed) {
+            if let Some(webview) = window.app_handle().get_webview_window(window.label()) {
+                set_low_memory(&webview, false);
+            }
+        }
+        return;
+    }
     if !matches!(event, WindowEvent::Resized(_)) {
         return;
     }
