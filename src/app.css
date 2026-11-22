@@ -1990,6 +1990,7 @@ html.printing .prose > :is(ul, ol) > li {
   /* The page alone: the main pane of split view, without the side pane. */
   html.printing .app,
   html.printing .main,
+  html.printing .work,
   html.printing .panes,
   html.printing .scroller {
     display: block !important;
@@ -1998,7 +1999,8 @@ html.printing .prose > :is(ul, ol) > li {
     background: none !important;
   }
   html.printing .app > :not(.main),
-  html.printing .main > :not(.panes),
+  html.printing .main > :not(.work),
+  html.printing .work > :not(.panes),
   html.printing .panes > :not(.scroller),
   html.printing .toasts,
   html.printing .tip,

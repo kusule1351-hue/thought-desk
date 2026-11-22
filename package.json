@@ -20,6 +20,7 @@
     "i18n": "node .github/scripts/i18n-check.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
     "@clerk/clerk-js": "6.40.1",
     "@fontsource-variable/inter": "^5.3.0",
     "@supabase/supabase-js": "^2.118.0",
@@ -45,6 +46,7 @@
     "@tiptap/y-tiptap": "^3.0.10",
     "d3-force": "^3.0.0",
     "katex": "^0.18.10",
+    "marked": "^18.2.1",
     "y-partyserver": "^2.2.0",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.33"

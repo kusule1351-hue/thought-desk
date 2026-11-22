@@ -9,6 +9,8 @@
 import { t, type MessageKey, type PluralKey } from './i18n';
 import { prefs } from './prefs.svelte';
 import { planner } from './planner.svelte';
+import { assistantAvailable } from './assistant/flag';
+import { assistantName } from './assistant/face.svelte';
 import { store, VIEWS, type AppView, type Entry, type Nav, type View } from './store.svelte';
 
 export interface Tab {
@@ -23,7 +25,7 @@ export interface Tab {
   opener?: string;
 }
 
-const VIEW_LABELS: Record<AppView, { title: Exclude<MessageKey, PluralKey>; icon: string }> = {
+const VIEW_LABELS: Record<Exclude<AppView, 'assistant'>, { title: Exclude<MessageKey, PluralKey>; icon: string }> = {
   home: { title: 'common.views.home', icon: 'home' },
   assignments: { title: 'common.views.assignments', icon: 'assignment' },
   calendar: { title: 'common.views.calendar', icon: 'calendar' },
@@ -52,8 +54,8 @@ class Tabs {
     return tab.id === this.activeId ? store.place : tab.place;
   }
 
-  /** A place's name and icon: a page's own, or the view's. */
-  label(place: Entry): { title: string; icon: string; pageIcon: string } {
+  /** A place's name and icon: a page's own, or the view's (`face`: the assistant's, whose icon is its face). */
+  label(place: Entry): { title: string; icon: string; pageIcon: string; face?: boolean } {
     if (place.view === 'page') {
       const p = place.id ? store.byId.get(place.id) : undefined;
       const db = p?.kind === 'database';
@@ -61,6 +63,8 @@ class Tabs {
     }
     if (place.view === 'tag') return { title: `#${place.id ?? ''}`, icon: 'tag', pageIcon: '' };
     if (place.view === 'course') return { title: planner.courseById.get(place.id ?? '')?.name || t('common.course'), icon: 'book', pageIcon: '' };
+    // The assistant's page is named for the assistant (what the person calls it).
+    if (place.view === 'assistant') return { title: assistantName(), icon: 'callout', pageIcon: '', face: true };
     const view = VIEW_LABELS[place.view];
     return { title: t(view.title), icon: view.icon, pageIcon: '' };
   }
@@ -68,7 +72,7 @@ class Tabs {
   /** Brings back last run's tabs, once the store has loaded (which already
    *  showed the last place). Then remembers them as they change. */
   init() {
-    const saved = prefs.tabs.filter((entry) => KNOWN_VIEWS.has(entry.view));
+    const saved = prefs.tabs.filter((entry) => KNOWN_VIEWS.has(entry.view) && (entry.view !== 'assistant' || assistantAvailable()));
     if (saved.length) {
       this.list = saved.map((entry) => ({ ...fresh({ view: entry.view as View, id: entry.target }, entry.live), id: entry.id }));
       this.activeId = (this.list.find((tab) => tab.id === prefs.activeTab) ?? this.list[this.list.length - 1]).id;

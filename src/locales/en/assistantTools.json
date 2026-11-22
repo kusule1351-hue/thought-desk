@@ -1,0 +1,116 @@
+{
+  "tools": {
+    "listingAssignments": "Looking through assignments",
+    "listingEvents": "Looking through the calendar",
+    "listingCourses": "Looking through courses",
+    "listingTodos": "Looking through to-dos in the notes",
+    "listingDecks": "Looking through flashcard decks",
+    "listingDatabases": "Looking through databases",
+    "readingDatabase": "Reading the database “{title}”",
+    "@readingDatabase": "a line in the assistant's panel while it reads a database; {title} is the database's title"
+  },
+  "changes": {
+    "createAssignment": "Add the assignment “{title}”",
+    "@createAssignment": "the heading of a change the assistant proposes, before the person allows it; {title} is the new assignment's title",
+    "createdAssignment": "Added the assignment “{title}”",
+    "@createdAssignment": "what the assistant did, after the person allowed it; {title} is the new assignment's title",
+    "updateAssignment": "Change the assignment “{title}”",
+    "@updateAssignment": "the heading of a change the assistant proposes to an existing assignment; {title} is the assignment's title",
+    "updatedAssignment": "Changed the assignment “{title}”",
+    "@updatedAssignment": "what the assistant did to an existing assignment; {title} is the assignment's title",
+    "createEvent": "Add the event “{title}”",
+    "@createEvent": "the heading of a change the assistant proposes: a new event on the calendar; {title} is the event's title",
+    "createdEvent": "Added the event “{title}”",
+    "@createdEvent": "what the assistant did: it added an event to the calendar; {title} is the event's title",
+    "updateEvent": "Change the event “{title}”",
+    "@updateEvent": "the heading of a change the assistant proposes to an existing calendar event; {title} is the event's title",
+    "updatedEvent": "Changed the event “{title}”",
+    "@updatedEvent": "what the assistant did to an existing calendar event; {title} is the event's title",
+    "tickTodo": "Tick off “{text}”",
+    "@tickTodo": "the heading of a change the assistant proposes: ticking a to-do item in a note; {text} is the item's text",
+    "untickTodo": "Untick “{text}”",
+    "@untickTodo": "the heading of a change the assistant proposes: unticking a to-do item in a note; {text} is the item's text",
+    "tickedTodo": "Ticked off “{text}”",
+    "@tickedTodo": "what the assistant did: it ticked a to-do item in a note; {text} is the item's text",
+    "untickedTodo": "Unticked “{text}”",
+    "@untickedTodo": "what the assistant did: it unticked a to-do item in a note; {text} is the item's text",
+    "addRows": {
+      "one": "Add {count} row to “{title}”",
+      "other": "Add {count} rows to “{title}”"
+    },
+    "@addRows": "the heading of a change the assistant proposes: adding rows to a database; {title} is the database's title",
+    "addedRows": {
+      "one": "Added {count} row to “{title}”",
+      "other": "Added {count} rows to “{title}”"
+    },
+    "@addedRows": "what the assistant did: it added rows to a database; {title} is the database's title",
+    "updateRows": {
+      "one": "Change {count} row",
+      "other": "Change {count} rows"
+    },
+    "@updateRows": "the heading of a change the assistant proposes: changing the values of rows in databases; {count} is how many rows",
+    "updatedRows": {
+      "one": "Changed {count} row",
+      "other": "Changed {count} rows"
+    },
+    "@updatedRows": "what the assistant did: it changed the values of rows in databases; {count} is how many rows"
+  },
+  "labels": {
+    "due": "Due",
+    "@due": "label of a detail of an assignment: when it is due",
+    "course": "Course",
+    "@course": "label of a detail of an assignment or event: the course it belongs to",
+    "priority": "Priority",
+    "@priority": "label of a detail of an assignment: how important it is",
+    "notes": "Notes",
+    "@notes": "label of a detail of an assignment or event: the short text written with it",
+    "title": "Title",
+    "@title": "label of a detail of an assignment, event or database row: its title, shown when the assistant renames it",
+    "status": "Status",
+    "@status": "label of a detail of an assignment: whether it is to do, being done or done",
+    "starts": "Starts",
+    "@starts": "label of a detail of an event: its first date and time",
+    "ends": "Ends",
+    "@ends": "label of a detail of an event: its last date and time",
+    "location": "Location",
+    "@location": "label of a detail of an event: where it takes place",
+    "repeats": "Repeats",
+    "@repeats": "label of a detail of an event: how often it comes back",
+    "until": "Until",
+    "@until": "label of a detail of an event: the last date a repeating event falls on",
+    "note": "Note",
+    "@note": "label of a detail of a to-do: the note it is written in (followed by that note's title)"
+  },
+  "values": {
+    "none": "None",
+    "@none": "shown in place of a value that is empty or not set, in a change the assistant proposes",
+    "change": "{from} → {to}",
+    "@change": "an old value and the new one, in a change the assistant proposes; {from} is the old value, {to} the new one",
+    "propertyValue": "{name}: {value}",
+    "@propertyValue": "a database property and the value a new row gets, in a change the assistant proposes; {name} is the property's name, {value} the value",
+    "propertyChange": "{name}: {from} → {to}",
+    "@propertyChange": "a database property with its old and new value, in a change the assistant proposes; {name} is the property's name, {from} the old value, {to} the new one"
+  },
+  "priority": {
+    "low": "Low",
+    "@low": "a priority of an assignment, shown in a change the assistant proposes",
+    "medium": "Medium",
+    "@medium": "a priority of an assignment, shown in a change the assistant proposes",
+    "high": "High",
+    "@high": "a priority of an assignment, shown in a change the assistant proposes"
+  },
+  "status": {
+    "todo": "To do",
+    "@todo": "the status of an assignment that is not started, shown in a change the assistant proposes",
+    "doing": "Doing",
+    "@doing": "the status of an assignment that is under way, shown in a change the assistant proposes",
+    "done": "Done",
+    "@done": "the status of an assignment that is finished, shown in a change the assistant proposes"
+  },
+  "repeat": {
+    "none": "Does not repeat",
+    "daily": "Every day",
+    "weekly": "Every week",
+    "monthly": "Every month"
+  }
+}

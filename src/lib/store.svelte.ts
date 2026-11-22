@@ -2,6 +2,7 @@
 
 import { untrack } from 'svelte';
 import { api } from './api';
+import { assistantAvailable } from './assistant/flag';
 import { t } from './i18n';
 import { prefs } from './prefs.svelte';
 import { ui } from './ui.svelte';
@@ -10,9 +11,9 @@ import type { PageMeta, PagePatch } from './types';
 const SAVE_DELAY = 400;
 
 /** What fills the main area: a page, a tag's items, a course, or an app view. */
-export type View = 'page' | 'tag' | 'course' | 'home' | 'assignments' | 'calendar' | 'files' | 'cards' | 'friends' | 'galaxy';
+export type View = 'page' | 'tag' | 'course' | 'home' | 'assignments' | 'calendar' | 'files' | 'cards' | 'friends' | 'galaxy' | 'assistant';
 export type AppView = Exclude<View, 'page' | 'tag' | 'course'>;
-export const VIEWS: AppView[] = ['home', 'assignments', 'calendar', 'files', 'cards', 'friends', 'galaxy'];
+export const VIEWS: AppView[] = ['home', 'assignments', 'calendar', 'files', 'cards', 'friends', 'galaxy', 'assistant'];
 
 /** A place in the app (one step of back/forward history). */
 export interface Entry {
@@ -368,8 +369,11 @@ class Store {
     if (push) this.#push({ view: 'page', id });
   }
 
-  /** Shows Home, Assignments, Calendar, Files or Flashcards. */
+  /** Shows Home, Assignments, Calendar, Files, Flashcards, Friends, the Galaxy or the assistant. */
   go(view: AppView, { push = true }: { push?: boolean } = {}) {
+    // The assistant's page exists only while the assistant does: a remembered or restored place
+    // there (the flag was turned off since) shows Home instead of an empty window.
+    if (view === 'assistant' && !assistantAvailable()) view = 'home';
     if (this.view === view) return;
     this.view = view;
     this.currentId = null;
@@ -439,6 +443,7 @@ class Store {
   /** Whether a history entry can still be shown (its page wasn't deleted). */
   #usable(entry: Entry | undefined): entry is Entry {
     if (!entry) return false;
+    if (entry.view === 'assistant') return assistantAvailable();
     if (entry.view !== 'page') return true;
     const p = entry.id ? this.byId.get(entry.id) : undefined;
     return !!p && !p.deletedAt;

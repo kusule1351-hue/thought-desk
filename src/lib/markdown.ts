@@ -196,6 +196,11 @@ function blocks(nodes: JNode[] | undefined, cx: Cx): string {
   return (nodes ?? []).map((n) => block(n, cx)).join('\n\n');
 }
 
+/** Each top-level block of a page as Markdown on its own (what the assistant reads a note as). */
+export function blocksMarkdown(nodes: JNode[], titleOf: TitleOf): string[] {
+  return nodes.map((n) => block(n, { titleOf }));
+}
+
 export function toMarkdown(doc: JNode, title: string, titleOf: TitleOf, links: Links = {}): string {
   const body = blocks(doc.content, { ...links, titleOf }).replace(/\n{3,}/g, '\n\n').trim();
   return `# ${title || t('common.untitled')}\n\n${body}\n`;

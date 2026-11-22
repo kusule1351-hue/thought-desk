@@ -14,6 +14,7 @@
   import type { Page, PagePatch } from '../types';
   import { blockMenuItems } from './blocks';
   import { buildExtensions } from './extensions';
+  import { registerEditor } from './open-editors';
   import { cowork, type Session } from '../cowork.svelte';
   import BubbleMenu from './BubbleMenu.svelte';
   import TableMenu from './TableMenu.svelte';
@@ -134,6 +135,8 @@
     let session: Session | null = null;
     let unwatch: (() => void) | null = null;
     let gone = false;
+    /** Takes this editor off the list of open ones (open-editors.ts). */
+    let unlist: (() => void) | null = null;
     /** Sync's document for this page, when the editor is bound to it (see sync/docs.ts). */
     let synced: YDoc | null = null;
     let freeDoc: (() => Promise<void>) | null = null;
@@ -189,6 +192,7 @@
       });
       ed = made;
       editor = made;
+      unlist = registerEditor(page.id, made);
       restSelection(made);
       if (import.meta.env.DEV) (window as any).__editor = made;
       onempty?.(made.isEmpty);
@@ -264,6 +268,7 @@
       window.removeEventListener('td:flush', save);
       window.removeEventListener('td:append-todo', appendTodo);
       save();
+      unlist?.();
       ed?.destroy();
       unwatch?.();
       if (session) cowork.release(page.id);

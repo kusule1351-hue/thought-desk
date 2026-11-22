@@ -21,6 +21,8 @@ import dbTable from '../../locales/en/dbTable.json';
 import dbViews from '../../locales/en/dbViews.json';
 import dbEdit from '../../locales/en/dbEdit.json';
 import dbAuto from '../../locales/en/dbAuto.json';
+import assistant from '../../locales/en/assistant.json';
+import assistantTools from '../../locales/en/assistantTools.json';
 
-export const en = { common, app, shell, settings, onboarding, pages, editor, blocks, planner, sheets, library, social, database, dbTable, dbViews, dbEdit, dbAuto };
+export const en = { common, app, shell, settings, onboarding, pages, editor, blocks, planner, sheets, library, social, database, dbTable, dbViews, dbEdit, dbAuto, assistant, assistantTools };
 export type Messages = typeof en;
