@@ -8,6 +8,6 @@ import { defineConfig } from 'vitest/config';
 // The mailbox tests are about the mailbox, so sync is open to every account in them; the
 // tests of who gets in (src/access.ts) pass their own setting.
 export default defineConfig({
-  plugins: [cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' }, miniflare: { bindings: { VAULT_JURISDICTION: '', SYNC_ACCESS: 'everyone' } } })],
+  plugins: [cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' }, miniflare: { bindings: { VAULT_JURISDICTION: '', SYNC_ACCESS: 'everyone', ASSISTANT_ACCESS: 'everyone', ANTHROPIC_API_KEY: 'test-key' } } })],
   test: { include: ['test/*.spec.ts'] },
 });

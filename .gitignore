@@ -10,3 +10,6 @@ playwright-report
 # Keys and secrets kept locally (Clerk, Supabase...): never committed.
 .env
 .env.*
+
+# The assistant key for a server run on this computer (server/.dev.vars).
+.dev.vars

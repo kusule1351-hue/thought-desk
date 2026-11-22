@@ -32,6 +32,16 @@ npx wrangler r2 bucket create thoughtdesk-sync --jurisdiction eu
 
 Both places sync keeps things are in Cloudflare's EU jurisdiction, stored and processed in the EU only: the bucket (made that way above, and bound that way in `wrangler.jsonc`) and each account's `Vault` (`VAULT_JURISDICTION`, `src/region.ts`). Neither can be moved later: a bucket's jurisdiction is fixed when it is made, and a vault's id comes from its jurisdiction. On this computer (`npm run dev`, the tests) the setting is off, since the local runtime has no jurisdictions.
 
+## The assistant
+
+The same Worker is also the assistant's way to its model, under `/assistant` (`src/assistant.ts`). The app holds no key: it sends the conversation and the tools it offers, and this asks Claude with a key kept here and passes the answer back as it is written. The tools run in the app, on the person's own computer. Nothing that passes through is stored or logged; only what it cost is counted.
+
+- **The key** is the `ANTHROPIC_API_KEY` secret: `npx wrangler secret put ANTHROPIC_API_KEY` (from the [Claude Console](https://platform.claude.com/); set a spending limit there too). Without it every request is answered "not set up", and nothing else changes. To run it on this computer, put `ANTHROPIC_API_KEY=…` in `server/.dev.vars`, which git ignores.
+- **Who may use it:** as with sync, closed is the default. `ASSISTANT_ACCESS` in `wrangler.jsonc` is `testers`: only the Clerk user ids in the `ASSISTANT_TESTERS` secret get in (`npx wrangler secret put ASSISTANT_TESTERS`, comma-separated, no deploy needed). Changing it to `everyone` opens it.
+- **What is passed on:** the model (`ASSISTANT_MODEL`), the longest answer and the biggest request (400 KiB) are set here, whatever the request says. Only text, the model's own turns handed back, and the app's own tools are passed on: a request carrying a picture, a document, or a tool Anthropic would run (web search, code) is refused. The app is open source, so anyone signed in can send anything here.
+- **What it may cost** (`src/budget.ts`, a `Budget` Durable Object per account and one for everyone): each account has `ASSISTANT_MONTHLY_MICROUSD` a month (300000: 30 cents) and everyone together `ASSISTANT_DAILY_MICROUSD` a day (3000000: 3 dollars), in millionths of a US dollar, counted from the tokens each answer reports at the prices in `src/assistant.ts`. A request holds its worst case before it runs and is settled after, so the limits hold with requests in flight. An account may also start 30 requests a minute. Keep the price table in step with the model you choose: one it doesn't list is counted at the dearest price.
+- **What the app is told:** refusals come in the shape of Anthropic's own errors, with an `x-td-reason` header (`signed-out`, `closed`, `off`, `spent`, `busy`, `fast`, `bad`). Nothing about the owner's account is passed on. `GET /assistant/usage` answers `{ used, limit, month, on }` for the signed-in account.
+
 ## Run it
 
 ```bash

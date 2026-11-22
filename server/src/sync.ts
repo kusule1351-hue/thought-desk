@@ -42,7 +42,7 @@ function corsFor(request: Request, env: AuthEnv): Record<string, string> {
 }
 
 /** The account's Clerk user id, if the request is signed in. */
-async function accountOf(request: Request, env: AuthEnv, live: boolean): Promise<string | null> {
+export async function accountOf(request: Request, env: AuthEnv, live: boolean): Promise<string | null> {
   const token = live ? tokenFrom(request.headers.get('Sec-WebSocket-Protocol')) : /^Bearer (\S+)$/i.exec(request.headers.get('Authorization') ?? '')?.[1];
   if (!token) return null;
   // Tests only (the same rule as auth.ts): `test.<uuid>` stands for that account, from this computer
