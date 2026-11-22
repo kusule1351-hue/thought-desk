@@ -14,7 +14,9 @@
   "durable_objects": {
     "bindings": [
       { "name": "Page", "class_name": "Page" },
-      { "name": "VAULT", "class_name": "Vault" }
+      { "name": "VAULT", "class_name": "Vault" },
+      // What the assistant has cost, per account and for everyone (src/budget.ts).
+      { "name": "BUDGET", "class_name": "Budget" }
     ]
   },
   // Sync's files and big items (see README.md: create the bucket once). The
@@ -25,7 +27,8 @@
   // SQLite-backed Durable Objects are on the free plan.
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Page"] },
-    { "tag": "v2", "new_sqlite_classes": ["Vault"] }
+    { "tag": "v2", "new_sqlite_classes": ["Vault"] },
+    { "tag": "v3", "new_sqlite_classes": ["Budget"] }
   ],
   // The Supabase project that knows who is in which session (its publishable
   // key is public by design: row-level security protects the data), the Clerk
@@ -43,7 +46,16 @@
     // Sync is closed to everyone but the accounts in the SYNC_TESTERS secret, until it
     // is opened by changing this to "everyone" (src/access.ts).
     "SYNC_ACCESS": "testers",
-    "SYNC_LIMIT_BYTES": "1073741824"
+    "SYNC_LIMIT_BYTES": "1073741824",
+    // The assistant (src/assistant.ts). It is off until its key is set
+    // (`npx wrangler secret put ANTHROPIC_API_KEY`), and closed to everyone but the
+    // accounts in the ASSISTANT_TESTERS secret until this says "everyone".
+    "ASSISTANT_ACCESS": "testers",
+    "ASSISTANT_MODEL": "claude-haiku-5-5",
+    // The most one account may cost a month (30 cents) and everyone together a
+    // day (3 dollars), in millionths of a US dollar.
+    "ASSISTANT_MONTHLY_MICROUSD": "300000",
+    "ASSISTANT_DAILY_MICROUSD": "3000000"
   },
   "env": {
     // For this computer only (`npm run dev`, `npm run test-relay`): the
@@ -60,13 +72,15 @@
       "durable_objects": {
         "bindings": [
           { "name": "Page", "class_name": "Page" },
-          { "name": "VAULT", "class_name": "Vault" }
+          { "name": "VAULT", "class_name": "Vault" },
+          { "name": "BUDGET", "class_name": "Budget" }
         ]
       },
       "r2_buckets": [{ "binding": "SYNC_BLOBS", "bucket_name": "thoughtdesk-sync-dev" }],
       "migrations": [
         { "tag": "v1", "new_sqlite_classes": ["Page"] },
-        { "tag": "v2", "new_sqlite_classes": ["Vault"] }
+        { "tag": "v2", "new_sqlite_classes": ["Vault"] },
+        { "tag": "v3", "new_sqlite_classes": ["Budget"] }
       ],
       "vars": {
         "SUPABASE_URL": "https://nbzojbfkkpeisitbkwpg.supabase.co",
@@ -74,7 +88,12 @@
         "CLERK_ISSUERS": "https://smiling-sunbird-3571.clerk.accounts.dev",
         "APP_ORIGINS": "http://localhost:1420",
         "SYNC_ACCESS": "everyone",
-        "SYNC_LIMIT_BYTES": "1073741824"
+        "SYNC_LIMIT_BYTES": "1073741824",
+        // The key for this computer goes in server/.dev.vars (ANTHROPIC_API_KEY=...), which git ignores.
+        "ASSISTANT_ACCESS": "everyone",
+        "ASSISTANT_MODEL": "claude-haiku-5-5",
+        "ASSISTANT_MONTHLY_MICROUSD": "300000",
+        "ASSISTANT_DAILY_MICROUSD": "3000000"
       }
     }
   }

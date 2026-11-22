@@ -73,6 +73,17 @@ interface Stored {
   setupHidden: boolean;
   /** The Galaxy was turned on. It asks first: it's new, and it costs memory while open. */
   galaxyOn: boolean;
+  /** The assistant was turned on. It asks first: what it reads leaves this computer. */
+  assistantOn: boolean;
+  /** What the person calls their assistant (empty: its own name). */
+  assistantName: string;
+  /** Its panel is showing, and how wide. */
+  assistantOpen: boolean;
+  assistantWidth: number;
+  /** Pages kept from the assistant, with everything inside them. */
+  assistantHidden: Record<string, boolean>;
+  /** Notes shared live with a friend may be read too (they hold the friend's writing). */
+  assistantShared: boolean;
   /** The sponsor goal line on Home was closed: the id of the goal it showed (a new goal shows it again). */
   goalHidden: string;
   /** Who closed the pop-up about the free sync storage (an account id, or `guest`). Any entry means this install has seen it: it shows once. */
@@ -143,6 +154,12 @@ const defaults: Stored = {
   inboxId: null,
   setupHidden: false,
   galaxyOn: false,
+  assistantOn: false,
+  assistantName: '',
+  assistantOpen: false,
+  assistantWidth: 380,
+  assistantHidden: {},
+  assistantShared: false,
   goalHidden: '',
   syncWelcomed: {},
   name: '',
@@ -178,6 +195,9 @@ function read(): Stored {
       if (!stored.syncWelcomed || typeof stored.syncWelcomed !== 'object') stored.syncWelcomed = {};
       if (!stored.coworkPages || typeof stored.coworkPages !== 'object') stored.coworkPages = {};
       if (!stored.sidebarHidden || typeof stored.sidebarHidden !== 'object') stored.sidebarHidden = {};
+      if (!stored.assistantHidden || typeof stored.assistantHidden !== 'object') stored.assistantHidden = {};
+      if (typeof stored.assistantName !== 'string') stored.assistantName = '';
+      if (typeof stored.assistantWidth !== 'number' || !(stored.assistantWidth >= 280 && stored.assistantWidth <= 720)) stored.assistantWidth = 380;
       // "Small text" was a switch before there were sizes.
       if (!('textSize' in parsed)) stored.textSize = parsed.smallText ? 'small' : 'default';
       if (!['small', 'default', 'large', 'xlarge'].includes(stored.textSize)) stored.textSize = 'default';
@@ -224,6 +244,12 @@ class Prefs {
   inboxId = $state<string | null>(this.#initial.inboxId);
   setupHidden = $state(this.#initial.setupHidden);
   galaxyOn = $state(this.#initial.galaxyOn);
+  assistantOn = $state(this.#initial.assistantOn);
+  assistantName = $state(this.#initial.assistantName);
+  assistantOpen = $state(this.#initial.assistantOpen);
+  assistantWidth = $state(this.#initial.assistantWidth);
+  assistantHidden = $state<Record<string, boolean>>(this.#initial.assistantHidden);
+  assistantShared = $state(this.#initial.assistantShared);
   goalHidden = $state(this.#initial.goalHidden);
   syncWelcomed = $state.raw<Record<string, boolean>>(this.#initial.syncWelcomed);
   name = $state(this.#initial.name);
@@ -271,6 +297,12 @@ class Prefs {
       inboxId: this.inboxId,
       setupHidden: this.setupHidden,
       galaxyOn: this.galaxyOn,
+      assistantOn: this.assistantOn,
+      assistantName: this.assistantName,
+      assistantOpen: this.assistantOpen,
+      assistantWidth: this.assistantWidth,
+      assistantHidden: $state.snapshot(this.assistantHidden),
+      assistantShared: this.assistantShared,
       goalHidden: this.goalHidden,
       syncWelcomed: this.syncWelcomed,
       name: this.name,

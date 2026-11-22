@@ -12,6 +12,7 @@
     "test": "node --experimental-strip-types --test test/*.test.ts && vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
     "jose": "^6.2.13",
     "partyserver": "^0.5.10",
     "y-partyserver": "^2.2.0",

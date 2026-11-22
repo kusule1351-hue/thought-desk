@@ -5,6 +5,9 @@
   import TreeItem, { drag, pageDragImage } from './TreeItem.svelte';
   import { prefs } from '../prefs.svelte';
   import { shownInSidebar, sidebarItemMenu } from '../sidebar-items';
+  import { assistantAvailable } from '../assistant/flag';
+  import { assistantName, face } from '../assistant/face.svelte';
+  import Face from '../assistant/ui/Face.svelte';
   import { tabs } from '../tabs.svelte';
   import { friends } from '../friends.svelte';
   import { cowork } from '../cowork.svelte';
@@ -81,15 +84,20 @@
     return d ? d.allDay.length + d.timed.length : 0;
   });
 
-  const nav: { view: AppView; label: string; icon: string; key: ShortcutId }[] = [
-    { view: 'home', label: t('common.views.home'), icon: 'home', key: 'goHome' },
-    { view: 'assignments', label: t('common.views.assignments'), icon: 'assignment', key: 'goAssignments' },
-    { view: 'calendar', label: t('common.views.calendar'), icon: 'calendar', key: 'goCalendar' },
-    { view: 'files', label: t('common.views.files'), icon: 'files', key: 'goFiles' },
-    { view: 'cards', label: t('common.views.flashcards'), icon: 'cards', key: 'goCards' },
-    { view: 'friends', label: t('common.views.friends'), icon: 'users', key: 'goFriends' },
-    { view: 'galaxy', label: t('common.views.galaxy'), icon: 'galaxy', key: 'goGalaxy' },
-  ];
+  /** The assistant's row sits right after Home, and exists only while the assistant does. Its label is its name and its icon its face (`face`), not an icon from the set. */
+  const nav = $derived.by(() => {
+    const rows: { view: AppView; label: string; icon: string; face?: boolean; key?: ShortcutId }[] = [
+      { view: 'home', label: t('common.views.home'), icon: 'home', key: 'goHome' },
+      ...(assistantAvailable() ? [{ view: 'assistant' as const, label: assistantName(), icon: 'callout', face: true }] : []),
+      { view: 'assignments', label: t('common.views.assignments'), icon: 'assignment', key: 'goAssignments' },
+      { view: 'calendar', label: t('common.views.calendar'), icon: 'calendar', key: 'goCalendar' },
+      { view: 'files', label: t('common.views.files'), icon: 'files', key: 'goFiles' },
+      { view: 'cards', label: t('common.views.flashcards'), icon: 'cards', key: 'goCards' },
+      { view: 'friends', label: t('common.views.friends'), icon: 'users', key: 'goFriends' },
+      { view: 'galaxy', label: t('common.views.galaxy'), icon: 'galaxy', key: 'goGalaxy' },
+    ];
+    return rows;
+  });
   const shownNav = $derived(nav.filter((n) => shownInSidebar(n.view)));
   const searchKeys = $derived(shortcuts.combos('search')[0] ? comboKeys(shortcuts.combos('search')[0]).join(' ') : '');
   /** Friend requests and invites to write together, waiting for an answer. */
@@ -199,8 +207,12 @@
   <nav class="views" aria-label={t('shell.sidebar.views')}>
     {#each shownNav as n (n.view)}
       <div class="nav-row" class:active={store.view === n.view}>
-        <button class="nav-main" onclick={(e) => (e.ctrlKey || e.metaKey ? tabs.open({ view: n.view, id: null }, { focus: false }) : store.go(n.view))} onmousedown={(e) => e.button === 1 && e.preventDefault()} onauxclick={(e) => e.button === 1 && (e.preventDefault(), tabs.open({ view: n.view, id: null }, { focus: false }))} oncontextmenu={(e) => sidebarItemMenu(e, n.view)} aria-current={store.view === n.view ? 'page' : undefined} data-tip={n.label} data-tip-key={shortcuts.label(n.key)}>
-          <span class="lead tinted"><Icon name={n.icon} /></span>
+        <button class="nav-main" onclick={(e) => (e.ctrlKey || e.metaKey ? tabs.open({ view: n.view, id: null }, { focus: false }) : store.go(n.view))} onmousedown={(e) => e.button === 1 && e.preventDefault()} onauxclick={(e) => e.button === 1 && (e.preventDefault(), tabs.open({ view: n.view, id: null }, { focus: false }))} oncontextmenu={(e) => n.view !== 'assistant' && sidebarItemMenu(e, n.view)} aria-current={store.view === n.view ? 'page' : undefined} data-tip={n.label} data-tip-key={n.key ? shortcuts.label(n.key) : undefined}>
+          {#if n.face}
+            <span class="lead face-lead"><Face mood={face.mood} size={18} /></span>
+          {:else}
+            <span class="lead tinted"><Icon name={n.icon} /></span>
+          {/if}
           <span class="label">{n.label}</span>
         </button>
         {#if counts[n.view]}
@@ -671,6 +683,10 @@
   }
   .tinted {
     color: var(--tint);
+  }
+  /* The assistant's face, drawn in the icons' colour; the whites of its eyes are the sidebar's. */
+  .face-lead {
+    --face-ground: var(--bg-sidebar);
   }
   .tag-list {
     display: flex;

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { split } from '../split.svelte';
+  import { assistantAvailable } from '../assistant/flag';
+  import { assistantName } from '../assistant/face.svelte';
   import PageIcon from './PageIcon.svelte';
   import { colorVar } from '../colors';
   import { importCalendar } from '../ics-import.svelte';
@@ -156,6 +158,9 @@
     command('files', 'common.views.files', 'onboarding.search.commands.filesWords', 'files', () => store.go('files')),
     command('friends', 'common.views.friends', 'onboarding.search.commands.friendsWords', 'users', () => store.go('friends')),
     command('galaxy', 'common.views.galaxy', 'onboarding.search.commands.galaxyWords', 'galaxy', () => store.go('galaxy')),
+    ...(assistantAvailable()
+      ? [{ id: 'assistant', title: assistantName(), icon: 'callout', keywords: `${searchText('assistant.search.words')} ${tEn('assistant.open')}`, run: () => store.go('assistant') }]
+      : []),
     command('account', 'onboarding.search.commands.account', 'onboarding.search.commands.accountWords', 'user', () => (ui.accountSheet = true)),
     command('newTab', 'onboarding.search.commands.newTab', 'onboarding.search.commands.newTabWords', 'plus', () => void tabs.newTab()),
     command('export', 'onboarding.search.commands.exportMarkdown', 'onboarding.search.commands.exportMarkdownWords', 'download', () => void exportWorkspace()),

@@ -1,5 +1,8 @@
 <script lang="ts">
   import { split } from '../split.svelte';
+  import { assistantAvailable } from '../assistant/flag';
+  import { assistantName, face } from '../assistant/face.svelte';
+  import Face from '../assistant/ui/Face.svelte';
   import PageIcon from './PageIcon.svelte';
   import { onMount } from 'svelte';
   import Icon from './Icon.svelte';
@@ -47,12 +50,14 @@
     friends: { label: t('common.views.friends'), icon: 'users' },
     galaxy: { label: t('common.views.galaxy'), icon: 'galaxy' },
   };
+  /** The assistant's page is named for the assistant; the others are fixed. */
+  const viewLabel = $derived(store.view === 'assistant' ? { label: assistantName(), icon: 'callout', face: true } : VIEW_CRUMBS[store.view]);
   const viewCrumb = $derived(
     store.view === 'tag'
       ? { label: `#${store.tag ?? ''}`, icon: 'tag' }
       : store.view === 'course'
         ? { label: planner.courseById.get(store.courseId ?? '')?.name || t('common.course'), icon: 'book' }
-        : VIEW_CRUMBS[store.view],
+        : viewLabel,
   );
   const crumbs = $derived.by(() => {
     if (!page) return [];
@@ -151,7 +156,7 @@
   <nav class="crumbs" data-tauri-drag-region aria-label={t('shell.titleBar.breadcrumb')}>
     {#if viewCrumb}
       <span class="crumb current view-crumb" data-tauri-drag-region>
-        <span class="view-icon"><Icon name={viewCrumb.icon} size={15} /></span>
+        <span class="view-icon">{#if 'face' in viewCrumb}<Face mood={face.mood} size={17} />{:else}<Icon name={viewCrumb.icon} size={15} />{/if}</span>
         <span class="crumb-title" data-tauri-drag-region>{viewCrumb.label}</span>
       </span>
     {/if}
@@ -216,6 +221,12 @@
     <span class="divider"></span>
   {/if}
   <div class="app-tools">
+    {#if assistantAvailable()}
+      <!-- The panel and the page are one conversation: while the page shows, the panel stays away, and so does this. -->
+      <button class="icon-btn assistant-btn" class:on={prefs.assistantOpen && store.view !== 'assistant'} disabled={store.view === 'assistant'} onclick={() => (prefs.assistantOpen = !prefs.assistantOpen)} data-tip={t('assistant.open')} aria-label={t('assistant.open')} aria-pressed={prefs.assistantOpen && store.view !== 'assistant'}>
+        <Face mood={face.mood} size={17} />
+      </button>
+    {/if}
     <button class="icon-btn" class:on={split.open} onclick={() => split.toggle()} data-tip={split.open ? t('shell.closeSplitView') : t('shell.splitView')} data-tip-key={shortcuts.label('split')} aria-label={t('shell.splitView')} aria-pressed={split.open}>
       <Icon name="split" size={15} />
     </button>

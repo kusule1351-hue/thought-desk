@@ -5,7 +5,7 @@
   import Logo from './lib/components/Logo.svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-  import { onMount } from 'svelte';
+  import { onMount, type Component } from 'svelte';
   import { warnIfFolderMissing } from './lib/data-folder';
   import { t } from './lib/i18n';
   import { tabs } from './lib/tabs.svelte';
@@ -66,6 +66,7 @@
   import FriendsView from './lib/views/FriendsView.svelte';
   import GalaxyView from './lib/views/GalaxyView.svelte';
   import GalaxyIntro from './lib/views/GalaxyIntro.svelte';
+  import { assistantAvailable } from './lib/assistant/flag';
   import { cards } from './lib/cards.svelte';
   import { databases } from './lib/databases.svelte';
   import DatabaseView from './lib/db/DatabaseView.svelte';
@@ -74,6 +75,24 @@
 
   const win = getCurrentWindow();
   const webviewWin = getCurrentWebviewWindow();
+
+  // The assistant's panel is loaded the first time it is shown: none of it is in the start-up bundle.
+  let winWidth = $state(window.innerWidth);
+  // While its own page is showing there is one conversation on screen, so the panel stays away (the setting is left as it is).
+  const assistantShown = $derived(assistantAvailable() && prefs.assistantOpen && store.view !== 'assistant');
+  /** A narrow window gives the panel the page's place on top, not beside it. */
+  const assistantOverlay = $derived(winWidth < 900);
+  let AssistantPanel = $state.raw<Component | null>(null);
+  $effect(() => {
+    if (!assistantShown || AssistantPanel) return;
+    void import('./lib/assistant/AssistantPanel.svelte').then((m) => (AssistantPanel = m.default)).catch(ui.error);
+  });
+  // Its page the same way: loaded the first time it is shown.
+  let AssistantView = $state.raw<Component | null>(null);
+  $effect(() => {
+    if (store.view !== 'assistant' || AssistantView) return;
+    void import('./lib/views/AssistantView.svelte').then((m) => (AssistantView = m.default)).catch(ui.error);
+  });
 
   let page = $state<Page | null>(null);
   let words = $state(0);
@@ -371,7 +390,7 @@
   }
 </script>
 
-<svelte:window onkeydown={onKeydown} onmouseup={onMouseUp} oncontextmenu={onContextMenu} ondragover={onDragOver} ondrop={onDrop} />
+<svelte:window bind:innerWidth={winWidth} onkeydown={onKeydown} onmouseup={onMouseUp} oncontextmenu={onContextMenu} ondragover={onDragOver} ondrop={onDrop} />
 
 <div class="app">
   {#if prefs.sidebarOpen}
@@ -381,10 +400,12 @@
   {/if}
   <main class="main" class:split={showSplit || previewing}>
     <TitleBar {words} {scrolled} />
+    <!-- The pages, and beside them (under the title bar, so the window's own buttons stay at its edge) the assistant. -->
+    <div class="work">
     <div class="panes" class:split={showSplit || previewing} style:padding-right={makeRoom ? `${makeRoom}px` : null} bind:clientWidth={panesWidth}>
     <!-- Clicking or focusing a side marks it as the one in use (not an action). -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="scroller" class:active={showSplit && activePane === 'main'} class:fill={store.view === 'galaxy' && prefs.galaxyOn} class:targeted={split.preview === 'main'} onfocusin={() => (activePane = 'main')} onpointerdown={() => (activePane = 'main')} data-nav={store.navDirection} bind:this={scroller} use:paneSize onscroll={() => ((scrolled = (scroller?.scrollTop ?? 0) > 2), place.scrolled())}>
+    <div class="scroller" class:active={showSplit && activePane === 'main'} class:fill={(store.view === 'galaxy' && prefs.galaxyOn) || store.view === 'assistant'} class:targeted={split.preview === 'main'} onfocusin={() => (activePane = 'main')} onpointerdown={() => (activePane = 'main')} data-nav={store.navDirection} bind:this={scroller} use:paneSize onscroll={() => ((scrolled = (scroller?.scrollTop ?? 0) > 2), place.scrolled())}>
       {#if store.view === 'home'}
         {#if planner.loaded && library.loaded}<HomeView />{/if}
       {:else if store.view === 'tag' && store.tag}
@@ -405,6 +426,8 @@
         <FriendsView />
       {:else if store.view === 'galaxy'}
         {#if !prefs.galaxyOn}<GalaxyIntro />{:else if planner.loaded}<GalaxyView />{/if}
+      {:else if store.view === 'assistant'}
+        {#if AssistantView}<AssistantView />{/if}
       {:else if store.view === 'page' && store.current?.kind === 'database'}
         {#if databases.loaded}
           {#key store.currentId}<DatabaseView id={store.current.id} />{/key}
@@ -448,6 +471,12 @@
       </div>
     {/if}
     <SplitDrop tiled={showSplit} narrow={panesWidth < 720} />
+    </div>
+    {#if assistantShown}
+      <div class="assistant-slot" class:overlay={assistantOverlay} style:width="{prefs.assistantWidth}px" in:sidebarSlide={{ duration: 280 }} out:sidebarSlide={{ duration: 220 }}>
+        {#if AssistantPanel}<AssistantPanel />{/if}
+      </div>
+    {/if}
     </div>
   </main>
 </div>
@@ -560,6 +589,27 @@
     transform: translateX(var(--slide, 0px));
     opacity: var(--slide-fade, 1);
   }
+  /* The assistant's column, on the right. It slides as the sidebar does (the
+     slot's width, with the panel riding the edge); in a narrow window it lies
+     over the page instead of squeezing it. */
+  .assistant-slot {
+    position: relative;
+    z-index: 3;
+    flex: none;
+    display: flex;
+    max-width: calc(100vw - 48px);
+  }
+  .assistant-slot > :global(.assistant) {
+    transform: translateX(calc(var(--slide, 0px) * -1));
+    opacity: var(--slide-fade, 1);
+  }
+  .assistant-slot.overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    box-shadow: -12px 0 32px -16px rgb(0 0 0 / 0.3);
+  }
   .main {
     flex: 1;
     min-width: 0;
@@ -567,8 +617,15 @@
     flex-direction: column;
     background: var(--bg);
   }
+  .work {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
   .panes {
     flex: 1;
+    min-width: 0;
     min-height: 0;
     display: flex;
   }

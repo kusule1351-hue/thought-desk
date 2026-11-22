@@ -1,8 +1,11 @@
 <script lang="ts" module>
   import type { SettingsPane } from '../ui.svelte';
 
+  /** The panes: those ui.svelte.ts names, and the assistant's (shown only while the assistant exists). */
+  type Pane = SettingsPane | 'assistant';
+
   /** The pane Settings opens on, within this run: the one it was last on. */
-  let lastPane: SettingsPane = 'general';
+  let lastPane: Pane = 'general';
 </script>
 
 <script lang="ts">
@@ -32,6 +35,8 @@
   import SyncMeter from '../ui/SyncMeter.svelte';
   import SyncSettings from '../ui/SyncSettings.svelte';
   import { syncAvailable } from '../sync/flag';
+  import { assistantAvailable } from '../assistant/flag';
+  import Face from '../assistant/ui/Face.svelte';
   import Avatar from './Avatar.svelte';
   import { chooseDataFolder, useDefaultDataFolder } from '../data-folder';
   import { SIDEBAR_ITEMS, setShownInSidebar, shownInSidebar, type SidebarItem } from '../sidebar-items';
@@ -48,28 +53,33 @@
 
   let info = $state<DataInfo | null>(null);
 
+  // The assistant's name rules live with its logic, which is only loaded once something needs it.
+  let named = $state.raw<Pick<typeof import('../assistant/assistant.svelte'), 'DEFAULT_NAME' | 'MAX_NAME' | 'cleanName'> | null>(null);
+  if (assistantAvailable()) void import('../assistant/assistant.svelte').then((m) => (named = m));
+
   // ---- the panes
 
   /**
    * The panes in the list's order; the account is its own row above them.
    * `group` only spaces the list: the app itself, what you study, the machine.
    */
-  const PANES: { id: SettingsPane; label: string; icon: string; group: number }[] = [
+  const PANES: { id: Pane; label: string; icon: string; face?: boolean; group: number }[] = [
     { id: 'general', label: t('settings.general.title'), icon: 'settings', group: 0 },
     { id: 'appearance', label: t('settings.appearance.title'), icon: 'palette', group: 0 },
     { id: 'sidebar', label: t('settings.sidebar.title'), icon: 'sidebar', group: 0 },
+    ...(assistantAvailable() ? [{ id: 'assistant' as const, label: t('assistant.settings.title'), icon: 'callout', face: true, group: 0 }] : []),
     { id: 'calendar', label: t('settings.calendar.title'), icon: 'calendar', group: 1 },
     { id: 'courses', label: t('settings.courses.title'), icon: 'book', group: 1 },
     { id: 'keyboard', label: t('settings.keyboard.title'), icon: 'keyboard', group: 2 },
     { id: 'storage', label: t('settings.storage.title'), icon: 'folder', group: 2 },
   ];
-  const ORDER: SettingsPane[] = ['account', ...PANES.map((p) => p.id)];
+  const ORDER: Pane[] = ['account', ...PANES.map((p) => p.id)];
 
   /** The pane asked for from elsewhere (ShortcutsHelp's "Change Shortcuts", the sidebar's "Customize…"), else where it was last. */
-  let pane = $state<SettingsPane>(ui.settingsSection ?? lastPane);
+  let pane = $state<Pane>(ui.settingsSection ?? (ORDER.includes(lastPane) ? lastPane : 'general'));
   const title = $derived(pane === 'account' ? t('settings.account.title') : (PANES.find((p) => p.id === pane)?.label ?? ''));
 
-  function show(next: SettingsPane) {
+  function show(next: Pane) {
     pane = next;
     lastPane = next;
   }
@@ -350,7 +360,7 @@
             onclick={() => show(p.id)}
             onkeydown={onListKey}
           >
-            <span class="lead"><Icon name={p.icon} size={14} stroke={1.9} /></span>
+            <span class="lead">{#if p.face}<Face size={16} />{:else}<Icon name={p.icon} size={14} stroke={1.9} />{/if}</span>
             <span class="label">{p.label}</span>
           </button>
         {/each}
@@ -705,6 +715,43 @@
                 <div class="group-row"><div class="row-label"><small>{t('settings.courses.empty')}</small></div></div>
               {/each}
             </div>
+          {:else if pane === 'assistant'}
+            <div class="group">
+              <div class="group-row">
+                <div class="row-label">
+                  {t('assistant.settings.use')}
+                  <small>{t('assistant.settings.useHint')}</small>
+                </div>
+                <Switch on={prefs.assistantOn} label={t('assistant.settings.use')} onchange={() => (prefs.assistantOn = !prefs.assistantOn)} />
+              </div>
+              <div class="group-row">
+                <div class="row-label">
+                  {t('assistant.settings.name')}
+                  <small>{t('assistant.settings.nameHint')}</small>
+                </div>
+                <input
+                  class="field name-field"
+                  value={prefs.assistantName}
+                  placeholder={named?.DEFAULT_NAME}
+                  maxlength={named?.MAX_NAME}
+                  spellcheck="false"
+                  aria-label={t('assistant.settings.name')}
+                  onchange={(e) => {
+                    prefs.assistantName = named ? named.cleanName(e.currentTarget.value) : e.currentTarget.value.trim();
+                    e.currentTarget.value = prefs.assistantName;
+                  }}
+                  onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                />
+              </div>
+              <div class="group-row">
+                <div class="row-label">
+                  {t('assistant.settings.shared')}
+                  <small>{t('assistant.settings.sharedHint')}</small>
+                </div>
+                <Switch on={prefs.assistantShared} label={t('assistant.settings.shared')} onchange={() => (prefs.assistantShared = !prefs.assistantShared)} />
+              </div>
+            </div>
+            <p class="group-note">{t('assistant.settings.kept')}</p>
           {:else if pane === 'keyboard'}
             <ShortcutsEditor />
           {:else if pane === 'storage'}
@@ -840,6 +887,8 @@
       0 0 0 0.5px var(--hairline),
       var(--shadow-sm);
     color: var(--text-2);
+    /* The whites of the assistant's eyes are the tile's colour. */
+    --face-ground: var(--raised);
     transition:
       background-color var(--dur) var(--ease),
       color var(--dur) var(--ease);
@@ -848,6 +897,7 @@
     background: var(--text);
     box-shadow: none;
     color: var(--bg);
+    --face-ground: var(--text);
   }
   .label {
     min-width: 0;

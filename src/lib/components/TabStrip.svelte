@@ -1,6 +1,8 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import PageIcon from './PageIcon.svelte';
+  import Face from '../assistant/ui/Face.svelte';
+  import { face } from '../assistant/face.svelte';
   import { shortcuts } from '../shortcuts.svelte';
   import { tabs } from '../tabs.svelte';
   import { t } from '../i18n';
@@ -46,7 +48,7 @@
       }}
     >
       <span class="tab-icon">
-        {#if label.pageIcon}<PageIcon icon={label.pageIcon} />{:else}<Icon name={label.icon} size={14} />{/if}
+        {#if label.pageIcon}<PageIcon icon={label.pageIcon} />{:else if label.face}<Face mood={face.mood} size={16} />{:else}<Icon name={label.icon} size={14} />{/if}
       </span>
       <span class="tab-title">{label.title}</span>
       {#if tab.live}<span class="tab-live" aria-label={t('shell.tabs.liveSession')}></span>{/if}

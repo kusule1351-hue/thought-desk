@@ -18,6 +18,8 @@ import { tabs } from './tabs.svelte';
 import { cowork } from './cowork.svelte';
 import { galaxy } from './galaxy/galaxy.svelte';
 import { t } from './i18n';
+import { assistantAvailable } from './assistant/flag';
+import { markedKept, setKept } from './assistant/access';
 import { fmt } from './i18n/format';
 
 /** Saves the open editor and returns the page's document. */
@@ -112,6 +114,12 @@ export async function exportPdf(id: string) {
   }
 }
 
+/** "Keep from the assistant", a switch on the page (only while the assistant exists). */
+function keepItem(id: string): MenuItem[] {
+  if (!assistantAvailable()) return [];
+  return [{ label: t('assistant.keep'), icon: 'eye-off', checked: markedKept(id), action: () => setKept(id, !markedKept(id)) }];
+}
+
 /** A database's menu: no sub-pages or document exports, but CSV. */
 function databaseMenuItems(id: string, sidebar: boolean): MenuItem[] {
   const page = store.byId.get(id)!;
@@ -134,6 +142,7 @@ function databaseMenuItems(id: string, sidebar: boolean): MenuItem[] {
         ]
       : []),
     { label: t('common.actions.duplicate'), icon: 'copy', hint: t('pages.menu.duplicateWithRows'), action: () => void store.duplicate(id) },
+    ...keepItem(id),
     { separator: true },
     { label: t('pages.menu.exportCsv'), icon: 'download', hint: view?.name, action: () => view && void databases.exportCsv(id, view.id) },
     { separator: true },
@@ -202,6 +211,7 @@ export function pageMenuItems(id: string, opts: { words?: number; sidebar?: bool
       action: () => store.update(id, { fullWidth: !page.fullWidth }, { immediate: true }),
     });
   }
+  items.push(...keepItem(id));
   items.push(
     { separator: true },
     {

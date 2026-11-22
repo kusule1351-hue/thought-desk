@@ -1,0 +1,175 @@
+{
+  "tools": {
+    "searching": "Searching notes for “{query}”",
+    "@searching": "a line in the assistant's panel while it searches the notes; {query} is the words it searches for",
+    "reading": "Reading “{title}”",
+    "@reading": "a line in the assistant's panel while it reads one note; {title} is the note's title",
+    "listing": "Looking through the notes"
+  },
+  "changes": {
+    "createNote": "Create the note “{title}”",
+    "@createNote": "the heading of a change the assistant proposes, before the person allows it; {title} is the new note's title",
+    "createdNote": "Created the note “{title}”",
+    "@createdNote": "what the assistant did, after the person allowed it; {title} is the new note's title",
+    "editNote": "Edit “{title}”",
+    "@editNote": "the heading of a change the assistant proposes to an existing note; {title} is the note's title",
+    "editedNote": "Edited “{title}”",
+    "@editedNote": "what the assistant did to an existing note; {title} is the note's title",
+    "addCards": {
+      "one": "Add {count} flashcard to “{title}”",
+      "other": "Add {count} flashcards to “{title}”"
+    },
+    "@addCards": "the heading of a change the assistant proposes: adding flashcards to a note; {title} is the note's title",
+    "addedCards": {
+      "one": "Added {count} flashcard to “{title}”",
+      "other": "Added {count} flashcards to “{title}”"
+    },
+    "@addedCards": "what the assistant did: it added flashcards to a note; {title} is the note's title"
+  },
+  "labels": {
+    "inside": "Inside",
+    "@inside": "label of a detail of a proposed new note: the note it will be put inside (followed by that note's path)",
+    "newName": "New name"
+  },
+  "undo": {
+    "changedTitle": "This note has changed since",
+    "changedMessage": "Taking the assistant’s change back puts the note as it was before it, so what was written in it after that would be lost too.",
+    "anyway": "Take it back anyway"
+  },
+  "open": "Assistant",
+  "@open": "tooltip and accessible name of the title bar button that shows or hides the assistant panel",
+  "mood": {
+    "asleep": "Asleep. Turn me on and we’ll begin.",
+    "curious": "Who goes there? Sign in and we’ll talk.",
+    "idle": "What shall we examine today?",
+    "bored": "No rush. I’ve waited 2,400 years.",
+    "scheming": "One question leads to another.",
+    "flattered": "Stop it. Go on.",
+    "listening": "Go on, I’m listening.",
+    "thinking": "I know that I know nothing. One moment.",
+    "reading": "Examining your notes…",
+    "writing": "Writing. Plato usually did this for me.",
+    "asking": "May I? Say yes.",
+    "proud": "Done. Easy.",
+    "sad": "As you wish. I won’t.",
+    "oops": "Pretend that never happened.",
+    "dizzy": "Something broke. Not me, I think.",
+    "broke": "Out of drachmas until next month.",
+    "nope": "I’d rather not answer that."
+  },
+  "@mood": "one short, dry line in the assistant’s own voice, shown beside its face on the assistant’s page. He is drawn as Socrates and some lines nod to that (he lived about 2,400 years ago, was paid in drachmas, wrote nothing down himself: Plato did, and is known for saying he knew nothing); keep the joke, not the words. Each fits the face he is making: asleep (not turned on), curious (needs sign-in), idle, listening to the person type, thinking, reading notes, writing, asking for permission to make a change, bored after a long wait, scheming in the middle of a long task, flattered at being thanked, proud of something done, sad at being told no, embarrassed at a change taken back, dizzy after an error, broke (the month’s allowance is used up), and declining to answer",
+  "search": {
+    "words": "assistant chat ai ask help socrates"
+  },
+  "@search": "search words (never shown) that also find the assistant in the Go To list of the search, separated by spaces",
+  "newChat": "New chat",
+  "resize": "Resize the assistant",
+  "signIn": "Sign in",
+  "tryAgain": "Try again",
+  "intro": {
+    "canTitle": "What it can do",
+    "can": "Answer from your notes, make notes and flashcards, add assignments and events, and edit notes. It always shows a change and waits for you before making it.",
+    "sendsTitle": "What leaves this computer",
+    "sends": "Only what you ask, and the notes it reads for that request, go to the model through Thought Desk’s server and on to Anthropic, which keeps them for up to 30 days and does not train on them. Nothing is sent in the background.",
+    "neverTitle": "What it never does",
+    "never": "Delete anything for good, share anything, or touch sync or sign-in.",
+    "turnOn": "Turn on",
+    "@turnOn": "button in the assistant panel that turns the assistant on for the first time"
+  },
+  "signedOut": {
+    "text": "The assistant needs an account, so its use can be counted fairly."
+  },
+  "empty": {
+    "hint": "Try asking"
+  },
+  "examples": {
+    "due": "What’s due this week?",
+    "cards": "Make flashcards from this note",
+    "summarise": "Summarise this note",
+    "find": "Find my notes on …",
+    "@find": "a suggested request in the empty assistant panel; clicking it starts the sentence in the input for the person to finish"
+  },
+  "composer": {
+    "placeholder": "Ask {name}…",
+    "@placeholder": "placeholder of the assistant’s message box; {name} is what the person calls the assistant",
+    "send": "Send",
+    "@send": "accessible name of the button that sends a message to the assistant",
+    "stop": "Stop",
+    "@stop": "button that stops the assistant while it is answering",
+    "allowance": "{percent}% of this month’s allowance used",
+    "@allowance": "a small line under the assistant’s message box; {percent} is a whole number from 0 to 100"
+  },
+  "thinking": "Thinking…",
+  "@thinking": "shown in the assistant panel while it has not started writing its answer",
+  "marks": {
+    "running": "Working",
+    "@running": "accessible name of the small spinner next to a step the assistant is running",
+    "done": "Done",
+    "@done": "accessible name of the check mark beside a finished step, and of a ticked task in an answer",
+    "notDone": "Not done",
+    "@notDone": "a change the person did not allow; also the accessible name of an unticked task in an answer",
+    "couldnt": "Couldn’t",
+    "@couldnt": "accessible name of the mark beside a step the assistant could not finish"
+  },
+  "change": {
+    "allow": "Allow",
+    "@allow": "button that lets the assistant make the change shown in the card",
+    "decline": "Don’t",
+    "@decline": "button that refuses the change shown in the card, next to “Allow”",
+    "working": "Working…",
+    "@working": "shown on a change card while the assistant is making the change",
+    "open": "Open",
+    "@open": "button on a finished change that opens the note, assignment or event it made",
+    "undo": "Undo",
+    "@undo": "button on a finished change that takes it back",
+    "undone": "Undone",
+    "@undone": "shown on a change card after the person took the change back",
+    "failed": "Couldn’t do this",
+    "show": "Show",
+    "@show": "button that shows the preview of a change that was already decided",
+    "hide": "Hide",
+    "@hide": "button that hides the preview of a change that was already decided",
+    "now": "Now",
+    "@now": "label above the text as it is now, in a preview of an edit",
+    "after": "After",
+    "@after": "label above the text as it would be, in a preview of an edit",
+    "adding": "Adding",
+    "@adding": "label above text the assistant would add, in a preview of an edit",
+    "removing": "Removing",
+    "@removing": "label above text the assistant would remove, in a preview of an edit",
+    "preview": "Preview of the change",
+    "waiting": {
+      "one": "{count} change waiting",
+      "other": "{count} changes waiting"
+    },
+    "@waiting": "a bar above the assistant’s message box when changes wait for the person’s answer; {count} is how many",
+    "allowAll": "Allow all",
+    "@allowAll": "button in the bar of waiting changes that allows every one of them"
+  },
+  "notice": {
+    "signedOut": "Sign in to use the assistant.",
+    "closed": "The assistant isn’t open to this account yet.",
+    "off": "The assistant isn’t set up on this server yet.",
+    "spent": "You’ve used this month’s assistant allowance. It starts again next month.",
+    "busy": "The assistant is busy right now. Try again in a moment.",
+    "fast": "That was a bit quick. Try again in a moment.",
+    "offline": "No connection to the assistant. Check your internet and try again.",
+    "bad": "That request couldn’t be sent.",
+    "failed": "Something went wrong.",
+    "refused": "It declined to answer that.",
+    "cut": "The answer was cut off for being too long.",
+    "steps": "It stopped after working for a long while. Ask it to continue if it wasn’t done."
+  },
+  "settings": {
+    "title": "Assistant",
+    "@title": "name of the assistant’s page in Settings, in the list of pages and as its heading",
+    "use": "Use the assistant",
+    "useHint": "Only what you ask, and the notes it reads for that request, are sent through Thought Desk’s server to Anthropic.",
+    "name": "Its name",
+    "nameHint": "What you call it.",
+    "shared": "Let it read notes shared with friends",
+    "sharedHint": "Shared notes hold your friend’s writing too.",
+    "kept": "To keep a single note from the assistant, use the note’s menu."
+  },
+  "keep": "Keep from the assistant"
+}
