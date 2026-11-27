@@ -15,6 +15,14 @@ import { DurableObject } from 'cloudflare:workers';
 export const PER_MINUTE = 30;
 const WINDOW = 60_000;
 
+/** The plan Polar last said this account is on, and when it was asked (plan.ts). */
+export interface Kept {
+  pro: boolean;
+  until: number | null;
+  ending: boolean;
+  checked: number;
+}
+
 export type Admitted = { ok: true; spent: number } | { ok: false; reason: 'spent'; spent: number } | { ok: false; reason: 'fast'; retryAfter: number };
 
 export class Budget extends DurableObject {
@@ -26,6 +34,8 @@ export class Budget extends DurableObject {
     super(ctx, env as never);
     this.#sql = ctx.storage.sql;
     this.#sql.exec(`CREATE TABLE IF NOT EXISTS spend (period TEXT PRIMARY KEY, micro INTEGER NOT NULL)`);
+    // One row at most: the account's plan (never set for the everyone-together budget).
+    this.#sql.exec(`CREATE TABLE IF NOT EXISTS plan (id INTEGER PRIMARY KEY CHECK (id = 1), pro INTEGER NOT NULL, until INTEGER, ending INTEGER NOT NULL, checked INTEGER NOT NULL)`);
   }
 
   #read(period: string): number {
@@ -63,5 +73,22 @@ export class Budget extends DurableObject {
   /** Swaps a request's hold for what it cost. Returns what the period has spent. */
   settle(period: string, hold: number, cost: number): number {
     return this.#add(period, cost - hold);
+  }
+
+  /** The plan last kept for this account, or null if Polar was never asked. */
+  plan(): Kept | null {
+    const row = this.#sql.exec(`SELECT pro, until, ending, checked FROM plan WHERE id = 1`).toArray()[0];
+    return row ? { pro: row.pro === 1, until: row.until === null ? null : Number(row.until), ending: row.ending === 1, checked: Number(row.checked) } : null;
+  }
+
+  /** Keeps what Polar said, as of `now`. */
+  setPlan(pro: boolean, until: number | null, ending: boolean, now = Date.now()): Kept {
+    this.#sql.exec(`INSERT OR REPLACE INTO plan (id, pro, until, ending, checked) VALUES (1, ?, ?, ?, ?)`, pro ? 1 : 0, until, ending ? 1 : 0, now);
+    return { pro, until, ending, checked: now };
+  }
+
+  /** Marks what is kept as out of date, so Polar is asked at the next look. */
+  stalePlan(): void {
+    this.#sql.exec(`UPDATE plan SET checked = 0 WHERE id = 1`);
   }
 }

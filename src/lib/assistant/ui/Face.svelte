@@ -1,9 +1,10 @@
 <!--
   The assistant's face: Socrates, as simple line art. A bald head, heavy
   brows, a snub nose and a great curly beard, in one colour, the way the app's
-  icons are drawn, so he sits among them in either theme. He is only a head:
-  large, with the lines of his forehead and the curls in his beard; small,
-  drawn afresh and simpler; at icon sizes, a head with two eyes.
+  icons are drawn, so he sits among them in either theme. He is only a head,
+  and the same head at every size: large, with the lines of his forehead and
+  the curls in his beard; at an icon's size, with his eyes and brows alone,
+  since a nose and a mouth that small are only a smudge.
 
   His face shows what the assistant is doing, quietly: his eyes and brows
   change, his head tips, and now and then something appears (glasses to read
@@ -88,14 +89,6 @@
   const SKULL = 'M23,35 C22,20 33,10 50,10 C67,10 78,20 77,35';
   const HAIR =
     'M77,33 C82,31 87,36 83.5,43 C89,43.5 91,51 84.8,55.5 C91,57 91.5,66 84.2,68.5 C89,72 86,80 78,80.5 C79,86 72,91 66,89.5 C65,94 59,95.5 57,92 C56,97 44,97 43,92 C41,95.5 35,94 34,89.5 C28,91 21,86 22,80.5 C14,80 11,72 15.8,68.5 C8.5,66 9,57 15.2,55.5 C9,51 11,43.5 16.5,43 C13,36 18,31 23,33 L23.6,48 C24.5,57 32,61 38,61 C42,61 46,63.5 50,63.5 C54,63.5 58,61 62,61 C68,61 75.5,57 76.4,48 Z';
-  /**
-   * Small, he is drawn afresh and not shrunk: a round bald head with a larger face, and a beard in a few big
-   * curls that hangs from his cheeks and is little wider than his head. Shrunk, the hair at his temples closes
-   * round his face like a hood, and the small curls turn to noise.
-   */
-  const SKULL_SMALL = 'M21.5,53 C20.2,50 19.5,45 19.5,40 C19.5,23.15 33.15,9.5 50,9.5 C66.85,9.5 80.5,23.15 80.5,40 C80.5,45 79.8,50 78.5,53';
-  const BEARD_SMALL =
-    'M79,50 C85.5,50 89.5,61 84,68 C88,75 79,88 67,89 C63,97 37,97 33,89 C21,88 12,75 16,68 C10.5,61 14.5,50 21,50 C22.5,58 31,63 39,63 C43.5,63 46.5,59.5 50,59.5 C53.5,59.5 56.5,63 61,63 C69,63 77.5,58 79,50 Z';
   const NOSE = 'M46.8,44.5 C46.4,49.5 43.6,52.5 44.2,55.6 C44.9,59 55.1,59 55.8,55.6 C56.1,54 55.2,52.8 54,52';
   /** Large only: the lines of his forehead, and the curls in his beard (drawn in the colour behind him). */
   const BROW_LINES = 'M41,24.5 Q50,22.4 59,24.5 M43.6,29.6 Q50,28 56.4,29.6';
@@ -105,14 +98,11 @@
   /** A four-pointed star. */
   const STAR = 'M0,-5 L1.3,-1.3 5,0 1.3,1.3 0,5 -1.3,1.3 -5,0 -1.3,-1.3 Z';
 
-  /** His eyes and brows are drawn to numbers made for a larger face (see REST); this sets them on his, large and small. */
+  /** His eyes and brows are drawn to numbers made for a larger face (see REST); this sets them on his. */
   const FEATURES_SCALE = 0.875;
   const FEATURES_AT = `translate(50 43) scale(${FEATURES_SCALE}) translate(-50 -44)`;
-  const FEATURES_SCALE_SMALL = 0.96;
-  const FEATURES_AT_SMALL = `translate(50 40.5) scale(${FEATURES_SCALE_SMALL}) translate(-50 -44)`;
   const MOUTH_SCALE = 0.8;
   const MOUTH_AT = `translate(50 70.5) scale(${MOUTH_SCALE}) translate(-50 -69.5)`;
-  const MOUTH_AT_SMALL = `translate(50 74.5) scale(${MOUTH_SCALE}) translate(-50 -69.5)`;
 </script>
 
 <script lang="ts">
@@ -139,8 +129,8 @@
   /** Large enough for the lines of his forehead and the curls in his beard. */
   const large = $derived(size >= 64);
   /**
-   * Small, he is an icon among icons: a head with two eyes; a little larger he has brows and a mouth. From 30 pixels,
-   * the size he is beside his replies, he is his whole self: his nose, the hair at his temples and the wide beard.
+   * The same head at every size, with less of his face the smaller he is: below 30 pixels no nose, and at an
+   * icon's size (below 22) no mouth either. His eyes and brows stay, and they are what shows his mood.
    */
   const tiny = $derived(size < 22);
   const small = $derived(size < 30);
@@ -150,7 +140,9 @@
   const px = $derived(size < 22 ? 1.5 : size < 30 ? 1.6 : Math.min(3.2, 1.5 + size / 100));
   /** The same, in the square's own units; and in those his eyes and brows are drawn to. */
   const hw = $derived((px * 100) / size);
-  const fw = $derived(hw / (small ? FEATURES_SCALE_SMALL : FEATURES_SCALE));
+  const fw = $derived(hw / FEATURES_SCALE);
+  const browWeight = $derived(tiny ? 0.6 : 1.15);
+  const browLift = $derived(tiny ? 6 : 0);
 
   // One face, sprung to wherever the mood puts it: it settles quickly, with a little overshoot.
   const sprung = new Spring(untrack(() => ({ ...FACES[mood] })), { stiffness: 0.16, damping: 0.52 });
@@ -192,8 +184,9 @@
 
 <svg class="assistant-face {mood}" class:moving width={size} height={size} viewBox="0 0 100 100" role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : 'true'}>
   <g class="head" transform="rotate({n(f.lean)} 50 84)">
-    <path class="ink" stroke-width={n(hw)} d={small ? SKULL_SMALL : SKULL} />
-    <path class="hair" stroke-width={n(small ? hw * 0.2 : hw)} d={small ? BEARD_SMALL : HAIR} />
+    <path class="ink" stroke-width={n(hw)} d={SKULL} />
+    <!-- Small, a full line round his beard would swallow his face. -->
+    <path class="hair" stroke-width={n(small ? hw * 0.6 : hw)} d={HAIR} />
     {#if large}
       <path class="ink" stroke-width={n(hw * 0.7)} d={BROW_LINES} />
       <path class="cut" stroke-width={n(hw * 0.7)} d={CURLS} />
@@ -202,7 +195,7 @@
       <path class="ink" stroke-width={n(hw * 0.9)} d={NOSE} />
     {/if}
 
-    <g class="features" transform={small ? FEATURES_AT_SMALL : FEATURES_AT}>
+    <g class="features" transform={FEATURES_AT}>
       <g class="eyes">
         <!-- Each eye is two strokes that lie on one another, and turn apart into a cross when he is dizzy. -->
         <path class="eye" stroke-width={n(f.lring > 0.5 ? pos(f.lt) : eyeWeight(f.lt, f.lw))} d="{stroke(f.lx, f.ly, f.lw, f.larc, f.spread)} {stroke(f.lx, f.ly, f.lw, f.larc, -f.spread)}" />
@@ -219,11 +212,9 @@
         </g>
       </g>
 
-      <!-- His brows: heavy, and at an icon's size left out. -->
-      {#if !tiny}
-        <path class="ink" stroke-width={n(pos(f.lbo) * 1.15 * fw)} d="M{n(f.lx - 7.5 * pos(f.lbo))},{n(f.lby + f.lbt * f.lbo)} L{n(f.lx + 7.5 * pos(f.lbo))},{n(f.lby - f.lbt * f.lbo)}" />
-        <path class="ink" stroke-width={n(pos(f.rbo) * 1.15 * fw)} d="M{n(f.rx - 7.5 * pos(f.rbo))},{n(f.rby - f.rbt * f.rbo)} L{n(f.rx + 7.5 * pos(f.rbo))},{n(f.rby + f.rbt * f.rbo)}" />
-      {/if}
+      <!-- His brows: heavy. At an icon's size they are lighter and sit higher, or they would close on his eyes into one bar. -->
+      <path class="ink" stroke-width={n(pos(f.lbo) * browWeight * fw)} d="M{n(f.lx - 7.5 * pos(f.lbo))},{n(f.lby - browLift + f.lbt * f.lbo)} L{n(f.lx + 7.5 * pos(f.lbo))},{n(f.lby - browLift - f.lbt * f.lbo)}" />
+      <path class="ink" stroke-width={n(pos(f.rbo) * browWeight * fw)} d="M{n(f.rx - 7.5 * pos(f.rbo))},{n(f.rby - browLift - f.rbt * f.rbo)} L{n(f.rx + 7.5 * pos(f.rbo))},{n(f.rby - browLift + f.rbt * f.rbo)}" />
 
       {#if f.glasses > 0.02}
         <g class="glasses">
@@ -249,7 +240,7 @@
 
     <!-- His mouth is a line in his beard. -->
     {#if !tiny}
-      <g transform={small ? MOUTH_AT_SMALL : MOUTH_AT}>
+      <g transform={MOUTH_AT}>
         <path class="cut" stroke-width={n(Math.max(pos(f.mt), (0.8 * hw) / MOUTH_SCALE))} d={mouth} />
         {#if f.tongue > 0.02}
           <path class="tongue" transform="translate({n(f.mx + 3)} {n(f.my + 1.6)}) scale({n(pos(f.tongue))})" d="M-3.6,0 v3 a3.6,3.6 0 0 0 7.2,0 v-3 Z" />

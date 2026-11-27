@@ -27,8 +27,12 @@ const CLERK_KEY =
   (import.meta.env.VITE_CLERK_KEY as string | undefined) ??
   (import.meta.env.DEV ? 'pk_test_c21pbGluZy1zdW5iaXJkLTM1NzEuY2xlcmsuYWNjb3VudHMuZGV2JA' : 'pk_live_Y2xlcmsudGhvdWdodGRlc2sub3JnJA');
 
-/** Where the client token is kept (see secrets.rs). */
-const KEY = 'thoughtdesk.clerk';
+/**
+ * Where the client token is kept (see secrets.rs). The development instance has a place of its own: a build run
+ * while developing and the installed app share one folder for secrets, and with one name between them each
+ * sign-in in one signed the other out.
+ */
+const KEY = CLERK_KEY.startsWith('pk_test_') ? 'thoughtdesk.clerk.dev' : 'thoughtdesk.clerk';
 let token: string | null | undefined;
 
 async function keptToken(): Promise<string | null> {

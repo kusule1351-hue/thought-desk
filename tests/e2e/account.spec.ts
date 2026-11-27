@@ -26,9 +26,17 @@ test('signing in with Google, then picking a username', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await expect(page.getByRole('heading', { name: 'Pick a username' })).toBeVisible();
+  // Someone who signed in with the wrong account can leave before picking anything.
+  await expect(page.getByRole('button', { name: 'Sign Out' })).toBeVisible();
   const username = page.getByLabel('Username');
-  await expect(username, 'suggested from the name').toHaveValue('analima');
+  // Suggested from the name; someone has @analima, so the next one that is free is offered, ready to take.
+  await expect(username).toHaveValue('analima2');
+  await expect(page.getByText('@analima2 is available.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeEnabled();
+  // A name the person types themselves is never changed for them.
+  await username.fill('analima');
   await expect(page.getByText('@analima is taken.')).toBeVisible();
+  await expect(username).toHaveValue('analima');
   await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled();
 
   await username.fill('Ana_L!');
@@ -90,6 +98,46 @@ test('editing the profile, then signing out', async ({ page }) => {
   await page.keyboard.press('Escape');
   await openSettingsAccount(page);
   await expect(page.getByRole('button', { name: 'Sign In…' })).toBeVisible();
+});
+
+test('someone who closed the username step once is not asked again at each sign-in, only where a username is needed', async ({ page }) => {
+  const cloud = new FakeCloud();
+  await cloud.attach(page.context(), { email: 'ana@example.com', name: 'Ana Lima' });
+  await open(page);
+  const sheet = page.getByRole('dialog', { name: 'Account' });
+  const signIn = async () => {
+    await page.evaluate(async () => {
+      const { ui } = await import('/src/lib/ui.svelte.ts' as string);
+      ui.settingsOpen = false;
+      ui.accountSheet = true;
+    });
+    await page.getByRole('button', { name: 'Continue with Google' }).click();
+  };
+  const signOut = () =>
+    page.evaluate(async () => {
+      const { account } = await import('/src/lib/account.svelte.ts' as string);
+      await account.signOut();
+    });
+
+  // The first sign-in asks, and closing it is an answer.
+  await signIn();
+  await expect(page.getByRole('heading', { name: 'Pick a username' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+
+  // Signing in again: the sheet goes away by itself, signed in.
+  await signOut();
+  await signIn();
+  await expect(sheet).toHaveCount(0);
+  expect(await page.evaluate(async () => (await import('/src/lib/account.svelte.ts' as string)).account.signedIn)).toBe(true);
+
+  // Opened on purpose (as the Friends view does), it still offers the username.
+  await page.evaluate(async () => {
+    const { ui } = await import('/src/lib/ui.svelte.ts' as string);
+    ui.accountSheet = true;
+  });
+  await expect(page.getByRole('heading', { name: 'Pick a username' })).toBeVisible();
+  await expect(page.getByLabel('Username')).toHaveValue('analima');
 });
 
 test('the sign-in sheet closes with its button too', async ({ page }) => {

@@ -11,10 +11,32 @@
   /** The sign-in services' names, which stay as they are in every language. */
   const PROVIDER_NAMES: Record<Provider, string> = { google: 'Google', github: 'GitHub' };
 
+  /**
+   * Who has been asked for a username on this computer and closed the sheet without choosing one. A username is
+   * only for friends, so someone who signs in for something else is asked once, not at every sign-in. The Friends
+   * view still asks, and still opens this sheet for it.
+   */
+  const ASKED = 'thoughtdesk.usernameAsked';
+  function asked(): string[] {
+    try {
+      const list: unknown = JSON.parse(localStorage.getItem(ASKED) ?? '[]');
+      return Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+  /** The sheet was opened to sign in (and not, already signed in, to pick a username or edit the profile). */
+  const cameToSignIn = !account.user;
+
   const close = () => {
     if (account.waiting) account.cancelSignIn();
+    if (account.user && account.needsUsername && !asked().includes(account.user.id)) localStorage.setItem(ASKED, JSON.stringify([...asked(), account.user.id].slice(-20)));
     ui.accountSheet = false;
   };
+  // Signed in here, by someone who has already been asked: the sheet's work is done.
+  $effect(() => {
+    if (cameToSignIn && account.user && account.needsUsername && asked().includes(account.user.id)) ui.accountSheet = false;
+  });
 
   let busy = $state(false);
   let error = $state('');
@@ -55,6 +77,14 @@
   let displayName = $state('');
   /** The last availability answer, for the name it was about. */
   let checked = $state<{ name: string; free: boolean } | null>(null);
+  /** The name in the field is the app's suggestion, not something the person typed: the name it started from, and how many were tried. */
+  let suggestion: { base: string; tries: number } | null = null;
+  /** The next suggestion when one is taken: "analima2", "analima3", cut to fit. Gives up after a few. */
+  function nextSuggestion(): string | null {
+    if (!suggestion || suggestion.tries >= 8) return null;
+    const suffix = String(++suggestion.tries + 1);
+    return suggestion.base.slice(0, 20 - suffix.length) + suffix;
+  }
 
   // Fill the fields when the profile arrives (and again after saving).
   $effect(() => {
@@ -63,6 +93,7 @@
     untrack(() => {
       displayName = p.displayName;
       username = p.username ?? suggestUsername(p.displayName || (account.user?.email ?? '').split('@')[0]);
+      suggestion = p.username || !username ? null : { base: username, tries: 0 };
     });
   });
 
@@ -76,7 +107,11 @@
     }
     timer = setTimeout(async () => {
       const free = await account.usernameFree(name).catch(() => true);
-      if (username === name) checked = { name, free };
+      if (username !== name) return;
+      // A suggestion somebody already has is no suggestion: the next one is tried, so what is offered can be taken as it is.
+      const next = free ? null : nextSuggestion();
+      if (next) username = next;
+      else checked = { name, free };
     }, 300);
   });
 
@@ -100,6 +135,7 @@
   const signOut = () => run(() => account.signOut());
 
   function typeUsername(e: Event & { currentTarget: HTMLInputElement }) {
+    suggestion = null;
     username = e.currentTarget.value.toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '').slice(0, 20);
     e.currentTarget.value = username;
   }
@@ -198,7 +234,7 @@
       </label>
 
       <div class="actions">
-        {#if !account.needsUsername}<button class="btn danger-text" disabled={busy} onclick={signOut}>{t('social.account.signOut')}</button>{/if}
+        <button class="btn danger-text" disabled={busy} onclick={signOut}>{t('social.account.signOut')}</button>
         <button class="btn primary" disabled={busy || !usernameReady || !username || !changed} onclick={save}>{account.needsUsername ? t('social.account.continue') : t('common.actions.save')}</button>
       </div>
     {:else}
