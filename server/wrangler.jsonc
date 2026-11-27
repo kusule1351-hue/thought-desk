@@ -55,7 +55,14 @@
     // The most one account may cost a month (30 cents) and everyone together a
     // day (3 dollars), in millionths of a US dollar.
     "ASSISTANT_MONTHLY_MICROUSD": "300000",
-    "ASSISTANT_DAILY_MICROUSD": "3000000"
+    "ASSISTANT_DAILY_MICROUSD": "3000000",
+    // Pro (src/plan.ts, src/billing.ts): Polar sells it. Nothing can be bought until its key is set
+    // (`npx wrangler secret put POLAR_ACCESS_TOKEN`, and POLAR_WEBHOOK_SECRET for its notices).
+    // The product is "Thought Desk Pro" in the Polar organisation; an account on it may cost 3 dollars a month.
+    "POLAR_API": "https://api.polar.sh",
+    "POLAR_PRO_PRODUCTS": "8eaf37f2-04f5-40e2-b6f8-261d8a458e11",
+    "BILLING_RETURN_URL": "https://thoughtdesk.org/pro/welcome",
+    "ASSISTANT_PRO_MONTHLY_MICROUSD": "3000000"
   },
   "env": {
     // For this computer only (`npm run dev`, `npm run test-relay`): the
@@ -93,7 +100,12 @@
         "ASSISTANT_ACCESS": "everyone",
         "ASSISTANT_MODEL": "claude-haiku-5-5",
         "ASSISTANT_MONTHLY_MICROUSD": "300000",
-        "ASSISTANT_DAILY_MICROUSD": "3000000"
+        "ASSISTANT_DAILY_MICROUSD": "3000000",
+        // Polar's sandbox (fake money): its key goes in server/.dev.vars as POLAR_ACCESS_TOKEN.
+        "POLAR_API": "https://sandbox-api.polar.sh",
+        "POLAR_PRO_PRODUCTS": "15e2bb72-fdda-4ba5-8938-456e0693bee1",
+        "BILLING_RETURN_URL": "https://thoughtdesk.org/pro/welcome",
+        "ASSISTANT_PRO_MONTHLY_MICROUSD": "3000000"
       }
     }
   }

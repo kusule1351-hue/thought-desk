@@ -24,7 +24,7 @@ export class AssistantError extends Error {
 export class Stopped extends Error {}
 
 /** The server's address: the one sync and live sessions use; a test sets its own (`window.__assistantUrl`, development builds only). */
-function base(): string {
+export function base(): string {
   const test = import.meta.env.DEV ? (window as { __assistantUrl?: string }).__assistantUrl : undefined;
   if (test) return test.replace(/\/$/, '');
   const host = ((import.meta.env.VITE_COWORK_URL as string | undefined) ?? (import.meta.env.DEV ? 'localhost:8787' : 'relay.thoughtdesk.org')).replace(/^\w+:\/\//, '').replace(/\/$/, '');
@@ -32,7 +32,7 @@ function base(): string {
   return `${local ? 'http' : 'https'}://${host}`;
 }
 
-async function token(): Promise<string> {
+export async function token(): Promise<string> {
   let jwt: string | null;
   try {
     jwt = await (await cloud()).accessToken();
@@ -82,6 +82,8 @@ export interface Allowance {
   limit: number;
   /** The server has its key. */
   on: boolean;
+  /** The plan the limit is for. */
+  plan: 'free' | 'pro';
 }
 
 /** This month's allowance, or null when it can't be asked (signed out, offline, closed). */
@@ -90,7 +92,7 @@ export async function allowance(): Promise<Allowance | null> {
     const res = await fetch(`${base()}/assistant/usage`, { headers: { Authorization: `Bearer ${await token()}` } });
     if (!res.ok) return null;
     const body = (await res.json()) as Partial<Allowance>;
-    return typeof body.used === 'number' && typeof body.limit === 'number' ? { used: body.used, limit: body.limit, on: body.on !== false } : null;
+    return typeof body.used === 'number' && typeof body.limit === 'number' ? { used: body.used, limit: body.limit, on: body.on !== false, plan: body.plan === 'pro' ? 'pro' : 'free' } : null;
   } catch {
     return null;
   }

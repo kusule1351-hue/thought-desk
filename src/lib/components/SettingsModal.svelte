@@ -56,6 +56,19 @@
   // The assistant's name rules live with its logic, which is only loaded once something needs it.
   let named = $state.raw<Pick<typeof import('../assistant/assistant.svelte'), 'DEFAULT_NAME' | 'MAX_NAME' | 'cleanName'> | null>(null);
   if (assistantAvailable()) void import('../assistant/assistant.svelte').then((m) => (named = m));
+  // The plan, likewise: asked of the server when the assistant's page of Settings is opened.
+  let billing = $state.raw<typeof import('../assistant/plan.svelte') | null>(null);
+  $effect(() => {
+    if (pane !== 'assistant' || !assistantAvailable() || !account.signedIn) return;
+    void import('../assistant/plan.svelte').then((m) => {
+      billing = m;
+      void m.refreshPlan(true);
+    });
+  });
+  async function toPolar(how: 'upgrade' | 'manage') {
+    const failed = await billing?.[how]();
+    if (failed === 'failed' || failed === 'none') ui.error(t('assistant.plan.failed'));
+  }
 
   // ---- the panes
 
@@ -752,6 +765,31 @@
               </div>
             </div>
             <p class="group-note">{t('assistant.settings.kept')}</p>
+            {#if billing?.plan.on}
+              {@const plan = billing.plan}
+              <div class="group plan">
+                <div class="group-row">
+                  <div class="row-label">
+                    {plan.pro ? t('assistant.plan.pro') : t('assistant.plan.free')}
+                    <small>
+                      {#if plan.pro && plan.until}
+                        {plan.ending ? t('assistant.plan.ends', { date: fmt.date(plan.until) }) : t('assistant.plan.renews', { date: fmt.date(plan.until) })}
+                      {:else if plan.pro}
+                        {t('assistant.plan.proHint')}
+                      {:else}
+                        {t('assistant.plan.freeHint')}
+                      {/if}
+                    </small>
+                  </div>
+                  {#if plan.pro}
+                    <button class="btn small raised" disabled={plan.busy} onclick={() => void toPolar('manage')}>{t('assistant.plan.manage')}</button>
+                  {:else}
+                    <button class="btn small primary" disabled={plan.busy} onclick={() => void toPolar('upgrade')}>{t('assistant.plan.upgrade')}</button>
+                  {/if}
+                </div>
+              </div>
+              <p class="group-note">{t('assistant.plan.note')}</p>
+            {/if}
           {:else if pane === 'keyboard'}
             <ShortcutsEditor />
           {:else if pane === 'storage'}

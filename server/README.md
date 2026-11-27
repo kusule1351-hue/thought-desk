@@ -42,6 +42,17 @@ The same Worker is also the assistant's way to its model, under `/assistant` (`s
 - **What it may cost** (`src/budget.ts`, a `Budget` Durable Object per account and one for everyone): each account has `ASSISTANT_MONTHLY_MICROUSD` a month (300000: 30 cents) and everyone together `ASSISTANT_DAILY_MICROUSD` a day (3000000: 3 dollars), in millionths of a US dollar, counted from the tokens each answer reports at the prices in `src/assistant.ts`. A request holds its worst case before it runs and is settled after, so the limits hold with requests in flight. An account may also start 30 requests a minute. Keep the price table in step with the model you choose: one it doesn't list is counted at the dearest price.
 - **What the app is told:** refusals come in the shape of Anthropic's own errors, with an `x-td-reason` header (`signed-out`, `closed`, `off`, `spent`, `busy`, `fast`, `bad`). Nothing about the owner's account is passed on. `GET /assistant/usage` answers `{ used, limit, month, on }` for the signed-in account.
 
+## Pro
+
+Polar (polar.sh) sells Thought Desk Pro for us as the merchant of record; this Worker only learns who has paid (`src/plan.ts`, `src/billing.ts`). No card detail ever comes here.
+
+- **The key** is the `POLAR_ACCESS_TOKEN` secret (`npx wrangler secret put POLAR_ACCESS_TOKEN`), an organisation access token with the scopes `checkouts:write`, `customers:read`, `customer_sessions:write`, `subscriptions:read` and `products:read`. Without it nothing can be bought and every account is on the free plan. On this computer it goes in `server/.dev.vars`, and must be a key from Polar's sandbox (sandbox.polar.sh), which is what `env.dev` points at (`POLAR_API`).
+- **Which products are Pro:** `POLAR_PRO_PRODUCTS`, the product ids, comma-separated. Production and the sandbox each have their own.
+- **Who is on Pro:** a checkout started here (`POST /billing/checkout`) carries the account's Clerk user id as the customer's external id, so the payment belongs to the account whatever email is typed at Polar. The plan is Polar's "customer state" for that id, kept beside the account's allowance and asked again when Polar says something changed, when the app comes back from paying (`GET /billing/plan?fresh=1`), and when the kept answer is six hours old. A missed notice delays a change; it doesn't lose one.
+- **Polar's notices** go to `POST /billing/polar`, at `https://relay.thoughtdesk.org/billing/polar`, signed with the endpoint's secret (`npx wrangler secret put POLAR_WEBHOOK_SECRET`; Standard Webhooks). Send it the subscription events, `order.paid` and `customer.state_changed`. Unsigned or stale notices are refused; every signed one is acknowledged.
+- **What Pro gets:** the assistant's monthly allowance becomes `ASSISTANT_PRO_MONTHLY_MICROUSD` (3 dollars). `POST /billing/portal` opens Polar's own page for managing or cancelling.
+- It is closed to the same accounts the assistant is closed to (`ASSISTANT_ACCESS`).
+
 ## Run it
 
 ```bash

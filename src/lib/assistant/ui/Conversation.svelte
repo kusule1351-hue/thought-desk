@@ -17,6 +17,7 @@
   import Markdown from './Markdown.svelte';
   import Spinner from './Spinner.svelte';
   import { keepFace } from './keep-face.svelte';
+  import { plan, refreshPlan, upgrade } from '../plan.svelte';
 
   let {
     roomy = false,
@@ -99,11 +100,22 @@
     fit();
   });
 
-  // Focus starts in the box, and the allowance is looked up, once it can be used.
+  // Focus starts in the box, and the allowance and the plan are looked up, once it can be used.
   $effect(() => {
     if (!ready) return;
     void assistant.refreshAllowance();
+    void refreshPlan();
   });
+  // Pro arrived (or went) while the app was open: the allowance is a different one now.
+  $effect(() => {
+    void plan.pro;
+    if (ready) void assistant.refreshAllowance();
+  });
+
+  async function goPro() {
+    const failed = await upgrade();
+    if (failed === 'failed') ui.error(t('assistant.plan.failed'));
+  }
   $effect(() => {
     if (field) field.focus({ preventScroll: true });
   });
@@ -237,6 +249,8 @@
                     <span>{noticeText(item.reason)}</span>
                     {#if item.reason === 'signed-out'}
                       <button class="link" onclick={() => (ui.accountSheet = true)}>{t('assistant.signIn')}</button>
+                    {:else if item.reason === 'spent' && plan.on && !plan.pro}
+                      <button class="link" disabled={plan.busy} onclick={() => void goPro()}>{t('assistant.plan.upgrade')}</button>
                     {:else if RETRY.includes(item.reason)}
                       <button class="link" disabled={assistant.busy} onclick={() => void assistant.retry()}>{t('assistant.tryAgain')}</button>
                     {/if}

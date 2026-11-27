@@ -171,5 +171,21 @@
     "sharedHint": "Shared notes hold your friend’s writing too.",
     "kept": "To keep a single note from the assistant, use the note’s menu."
   },
-  "keep": "Keep from the assistant"
+  "keep": "Keep from the assistant",
+  "plan": {
+    "free": "Free plan",
+    "freeHint": "Pro gives the assistant a much larger monthly allowance.",
+    "pro": "Thought Desk Pro",
+    "@pro": "name of the paid plan, shown in Settings as the plan this account is on; a product name, keep it in English",
+    "proHint": "A larger monthly allowance for the assistant.",
+    "renews": "Renews on {date}.",
+    "@renews": "under the plan’s name in Settings; {date} is the day the next payment is taken, already written out for the reader’s language",
+    "ends": "Cancelled. Pro lasts until {date}.",
+    "@ends": "under the plan’s name in Settings for a cancelled subscription; {date} is the last day Pro is paid for, already written out for the reader’s language",
+    "upgrade": "Upgrade to Pro",
+    "manage": "Manage subscription",
+    "note": "Payments are handled by Polar, in your browser. The price is shown before you pay, and you can cancel at any time.",
+    "failed": "Couldn’t open the payment page. Check your connection and try again."
+  },
+  "@plan": "the paid plan (Thought Desk Pro) in the assistant’s page of Settings, and the link beside the notice that the month’s allowance is used up; Polar is the company that takes the payment, keep its name"
 }

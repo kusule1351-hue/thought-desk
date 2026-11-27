@@ -18,9 +18,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { listOf, type AuthEnv } from './auth';
 import { PER_MINUTE, type Admitted, type Budget } from './budget';
 import { BadRequest, readText } from './mailbox';
+import { planOf, type PlanEnv } from './plan';
 import { accountOf } from './sync';
 
-export interface AssistantEnv extends AuthEnv {
+export interface AssistantEnv extends AuthEnv, PlanEnv {
   BUDGET: DurableObjectNamespace<Budget>;
   /** The key Claude is asked with (`npx wrangler secret put ANTHROPIC_API_KEY`). Without it the assistant is off. */
   ANTHROPIC_API_KEY?: string;
@@ -32,11 +33,15 @@ export interface AssistantEnv extends AuthEnv {
   /** The most one account may cost a month, and everybody together a day, in millionths of a dollar. */
   ASSISTANT_MONTHLY_MICROUSD?: string | number;
   ASSISTANT_DAILY_MICROUSD?: string | number;
+  /** The same for an account on Pro (plan.ts says who is). */
+  ASSISTANT_PRO_MONTHLY_MICROUSD?: string | number;
 }
 
 export const DEFAULT_MODEL = 'claude-haiku-5-5';
 /** 30 cents a month for one account; 3 dollars a day for everyone. */
 const DEFAULT_MONTHLY = 300_000;
+/** 3 dollars a month for an account on Pro. */
+const DEFAULT_PRO_MONTHLY = 3_000_000;
 const DEFAULT_DAILY = 3_000_000;
 /** The longest answer to one request: a whole note fits. */
 export const MAX_TOKENS = 8000;
@@ -221,7 +226,9 @@ async function answer(request: Request, env: AssistantEnv, ctx: Pick<ExecutionCo
   if (!mayUseAssistant(sub, env)) return refuse(403, 'permission_error', 'closed', 'The assistant is not open to this account yet.');
 
   const model = env.ASSISTANT_MODEL || DEFAULT_MODEL;
-  const monthly = limit(env.ASSISTANT_MONTHLY_MICROUSD, DEFAULT_MONTHLY);
+  // What the account may spend this month goes by its plan.
+  const plan = await planOf(sub, env);
+  const monthly = plan.pro ? limit(env.ASSISTANT_PRO_MONTHLY_MICROUSD, DEFAULT_PRO_MONTHLY) : limit(env.ASSISTANT_MONTHLY_MICROUSD, DEFAULT_MONTHLY);
   const daily = limit(env.ASSISTANT_DAILY_MICROUSD, DEFAULT_DAILY);
   const { month, day } = periods(deps.now());
   const mine = env.BUDGET.get(env.BUDGET.idFromName(`account:${sub}`));
@@ -229,7 +236,7 @@ async function answer(request: Request, env: AssistantEnv, ctx: Pick<ExecutionCo
 
   if (route === '/usage') {
     const used = await mine.spent(month);
-    return Response.json({ used: Math.min(used, monthly), limit: monthly, month, on: !!env.ANTHROPIC_API_KEY });
+    return Response.json({ used: Math.min(used, monthly), limit: monthly, month, on: !!env.ANTHROPIC_API_KEY, plan: plan.pro ? 'pro' : 'free' });
   }
 
   if (!env.ANTHROPIC_API_KEY) return refuse(503, 'api_error', 'off', 'The assistant is not set up on this server.');

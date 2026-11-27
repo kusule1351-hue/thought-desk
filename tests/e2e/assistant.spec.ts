@@ -39,7 +39,17 @@ function sse(blocks: Block[], stop: string): string {
 }
 
 /** The flag, a signed-in account, the assistant turned on, and a model that answers from `script` (one reply per request). */
-async function setup(page: Page, script: (sent: Sent, n: number) => Reply, { on = true, signedIn = true } = {}) {
+/** What the stand-in server says of the account's plan; a test changes it to play a payment. */
+interface Billing {
+  on: boolean;
+  plan: 'free' | 'pro';
+  until: string | null;
+  ending: boolean;
+  /** What was asked of /billing/checkout and /billing/portal. */
+  asked: { path: string; body: unknown }[];
+}
+
+async function setup(page: Page, script: (sent: Sent, n: number) => Reply, { on = true, signedIn = true, billing = { on: false, plan: 'free', until: null, ending: false, asked: [] } as Billing } = {}) {
   const cloud = new FakeCloud();
   const user = cloud.addUser({ email: 'ana@example.com', name: 'Ana Lima', username: 'ana' });
   await cloud.attach(page.context(), { email: 'ana@example.com', name: 'Ana Lima' });
@@ -53,11 +63,22 @@ async function setup(page: Page, script: (sent: Sent, n: number) => Reply, { on 
     if ('stop' in reply) return route.fulfill({ status: 200, contentType: 'text/event-stream', body: sse(reply.blocks, reply.stop) });
     return route.fulfill({ status: reply.status, contentType: 'application/json', headers: { 'x-td-reason': reply.reason }, body: JSON.stringify({ type: 'error', error: { type: 'api_error', message: 'no' } }) });
   });
-  await page.route('**/__ai/assistant/usage', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ used: 30_000, limit: 300_000, month: '2026-11', on: true }) }));
+  await page.route('**/__ai/assistant/usage', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ used: 30_000, limit: billing.plan === 'pro' ? 3_000_000 : 300_000, month: '2026-11', on: true, plan: billing.plan }) }),
+  );
+  await page.route('**/__ai/billing/plan*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ on: billing.on, plan: billing.plan, until: billing.until, ending: billing.ending }) }));
+  await page.route('**/__ai/billing/{checkout,portal}', (route) => {
+    const path = new URL(route.request().url()).pathname.split('/').pop()!;
+    billing.asked.push({ path, body: route.request().postDataJSON() });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: `https://sandbox.polar.sh/${path}/polar_c_1` }) });
+  });
   await page.addInitScript(() => {
     const w = window as unknown as Record<string, unknown>;
     w.__assistantBeta = true;
     w.__assistantUrl = location.origin + '/__ai';
+    // A page that would open in the browser is noted instead.
+    w.__opened = [];
+    window.open = (url) => ((w.__opened as string[]).push(String(url)), null);
   });
   await open(page);
   if (on)
@@ -805,6 +826,63 @@ test.describe('the panel', () => {
     await notice.getByRole('button').click();
     await expect(panel(page).locator('.item.answer')).toHaveText('Here now.');
     await expect(notice).toHaveCount(0);
+    errors.splice(0, errors.length, ...errors.filter((e) => !e.includes('Failed to load resource')));
+  });
+
+  test('with nothing to buy Settings shows no plan; with Pro on sale it shows the plan, opens the checkout, and turns to Pro once paid', async ({ page }) => {
+    const billing = { on: false, plan: 'free' as 'free' | 'pro', until: null as string | null, ending: false, asked: [] as { path: string; body: unknown }[] };
+    await setup(page, () => [{ type: 'text', text: 'Hi.' }], { billing });
+    const openSettings = async () => {
+      await page.evaluate(async () => {
+        const { ui } = await import('/src/lib/ui.svelte.ts' as string);
+        ui.settingsOpen = true;
+      });
+      await page.getByRole('dialog').getByText('Assistant', { exact: true }).first().click();
+    };
+    const settings = page.getByRole('dialog');
+    await openSettings();
+    await expect(settings.getByText('Use the assistant')).toBeVisible();
+    await expect(settings.getByText('Free plan')).toHaveCount(0);
+    await page.evaluate(async () => {
+      const { ui } = await import('/src/lib/ui.svelte.ts' as string);
+      ui.settingsOpen = false;
+    });
+    await expect(settings).toHaveCount(0);
+
+    billing.on = true;
+    await openSettings();
+    await expect(settings.getByText('Free plan')).toBeVisible();
+    await settings.getByRole('button', { name: 'Upgrade to Pro' }).click();
+    // The checkout is Polar's page, opened in the browser, for this account's email.
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __opened: string[] }).__opened)).toEqual(['https://sandbox.polar.sh/checkout/polar_c_1']);
+    expect(billing.asked).toEqual([{ path: 'checkout', body: { email: 'ana@example.com' } }]);
+
+    // Paid: the app looks again by itself while the person is away at Polar.
+    billing.plan = 'pro';
+    billing.until = '2026-12-24T10:00:00Z';
+    await expect(settings.getByText('Thought Desk Pro')).toBeVisible({ timeout: 15_000 });
+    await expect(settings.getByText('Renews on Dec 24, 2026.')).toBeVisible();
+    await settings.getByRole('button', { name: 'Manage subscription' }).click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __opened: string[] }).__opened.length)).toBe(2);
+    expect(billing.asked[1].path).toBe('portal');
+
+    // Cancelled at Polar: Pro to the end of what was paid for.
+    billing.ending = true;
+    await expect(settings.getByText('Cancelled. Pro lasts until Dec 24, 2026.')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('when the month’s allowance is used up, the notice offers Pro, but not to someone already on it', async ({ page, errors }) => {
+    const billing = { on: true, plan: 'free' as 'free' | 'pro', until: null as string | null, ending: false, asked: [] as { path: string; body: unknown }[] };
+    await setup(page, () => ({ status: 429, reason: 'spent' }), { billing });
+    await openPanel(page);
+    await panel(page).locator('textarea').fill('Hello');
+    await page.keyboard.press('Enter');
+    const notice = panel(page).locator('.item.notice');
+    await expect(notice).toHaveAttribute('data-reason', 'spent');
+    await notice.getByRole('button', { name: 'Upgrade to Pro' }).click();
+    await expect.poll(() => billing.asked.map((a) => a.path)).toEqual(['checkout']);
+    billing.plan = 'pro';
+    await expect(notice.getByRole('button')).toHaveCount(0, { timeout: 15_000 });
     errors.splice(0, errors.length, ...errors.filter((e) => !e.includes('Failed to load resource')));
   });
 
