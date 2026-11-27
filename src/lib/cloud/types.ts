@@ -62,6 +62,17 @@ export interface Cloud {
   sendEmailCode(email: string): Promise<void>;
   verifyEmailCode(email: string, code: string): Promise<void>;
   signOut(): Promise<void>;
+  /**
+   * Deleting the account needs the sign-in proved afresh. Null when it was, in the last few minutes; otherwise a
+   * 6-digit code has just been emailed, and this is the address it went to.
+   */
+  startAccountCheck(): Promise<string | null>;
+  /** The code from that email. */
+  finishAccountCheck(code: string): Promise<void>;
+  /** Throws unless `deleteAccount` could go through now. Deletes nothing: asked before anything else is removed. */
+  checkDeleteAccount(): Promise<void>;
+  /** Deletes the profile, friends and invitations, then the sign-in itself. It can't be undone. */
+  deleteAccount(): Promise<void>;
   /** The current access token (for the live-session relay). */
   accessToken(): Promise<string | null>;
   myProfile(): Promise<Profile | null>;

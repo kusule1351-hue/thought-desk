@@ -5,7 +5,7 @@ import { env } from 'cloudflare:workers';
 import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import { SignJWT, exportJWK, generateKeyPair } from 'jose';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { signedByPolar } from '../src/billing';
+import { signedByPolar, TERMS_VERSION as TERMS } from '../src/billing';
 import { keepPlan, planIn, planOf } from '../src/plan';
 import worker from '../src/index';
 
@@ -162,7 +162,7 @@ describe('which plan an account is on', () => {
     const sub = account();
     const first = await plan(sub);
     expect(first.res.status).toBe(200);
-    expect(first.json).toEqual({ on: true, plan: 'free', until: null, ending: false });
+    expect(first.json).toEqual({ on: true, plan: 'free', until: null, ending: false, terms: TERMS });
     expect(asked('/state')).toHaveLength(1);
     expect(asked('/state')[0].url).toBe(`${POLAR}/v1/customers/external/${sub}/state`);
     expect(asked('/state')[0].headers.get('authorization')).toBe('Bearer polar_test');
@@ -175,7 +175,7 @@ describe('which plan an account is on', () => {
     const sub = account();
     pro(sub, [subscription({ current_period_end: '2031-03-04T05:06:07.000Z', cancel_at_period_end: true })]);
     const got = await plan(sub);
-    expect(got.json).toEqual({ on: true, plan: 'pro', until: '2031-03-04T05:06:07.000Z', ending: true });
+    expect(got.json).toEqual({ on: true, plan: 'pro', until: '2031-03-04T05:06:07.000Z', ending: true, terms: TERMS });
 
     const renewing = account();
     pro(renewing);
@@ -260,7 +260,7 @@ describe('checkout', () => {
   it('asks Polar for a checkout carrying the account, and hands back its address', async () => {
     const sub = account();
     polar.answer = (url) => (url.includes('/v1/checkouts/') ? Response.json({ url: 'https://polar.test/checkout/abc' }) : new Response('{}', { status: 404 }));
-    const got = await call({ method: 'POST', path: '/checkout', as: sub, json: { email: 'me@example.com' } });
+    const got = await call({ method: 'POST', path: '/checkout', as: sub, json: { email: 'me@example.com', accepted: TERMS } });
     expect(got.res.status).toBe(200);
     expect(got.json).toEqual({ url: 'https://polar.test/checkout/abc' });
     const made = asked('/v1/checkouts/');
@@ -268,6 +268,28 @@ describe('checkout', () => {
     expect(made[0].method).toBe('POST');
     expect(made[0].headers.get('authorization')).toBe('Bearer polar_test');
     expect(made[0].body).toMatchObject({ products: [PRO], external_customer_id: sub, success_url: 'https://thoughtdesk.org/pro/welcome', customer_email: 'me@example.com' });
+    // What was agreed to, and when, goes with the purchase.
+    expect(made[0].body?.metadata.terms_version).toBe(TERMS);
+    expect(Math.abs(Date.parse(made[0].body?.metadata.terms_accepted_at) - Date.now())).toBeLessThan(60_000);
+  });
+
+  it('makes no checkout for someone who has not agreed to the terms in force, and says which those are', async () => {
+    polar.answer = (url) => (url.includes('/v1/checkouts/') ? Response.json({ url: 'https://polar.test/checkout/abc' }) : new Response('{}', { status: 404 }));
+    const sub = account();
+    for (const json of [{}, { accepted: true }, { accepted: '2020-01-01' }, { accepted: '' }, { email: 'me@example.com' }]) {
+      const got = await call({ method: 'POST', path: '/checkout', as: sub, json });
+      expect(got.res.status, JSON.stringify(json)).toBe(400);
+      expect(got.json).toEqual({ error: 'terms' });
+    }
+    expect((await call({ method: 'POST', path: '/checkout', as: sub })).json).toEqual({ error: 'terms' });
+    expect(asked('/v1/checkouts/')).toHaveLength(0);
+    // The plan says which version there is to agree to; a server may name another.
+    expect((await call({ as: sub })).json).toMatchObject({ terms: TERMS });
+    expect(TERMS).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const later = { ...billing, TERMS_VERSION: '2030-01-01' };
+    expect((await call({ as: sub, env: later })).json).toMatchObject({ terms: '2030-01-01' });
+    expect((await call({ method: 'POST', path: '/checkout', as: sub, json: { accepted: TERMS }, env: later })).json).toEqual({ error: 'terms' });
+    expect((await call({ method: 'POST', path: '/checkout', as: sub, json: { accepted: '2030-01-01' }, env: later })).res.status).toBe(200);
   });
 
   it('starts the checkout without the email when Polar turns the address away', async () => {
@@ -278,7 +300,7 @@ describe('checkout', () => {
       return last.body?.customer_email ? Response.json({ detail: [] }, { status: 422 }) : Response.json({ url: 'https://polar.test/checkout/plain' });
     };
     const sub = account();
-    const got = await call({ method: 'POST', path: '/checkout', as: sub, json: { email: 'ana@example.com' } });
+    const got = await call({ method: 'POST', path: '/checkout', as: sub, json: { email: 'ana@example.com', accepted: TERMS } });
     expect(got.res.status).toBe(200);
     expect(got.json).toEqual({ url: 'https://polar.test/checkout/plain' });
     const made = asked('/v1/checkouts/');
@@ -289,7 +311,7 @@ describe('checkout', () => {
     // Refused for another reason, it is not tried again.
     polar.calls = [];
     polar.answer = (url) => (url.includes('/v1/checkouts/') ? Response.json({ detail: [] }, { status: 422 }) : new Response('{}', { status: 404 }));
-    expect((await call({ method: 'POST', path: '/checkout', as: account() })).res.status).toBe(502);
+    expect((await call({ method: 'POST', path: '/checkout', as: account(), json: { accepted: TERMS } })).res.status).toBe(502);
     expect(asked('/v1/checkouts/')).toHaveLength(1);
   });
 
@@ -297,10 +319,10 @@ describe('checkout', () => {
     polar.answer = (url) => (url.includes('/v1/checkouts/') ? Response.json({ url: 'https://polar.test/c' }) : new Response('{}', { status: 404 }));
     const using = { ...billing, BILLING_RETURN_URL: 'https://example.org/back' };
     for (const json of [{ email: 'not an email' }, { email: 42 }, {}, { email: 'a@b c' }]) {
-      const got = await call({ method: 'POST', path: '/checkout', as: account(), json, env: using });
+      const got = await call({ method: 'POST', path: '/checkout', as: account(), json: { ...json, accepted: TERMS }, env: using });
       expect(got.res.status).toBe(200);
     }
-    const none = await call({ method: 'POST', path: '/checkout', as: account(), env: using });
+    const none = await call({ method: 'POST', path: '/checkout', as: account(), json: { accepted: TERMS }, env: using });
     expect(none.res.status).toBe(200);
     const made = asked('/v1/checkouts/');
     expect(made).toHaveLength(5);
@@ -313,7 +335,7 @@ describe('checkout', () => {
   it('turns away an account that is already on Pro, and makes no checkout', async () => {
     const sub = account();
     pro(sub);
-    const got = await call({ method: 'POST', path: '/checkout', as: sub, json: {} });
+    const got = await call({ method: 'POST', path: '/checkout', as: sub, json: { accepted: TERMS } });
     expect(got.res.status).toBe(409);
     expect(got.json).toEqual({ error: 'already' });
     expect(asked('/v1/checkouts/')).toHaveLength(0);
@@ -326,12 +348,12 @@ describe('checkout', () => {
     expect(polar.calls).toHaveLength(0);
 
     polar.answer = (url) => (url.includes('/v1/checkouts/') ? new Response('{}', { status: 500 }) : new Response('{}', { status: 404 }));
-    const failed = await call({ method: 'POST', path: '/checkout', as: account(), json: {} });
+    const failed = await call({ method: 'POST', path: '/checkout', as: account(), json: { accepted: TERMS } });
     expect(failed.res.status).toBe(502);
     expect(failed.json).toEqual({ error: 'unavailable' });
 
     polar.answer = (url) => (url.includes('/v1/checkouts/') ? Response.json({ nothing: 1 }) : new Response('{}', { status: 404 }));
-    const odd = await call({ method: 'POST', path: '/checkout', as: account(), json: {} });
+    const odd = await call({ method: 'POST', path: '/checkout', as: account(), json: { accepted: TERMS } });
     expect(odd.res.status).toBe(502);
   });
 
@@ -371,6 +393,95 @@ describe('the customer portal', () => {
     const got = await call({ method: 'POST', path: '/portal', as: account(), json: {} });
     expect(got.res.status).toBe(502);
     expect(got.json).toEqual({ error: 'unavailable' });
+  });
+});
+
+describe('cancelling from the app', () => {
+  const S1 = '11111111-1111-4111-8111-111111111111';
+  const S2 = '22222222-2222-4222-8222-222222222222';
+  /** A Polar that changes a subscription as asked and answers with it. */
+  const changing = (sub: string) => {
+    polar.answer = (url, method) => {
+      const state = polar.state.get(sub) as { active_subscriptions: Record<string, unknown>[] };
+      if (url.endsWith('/v1/customer-sessions/')) return Response.json({ token: 'polar_cst_one', customer_portal_url: 'https://polar.test/portal/xyz' });
+      if (method === 'PATCH') {
+        const s = state.active_subscriptions.find((x) => url.endsWith(`/v1/customer-portal/subscriptions/${x.id as string}`));
+        if (!s) return new Response('{}', { status: 404 });
+        const body = polar.calls.at(-1)!.body!;
+        Object.assign(s, { cancel_at_period_end: body.cancel_at_period_end, ends_at: body.cancel_at_period_end ? s.current_period_end : null });
+        return Response.json(s);
+      }
+      return url.endsWith(`/v1/customers/external/${sub}/state`) ? Response.json(state) : new Response('{}', { status: 404 });
+    };
+  };
+
+  it('stops Pro renewing: Pro stays to its date, and the plan says so at once', async () => {
+    const sub = account();
+    pro(sub, [subscription({ id: S1 })]);
+    changing(sub);
+    const got = await call({ method: 'POST', path: '/cancel', as: sub });
+    expect(got.res.status).toBe(200);
+    expect(got.json).toEqual({ on: true, plan: 'pro', until: '2030-01-01T00:00:00.000Z', ending: true, terms: TERMS });
+    const patched = polar.calls.filter((c) => c.method === 'PATCH');
+    expect(patched).toHaveLength(1);
+    expect(patched[0].url).toBe(`${POLAR}/v1/customer-portal/subscriptions/${S1}`);
+    expect(patched[0].body).toEqual({ cancel_at_period_end: true });
+    // Done as the customer, in a session Polar made for this account: our own key is not what changes it.
+    expect(patched[0].headers.get('authorization')).toBe('Bearer polar_cst_one');
+    expect(asked('/v1/customer-sessions/').map((c) => [c.body, c.headers.get('authorization')])).toEqual([[{ external_customer_id: sub }, 'Bearer polar_test']]);
+    // Kept: the next look doesn't need Polar.
+    polar.calls = [];
+    expect((await call({ as: sub })).json).toMatchObject({ plan: 'pro', ending: true });
+    expect(polar.calls).toHaveLength(0);
+  });
+
+  it('takes a cancellation back, and a second click either way changes nothing more', async () => {
+    const sub = account();
+    pro(sub, [subscription({ id: S1, cancel_at_period_end: true, ends_at: '2030-01-01T00:00:00.000Z' })]);
+    changing(sub);
+    const back = await call({ method: 'POST', path: '/resume', as: sub });
+    expect(back.json).toEqual({ on: true, plan: 'pro', until: '2030-01-01T00:00:00.000Z', ending: false, terms: TERMS });
+    expect(polar.calls.filter((c) => c.method === 'PATCH').map((c) => c.body)).toEqual([{ cancel_at_period_end: false }]);
+    polar.calls = [];
+    const again = await call({ method: 'POST', path: '/resume', as: sub });
+    expect(again.res.status).toBe(200);
+    expect(again.json).toMatchObject({ plan: 'pro', ending: false });
+    expect(polar.calls.filter((c) => c.method === 'PATCH')).toHaveLength(0);
+  });
+
+  it('stops every Pro subscription the account has, and leaves another product alone', async () => {
+    const sub = account();
+    pro(sub, [subscription({ id: S1 }), subscription({ id: S2, current_period_end: '2031-01-01T00:00:00.000Z' }), subscription({ id: '33333333-3333-4333-8333-333333333333', product_id: 'prod_other' })]);
+    changing(sub);
+    const got = await call({ method: 'POST', path: '/cancel', as: sub });
+    expect(got.json).toEqual({ on: true, plan: 'pro', until: '2031-01-01T00:00:00.000Z', ending: true, terms: TERMS });
+    expect(polar.calls.filter((c) => c.method === 'PATCH').map((c) => c.url.split('/').pop())).toEqual([S1, S2]);
+  });
+
+  it('says there is none for an account with nothing running, and changes nothing', async () => {
+    const got = await call({ method: 'POST', path: '/cancel', as: account() });
+    expect(got.res.status).toBe(404);
+    expect(got.json).toEqual({ error: 'none' });
+    expect(polar.calls.filter((c) => c.method === 'PATCH')).toHaveLength(0);
+  });
+
+  it('never takes a subscription id that is not one into a request, and says unavailable when Polar refuses', async () => {
+    const odd = account();
+    pro(odd, [subscription({ id: '../customers' })]);
+    expect((await call({ method: 'POST', path: '/cancel', as: odd })).res.status).toBe(200);
+    expect(polar.calls.filter((c) => c.method === 'PATCH')).toHaveLength(0);
+
+    const sub = account();
+    pro(sub, [subscription({ id: S1 })]);
+    polar.answer = (url, method) => (method === 'PATCH' ? new Response('{}', { status: 403 }) : url.endsWith('/v1/customer-sessions/') ? Response.json({ token: 'polar_cst_one' }) : Response.json(polar.state.get(sub)));
+    const got = await call({ method: 'POST', path: '/cancel', as: sub });
+    expect(got.res.status).toBe(502);
+    expect(got.json).toEqual({ error: 'unavailable' });
+  });
+
+  it('needs a sign-in, and POST', async () => {
+    expect((await call({ method: 'POST', path: '/cancel' })).res.status).toBe(401);
+    expect((await call({ method: 'GET', path: '/cancel', as: account() })).res.status).toBe(405);
   });
 });
 

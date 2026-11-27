@@ -30,7 +30,11 @@ import type {
   NewRow,
   Property,
   CellValue,
+  Chat,
+  ChatMeta,
 } from './types';
+
+export type { Chat, ChatMeta };
 import type { FilesTodo, IngestItem, OutRecord, OutText, SyncStatus, TextCommit, TextRead, TextTodo } from './sync/types';
 
 export const api = {
@@ -202,6 +206,13 @@ export const api = {
   syncFileOpen: (sealed: Uint8Array, stored: string, index: number, chunks: number) =>
     invoke<boolean>('sync_file_open', sealed, { headers: { stored, index: String(index), chunks: String(chunks) } }),
   syncFileDone: (id: string, step: 'uploaded' | 'removed') => invoke<void>('sync_file_done', { id, step }),
+
+  /** The assistant's past chats, newest first, without their bodies. */
+  listChats: () => invoke<ChatMeta[]>('list_chats'),
+  getChat: (id: string) => invoke<Chat | null>('get_chat', { id }),
+  /** Adds or replaces a chat; `data` is JSON text the storage never reads (up to 4 MB). */
+  saveChat: (id: string, title: string, data: string) => invoke<ChatMeta>('save_chat', { id, title, data }),
+  deleteChat: (id: string) => invoke<void>('delete_chat', { id }),
 
   trashItem: (table: TrashTable, id: string) => invoke<number>('trash_item', { table, id }),
   restoreItem: (table: TrashTable, id: string) => invoke<void>('restore_item', { table, id }),

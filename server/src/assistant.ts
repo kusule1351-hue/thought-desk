@@ -285,9 +285,13 @@ async function answer(request: Request, env: AssistantEnv, ctx: Pick<ExecutionCo
         model,
         max_tokens: MAX_TOKENS,
         stream: true,
-        // The instructions and tools are the same from one step of a task to the next: read from the cache, they cost a tenth.
+        // The conversation so far is the same from one step of a task to the next: read from the cache, it costs a tenth.
         cache_control: { type: 'ephemeral' },
         ...asked,
+        // The tools and instructions are the same for every conversation, and most of a request (about 6,800
+        // tokens, measured). Marked on their own, a new conversation reads them from the cache too, whoever
+        // started the last one; left to the mark above, each new conversation paid to write them again.
+        ...(asked.system ? { system: [{ type: 'text' as const, text: asked.system, cache_control: { type: 'ephemeral' as const } }] } : {}),
       },
       { signal: upstream.signal },
     );

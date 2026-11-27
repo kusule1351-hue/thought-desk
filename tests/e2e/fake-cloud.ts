@@ -52,6 +52,12 @@ export class FakeCloud {
   #nudges = new Map<string, Map<string, number>>();
   #signedIn = new Map<BrowserContext, string>();
   #codes = new Map<string, string>();
+  /** Browser profiles whose sign-in was proved just now (by a code), so deleting the account asks for nothing more. */
+  #fresh = new Set<BrowserContext>();
+  /** Accounts that were deleted, in order. */
+  deleted: string[] = [];
+  /** The database can't go through with a deletion (its function is missing, say): the check before one says so. */
+  deleteBroken = false;
   /** Who signs in with Google or GitHub in each browser profile. */
   #oauth = new Map<BrowserContext, { email: string; name: string }>();
 
@@ -110,10 +116,40 @@ export class FakeCloud {
         if (!this.#codes.has(email) || this.#codes.get(email) !== code) throw new Error("That code isn't right, or it has expired. Ask for a new one.");
         this.#codes.delete(email);
         this.#signedIn.set(context, this.#byEmail(email).id);
+        this.#fresh.add(context);
         return null;
       }
       case 'signOut':
         this.#signedIn.delete(context);
+        this.#fresh.delete(context);
+        return null;
+      case 'startAccountCheck':
+        if (!me) throw new Error('Sign in first.');
+        if (this.#fresh.has(context)) return null;
+        this.#codes.set(me.email, EMAIL_CODE);
+        return me.email;
+      case 'finishAccountCheck':
+        if (!me) throw new Error('Sign in first.');
+        if (this.#codes.get(me.email) !== String(args[0])) throw new Error("That code isn't right, or it has expired. Ask for a new one.");
+        this.#codes.delete(me.email);
+        this.#fresh.add(context);
+        return null;
+      case 'checkDeleteAccount':
+        if (!me) throw new Error('Sign in first.');
+        if (!this.#fresh.has(context)) throw new Error('confirm your sign-in first');
+        if (this.deleteBroken) throw new Error('The account can’t be deleted from here right now.');
+        return null;
+      case 'deleteAccount':
+        if (!me) throw new Error('Sign in first.');
+        if (!this.#fresh.has(context)) throw new Error('confirm your sign-in first');
+        this.users.delete(me.id);
+        this.friendships = this.friendships.filter((f) => f.requester !== me.id && f.addressee !== me.id);
+        this.sessions = this.sessions.filter((s) => s.host !== me.id && s.guest !== me.id);
+        this.versions.friends++;
+        this.versions.sessions++;
+        this.deleted.push(me.id);
+        this.#signedIn.delete(context);
+        this.#fresh.delete(context);
         return null;
       case 'accessToken':
         return me ? `test.${me.id}` : null;

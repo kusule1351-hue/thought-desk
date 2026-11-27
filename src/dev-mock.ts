@@ -4,7 +4,7 @@
  */
 
 import { mockConvertFileSrc, mockIPC, mockWindows } from '@tauri-apps/api/mocks';
-import type { Assignment, CalEvent, CardReview, CellValue, Course, DatabaseSchema, DbRow, FileMeta, OccurrencePage, PageMeta, Tag } from './lib/types';
+import type { Assignment, CalEvent, CardReview, CellValue, ChatMeta, Course, DatabaseSchema, DbRow, FileMeta, OccurrencePage, PageMeta, Tag } from './lib/types';
 import { TEMPLATES } from './lib/db/templates';
 import { prefs } from './lib/prefs.svelte';
 import { fromB64, toB64 } from './lib/sync/bytes';
@@ -155,6 +155,7 @@ interface PlannerData {
   tags: Tag[];
   sessions: OccurrencePage[];
   reviews: (CardReview & { pageId: string; cardId: string })[];
+  chats: (ChatMeta & { data: string })[];
 }
 const PLANNER_KEY = 'thoughtdesk.devmock.planner.v1';
 const BLOBS_KEY = 'thoughtdesk.devmock.blobs.v1';
@@ -187,7 +188,7 @@ const persistBlobs = () => {
 };
 
 let planner: PlannerData =
-  loadPlanner() ?? (FRESH ? { courses: [], assignments: [], events: [], files: [], tags: [], sessions: [], reviews: [] } : seedPlanner());
+  loadPlanner() ?? (FRESH ? { courses: [], assignments: [], events: [], files: [], tags: [], sessions: [], reviews: [], chats: [] } : seedPlanner());
 // Older preview data predates tags.
 planner.tags ??= [];
 for (const x of [...planner.assignments, ...planner.events, ...planner.files]) x.tags ??= [];
@@ -196,6 +197,7 @@ planner.sessions ??= [];
 for (const c of planner.courses) Object.assign(c, { ...newCourse(c.name, c.color, c.position), ...c });
 for (const x of planner.assignments) Object.assign(x, { ...newAssignment(), ...x });
 planner.reviews ??= [];
+planner.chats ??= [];
 for (const x of planner.events) {
   x.exdates ??= [];
   x.sourceUid ??= null;
@@ -303,6 +305,7 @@ function seedPlanner(): PlannerData {
     ],
     sessions: [],
     reviews: [],
+    chats: [],
   };
 }
 
@@ -1237,6 +1240,25 @@ mockIPC((cmd, payload) => {
         for (const f of planner.files.filter((x) => x.deletedAt)) delete blobs[f.stored];
         planner.files = planner.files.filter((x) => !x.deletedAt);
         persistBlobs();
+        return null;
+      case 'list_chats':
+        return [...planner.chats]
+          .sort((x, y) => y.updatedAt - x.updatedAt)
+          .map(({ id, title, createdAt, updatedAt }) => ({ id, title, createdAt, updatedAt }));
+      case 'get_chat':
+        return structuredClone(planner.chats.find((x) => x.id === a.id) ?? null);
+      case 'save_chat': {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(a.id)) throw "That isn't a chat";
+        if (new TextEncoder().encode(a.data).length > 4 * 1024 * 1024) throw 'This chat is too large to save (the limit is 4 MB)';
+        const ts = Date.now();
+        const title = String(a.title).trim().slice(0, 200);
+        let chat = planner.chats.find((x) => x.id === a.id);
+        if (chat) Object.assign(chat, { title, data: a.data, updatedAt: ts });
+        else planner.chats.push((chat = { id: a.id, title, data: a.data, createdAt: ts, updatedAt: ts }));
+        return { id: a.id, title, createdAt: chat.createdAt, updatedAt: ts };
+      }
+      case 'delete_chat':
+        planner.chats = planner.chats.filter((x) => x.id !== a.id);
         return null;
       case 'list_courses':
         return planner.courses;

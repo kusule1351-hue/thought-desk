@@ -79,6 +79,25 @@ export async function personOf(token: string, env: AuthEnv, keys: AuthDeps['keys
   }
 }
 
+/** How recently a sign-in must have been proved (a code from the person's email) for what can't be undone. */
+export const FRESH_MINUTES = 10;
+
+/**
+ * As `personOf`, never for someone acting as the person, and saying whether
+ * the sign-in was proved in the last few minutes. Clerk puts that in the
+ * token (`fva`: minutes since the first factor was last verified, -1 for
+ * never); a token without it is not fresh. Deleting an account asks for it,
+ * so a token that leaked can't be used to destroy what its owner has.
+ */
+export async function freshPersonOf(token: string, env: AuthEnv, keys: AuthDeps['keys'] = clerkKeys): Promise<{ sub: string; fresh: boolean } | null> {
+  const sub = await personOf(token, env, keys, { impersonation: false });
+  if (!sub) return null;
+  // Verified just above: this only reads it again.
+  const fva = decodeJwt(token).fva;
+  const age = Array.isArray(fva) ? fva[0] : undefined;
+  return { sub, fresh: typeof age === 'number' && age >= 0 && age <= FRESH_MINUTES };
+}
+
 const LOOPBACK = new Set(['127.0.0.1', '::1']);
 
 /** Whether a request came from this computer: a relay run locally. Cloudflare

@@ -150,3 +150,85 @@ test('the sign-in sheet closes with its button too', async ({ page }) => {
   await sheet.getByRole('button', { name: 'Close' }).click();
   await expect(sheet).toHaveCount(0);
 });
+
+test('deleting the account from Settings: asked once, proved with a code from the email, and the notes stay', async ({ page, errors }) => {
+  const cloud = new FakeCloud();
+  const ana = cloud.addUser({ email: 'ana@example.com', name: 'Ana Lima', username: 'ana' });
+  const ben = cloud.addUser({ email: 'ben@example.com', name: 'Ben Okafor', username: 'ben' });
+  cloud.befriend(ana, ben);
+  await cloud.attach(page.context(), { email: 'ana@example.com', name: 'Ana Lima' });
+  cloud.signIn(page.context(), ana);
+  // The server's part (it stops Pro, removes the synced copy and the assistant's counts): a stand-in that can fail.
+  const asked: { method: string; auth: string | null }[] = [];
+  let status = 502;
+  await page.addInitScript(() => ((window as unknown as { __assistantUrl: string }).__assistantUrl = location.origin + '/__ai'));
+  await page.route('**/__ai/account', (route) => {
+    asked.push({ method: route.request().method(), auth: route.request().headers().authorization ?? null });
+    return route.fulfill({ status, contentType: 'application/json', body: status === 204 ? '' : JSON.stringify({ error: 'unavailable' }) });
+  });
+  await open(page);
+  await openSettingsAccount(page);
+  const settings = page.getByRole('dialog');
+  await expect(settings.getByText('Leaving Thought Desk')).toBeVisible();
+  // The newest one: a dialog that has been answered is still fading out when the next one opens.
+  const ask = page.getByRole('alertdialog').last();
+
+  // It asks first, in words that say what goes and what stays; backing out deletes nothing.
+  await settings.getByRole('button', { name: 'Delete Account…' }).click();
+  await expect(ask).toContainText('Delete your account?');
+  await expect(ask).toContainText('It can’t be undone. The notes on this computer stay.');
+  await ask.getByRole('button', { name: 'Cancel' }).click();
+  await expect(ask).toHaveCount(0);
+  expect(asked).toHaveLength(0);
+
+  // Going ahead: this sign-in wasn't proved lately, so a code goes to the account's email. A wrong one asks again.
+  await settings.getByRole('button', { name: 'Delete Account…' }).click();
+  await ask.getByRole('button', { name: 'Delete Account', exact: true }).click();
+  await expect(ask).toContainText('we emailed a 6-digit code to ana@example.com');
+  await ask.getByRole('textbox').fill('000000');
+  await ask.getByRole('button', { name: 'Delete Account', exact: true }).click();
+  await expect(page.getByText('That code isn’t right', { exact: false }).or(page.getByText("That code isn't right", { exact: false })).first()).toBeVisible();
+  await expect(ask).toContainText('Enter the code we sent');
+  expect(asked).toHaveLength(0);
+  expect(cloud.deleted).toEqual([]);
+
+  // The right code, but the last step couldn't go through (the database says so when only asked): it stops
+  // before the server has removed anything.
+  cloud.deleteBroken = true;
+  await ask.getByRole('textbox').fill(EMAIL_CODE);
+  await ask.getByRole('button', { name: 'Delete Account', exact: true }).click();
+  await expect(page.getByText('The account can’t be deleted from here right now.', { exact: false })).toBeVisible();
+  expect(asked).toHaveLength(0);
+  expect(cloud.deleted).toEqual([]);
+  cloud.deleteBroken = false;
+
+  // That is mended, but the server can't do its part: nothing is deleted, and it says so. (No second code: the
+  // sign-in was just proved.)
+  await settings.getByRole('button', { name: 'Delete Account…' }).click();
+  await ask.getByRole('button', { name: 'Delete Account', exact: true }).click();
+  await expect(page.getByText('Couldn’t delete the account just now. Nothing was deleted.', { exact: false })).toBeVisible();
+  expect(asked).toEqual([{ method: 'DELETE', auth: `Bearer test.${ana.id}` }]);
+  expect(cloud.deleted).toEqual([]);
+  expect(cloud.users.has(ana.id)).toBe(true);
+  await expect(settings.getByText('Ana Lima').first()).toBeVisible();
+
+  // Tried again with the server back: the account goes.
+  status = 204;
+  await settings.getByRole('button', { name: 'Delete Account…' }).click();
+  await ask.getByRole('button', { name: 'Delete Account', exact: true }).click();
+  await expect(page.getByText('Your account was deleted.')).toBeVisible();
+  await expect(ask).toHaveCount(0);
+  expect(asked).toHaveLength(2);
+  expect(cloud.deleted).toEqual([ana.id]);
+  expect(cloud.users.has(ana.id)).toBe(false);
+  expect(cloud.friendships).toEqual([]);
+  expect(cloud.users.has(ben.id)).toBe(true);
+  // Signed out here, with nothing left to delete; the notes are where they were.
+  await expect(settings.getByText('Not signed in').first()).toBeVisible();
+  await expect(settings.getByRole('button', { name: 'Delete Account…' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.sidebar').getByText('Study plan')).toBeVisible();
+  // The wrong code, the server's refusal (and the browser's own line about it) were shown, and are the only errors there were.
+  expect(errors).toHaveLength(4);
+  errors.length = 0;
+});

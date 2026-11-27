@@ -87,6 +87,12 @@
     if (!assistantShown || AssistantPanel) return;
     void import('./lib/assistant/AssistantPanel.svelte').then((m) => (AssistantPanel = m.default)).catch(ui.error);
   });
+  // The sheet before paying for Pro, too.
+  let ProSheet = $state.raw<Component | null>(null);
+  $effect(() => {
+    if (!ui.proSheet || ProSheet) return;
+    void import('./lib/assistant/ui/ProSheet.svelte').then((m) => (ProSheet = m.default)).catch(ui.error);
+  });
   // Its page the same way: loaded the first time it is shown.
   let AssistantView = $state.raw<Component | null>(null);
   $effect(() => {
@@ -508,6 +514,7 @@
 {#if ui.liveSheet}<LiveSheet pageId={ui.liveSheet} />{/if}
 {#if ui.inviteSheet}<InviteSheet pageId={ui.inviteSheet} />{/if}
 {#if ui.accountSheet}<AccountSheet />{/if}
+{#if ui.proSheet && ProSheet}<ProSheet />{/if}
 {#if ui.newDatabase}<NewDatabaseSheet parentId={ui.newDatabase.parentId} onCreated={ui.newDatabase.onCreated} />{/if}
 {#if ui.formula}
   {@const f = ui.formula}
@@ -524,7 +531,10 @@
 {#if ui.filePicker}
   {#key ui.filePicker}<FilePicker picker={ui.filePicker} />{/key}
 {/if}
-{#if ui.confirmState}<ConfirmDialog dialog={ui.confirmState} />{/if}
+<!-- Keyed: one dialog asked for right after another (a question, then a code) is a new dialog, not the first one kept on screen. -->
+{#if ui.confirmState}
+  {#key ui.confirmState}<ConfirmDialog dialog={ui.confirmState} />{/key}
+{/if}
 <Toasts />
 <Tooltip />
 
@@ -608,7 +618,12 @@
     top: 0;
     right: 0;
     bottom: 0;
-    box-shadow: -12px 0 32px -16px rgb(0 0 0 / 0.3);
+  }
+  /* Over the page in a narrow window, the card is lifted off it. */
+  .assistant-slot.overlay > :global(.assistant) {
+    box-shadow:
+      0 0 0 1px var(--hairline),
+      0 16px 40px -12px rgb(0 0 0 / 0.32);
   }
   .main {
     flex: 1;

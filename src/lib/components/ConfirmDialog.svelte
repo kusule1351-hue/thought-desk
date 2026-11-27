@@ -80,7 +80,7 @@
         <div class="colors"><Swatches value={color} onchange={(c) => (color = c)} /></div>
       {/if}
       <div class="actions">
-        <button type="button" class="btn" onclick={() => done(false)}>{t('common.actions.cancel')}</button>
+        {#if dialog.cancelLabel !== null}<button type="button" class="btn" onclick={() => done(false)}>{dialog.cancelLabel ?? t('common.actions.cancel')}</button>{/if}
         <button type="submit" class="btn primary" bind:this={confirmBtn} disabled={!!dialog.input && !value.trim()}>{dialog.confirmLabel}</button>
       </div>
     </form>

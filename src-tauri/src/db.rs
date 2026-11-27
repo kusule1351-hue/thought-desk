@@ -710,6 +710,12 @@ impl Db {
             tx.execute_batch("PRAGMA user_version = 13;")?;
             tx.commit()?;
         }
+        if version < 14 {
+            let tx = conn.transaction()?;
+            tx.execute_batch(crate::chats::SCHEMA_V14)?;
+            tx.execute_batch("PRAGMA user_version = 14;")?;
+            tx.commit()?;
+        }
         Ok(())
     }
 

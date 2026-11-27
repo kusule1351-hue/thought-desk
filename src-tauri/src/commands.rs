@@ -6,6 +6,7 @@
 //! the main thread.
 
 use crate::cards::{Card, Deck, Review};
+use crate::chats::{Chat, ChatMeta};
 use crate::databases::{CreatedDatabase, CreatedRow, Database, DatabaseInput, ListedRow, NewRow, RowChange, SchemaItem};
 use crate::db::{Db, Error, Page, PageContent, PageMeta, PagePatch, Result, SearchHit, Table};
 use crate::export::{Export, ExportEntry};
@@ -506,6 +507,30 @@ pub fn save_page_yjs(db: State<Db>, request: tauri::ipc::Request<'_>) -> Result<
     };
     let id = request.headers().get("x-id").and_then(|v| v.to_str().ok()).unwrap_or_default();
     db.save_page_yjs(id, bytes)
+}
+
+// ---------------------------------------------------------------- chats
+
+/// The assistant's past chats, newest first, without their bodies.
+#[tauri::command(async)]
+pub fn list_chats(db: State<Db>) -> Result<Vec<ChatMeta>> {
+    db.list_chats()
+}
+
+#[tauri::command(async)]
+pub fn get_chat(db: State<Db>, id: String) -> Result<Option<Chat>> {
+    db.get_chat(&id)
+}
+
+/// Adds a chat or replaces it (its first save's time is kept).
+#[tauri::command(async)]
+pub fn save_chat(db: State<Db>, id: String, title: String, data: String) -> Result<ChatMeta> {
+    db.save_chat(&id, &title, &data)
+}
+
+#[tauri::command(async)]
+pub fn delete_chat(db: State<Db>, id: String) -> Result<()> {
+    db.delete_chat(&id)
 }
 
 // ---------------------------------------------------------------- sync

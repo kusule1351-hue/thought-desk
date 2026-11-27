@@ -252,6 +252,66 @@ export async function signOut() {
   }
 }
 
+/**
+ * How recently (minutes) the sign-in must have been proved to delete the account without asking again. The server
+ * and the database allow ten (server/src/auth.ts); this stays under that, so it can't run out on the way there.
+ */
+const FRESH_MINUTES = 8;
+
+/**
+ * Before deleting the account: whether the sign-in was proved lately. If not, Clerk emails a 6-digit code to the
+ * account's address, and that address is returned (null: nothing more is needed). However someone signed in
+ * (Google, GitHub, a code), their email address can take a code.
+ */
+export async function startCheck(): Promise<string | null> {
+  try {
+    const c = await clerk();
+    const session = c.session;
+    if (!session || !c.user) throw new Error(t('settings.account.delete.signedOut'));
+    const age = session.factorVerificationAge?.[0];
+    if (typeof age === 'number' && age >= 0 && age < FRESH_MINUTES) return null;
+    const started = await session.startVerification({ level: 'first_factor' });
+    const byEmail = started.supportedFirstFactors?.find((f) => f.strategy === 'email_code');
+    if (!byEmail || !('emailAddressId' in byEmail)) throw new Error(t('settings.account.delete.unavailable'));
+    await session.prepareFirstFactorVerification({ strategy: 'email_code', emailAddressId: byEmail.emailAddressId });
+    return c.user.primaryEmailAddress?.emailAddress ?? ('safeIdentifier' in byEmail ? byEmail.safeIdentifier : '');
+  } catch (e) {
+    throw friendly(e);
+  }
+}
+
+/** The code from that email. Afterwards the next token says the sign-in was just proved. */
+export async function finishCheck(code: string) {
+  try {
+    const session = (await clerk()).session;
+    if (!session) throw new Error(t('settings.account.delete.signedOut'));
+    const done = await session.attemptFirstFactorVerification({ strategy: 'email_code', code });
+    if (done.status !== 'complete') throw new Error(t('social.cloud.codeWrong'));
+    // The one in hand was made before the check, and says so.
+    await session.getToken({ skipCache: true });
+  } catch (e) {
+    throw friendly(e);
+  }
+}
+
+/** Whether Clerk lets this person delete their own sign-in (a setting of ours at Clerk). */
+export async function canDeleteUser(): Promise<boolean> {
+  return (await clerk()).user?.deleteSelfEnabled === true;
+}
+
+/** Deletes the sign-in itself at Clerk, and forgets it here. */
+export async function deleteUser() {
+  try {
+    const c = await clerk();
+    if (!c.user) return;
+    if (!c.user.deleteSelfEnabled) throw new Error(t('settings.account.delete.unavailable'));
+    await c.user.delete();
+  } catch (e) {
+    throw friendly(e);
+  }
+  await keep(null);
+}
+
 /** The first Clerk error code in `e`, if any. */
 function codeOf(e: unknown): string {
   const errors = (e as { errors?: { code?: string }[] } | null)?.errors;

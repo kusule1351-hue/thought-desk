@@ -253,7 +253,8 @@ describe('an answer', () => {
     expect(body.metadata).toBeUndefined();
     expect(body.thinking).toBeUndefined();
     expect(body.temperature).toBeUndefined();
-    expect(body.system).toBe('Be brief.');
+    // The instructions carry a cache mark of their own, so a new conversation reads them (and the tools before them) from the cache.
+    expect(body.system).toEqual([{ type: 'text', text: 'Be brief.', cache_control: { type: 'ephemeral' } }]);
     expect(body.messages).toEqual(messages);
     expect(body.tools).toEqual([{ name: 'read_note', description: 'Reads a note', input_schema: tool.input_schema }]);
     // This SDK version sends the server's key as a bearer token (not as x-api-key); the person's own token stays here.

@@ -453,7 +453,24 @@ export class Vault extends DurableObject<VaultEnv> {
     // sign-in, so a token that leaked could otherwise plant a key on an account
     // nobody could ever open or remove; this way it costs the owner nothing.
     if (refused && !(refused.status === 403 && this.#empty())) return refused;
-    this.#setMeta('deleting', 1);
+    await this.#wipe(sub, pageSize);
+    return null;
+  }
+
+  /**
+   * Everything of this account goes, with no proof asked: its owner is
+   * deleting the whole account, and has just proved the sign-in afresh
+   * (account.ts checks that). A computer that lost its key, or never had it,
+   * can still take the synced copy with the account.
+   */
+  async purge(sub: string, pageSize = 1000): Promise<void> {
+    void this.#sql;
+    await this.#wipe(sub, pageSize);
+  }
+
+  async #wipe(sub: string, pageSize: number): Promise<void> {
+    // Marked only where there is something to mark: an account that never synced has no rows to take.
+    if (this.#get('wrappedKey') !== undefined) this.#setMeta('deleting', 1);
 
     // Until a pass finds nothing: an upload that finished while the last pass ran is deleted by the next.
     for (let found = 1; found; ) {
@@ -471,7 +488,6 @@ export class Vault extends DurableObject<VaultEnv> {
     await this.ctx.storage.deleteAll();
     this.#ready = false;
     this.#hits = new Hits();
-    return null;
   }
 
   // Live notices. Hibernation API: an idle socket keeps no object in memory and costs nothing.
