@@ -751,17 +751,90 @@ $$;
 
 -- Deleting an account ----------------------------------------------------------
 
--- Done by hand on request (see the privacy policy): deleting the profile
--- takes their friendships, presence, sessions and inbox with it.
+-- From the app (delete_account): the caller's own, and only with a sign-in
+-- proved in the last ten minutes (the token's fva claim). The profile takes
+-- their friendships, presence, sessions and inbox with it, and the rows the
+-- limits kept about them go too.
 reset role;
-delete from public.profiles where id = 'user_ben';
+insert into private.friend_requests_sent (requester) values ('user_ben');
+insert into private.profile_lookups (user_id) values ('user_ben');
+set local role authenticated;
+
+-- A sign-in that doesn't say when it was proved, or was proved too long ago, deletes nothing.
+select set_config('request.jwt.claims', pg_temp.token('ben'), true);
+do $$
+begin
+  perform pg_temp.fails('select public.delete_account()', '42501', 'no fva claim: refused', 'confirm your sign-in first');
+end;
+$$;
+select set_config('request.jwt.claims', pg_temp.token('ben', '{"fva": [11, -1]}'), true);
+do $$
+begin
+  perform pg_temp.fails('select public.delete_account()', '42501', 'proved 11 minutes ago: refused', 'confirm your sign-in first');
+end;
+$$;
+select set_config('request.jwt.claims', pg_temp.token('ben', '{"fva": [-1, -1]}'), true);
+do $$
+begin
+  perform pg_temp.fails('select public.delete_account()', '42501', 'never proved: refused', 'confirm your sign-in first');
+end;
+$$;
+select set_config('request.jwt.claims', pg_temp.token('ben', '{"fva": ["0", 1]}'), true);
+do $$
+begin
+  perform pg_temp.fails('select public.delete_account()', '42501', 'a claim that is not a number: refused', 'confirm your sign-in first');
+end;
+$$;
+-- Someone Clerk didn't sign in, or a development account that isn't listed, is nobody.
+select set_config('request.jwt.claims', pg_temp.token('dan', '{"fva": [0, -1]}'), true);
+do $$
+begin
+  perform pg_temp.fails('select public.delete_account()', '42501', 'an unlisted development account: refused', 'not signed in');
+end;
+$$;
+reset role;
+do $$
+begin
+  perform pg_temp.ok(exists (select 1 from public.profiles where id = 'user_ben'), 'nothing was deleted by the refused calls');
+end;
+$$;
+
+-- Only checking fails the same way, and when it passes it deletes nothing.
+set local role authenticated;
+select set_config('request.jwt.claims', pg_temp.token('ben', '{"fva": [11, -1]}'), true);
+do $$
+begin
+  perform pg_temp.fails('select public.delete_account(true)', '42501', 'only checking, proved too long ago: refused', 'confirm your sign-in first');
+end;
+$$;
+select set_config('request.jwt.claims', pg_temp.token('ben', '{"fva": [2, -1]}'), true);
+select public.delete_account(true);
+reset role;
+do $$
+begin
+  perform pg_temp.ok(exists (select 1 from public.profiles where id = 'user_ben'), 'only checking deletes nothing');
+  perform pg_temp.ok(exists (select 1 from private.friend_requests_sent where requester = 'user_ben'), 'only checking keeps the counts too');
+end;
+$$;
+
+-- Proved two minutes ago: Ben goes, and only Ben.
+set local role authenticated;
+select set_config('request.jwt.claims', pg_temp.token('ben', '{"fva": [2, -1]}'), true);
+select public.delete_account();
+-- Asked again (the app trying once more after a step further on failed): nothing is left to delete, and it is no error.
+select public.delete_account();
+reset role;
 
 do $$
 begin
+  perform pg_temp.ok(not exists (select 1 from public.profiles where id = 'user_ben'), 'their profile goes');
   perform pg_temp.ok(not exists (select 1 from private.inboxes where user_id = 'user_ben'), 'their inbox goes');
   perform pg_temp.ok(not exists (select 1 from public.presence where user_id = 'user_ben'), 'their presence goes');
   perform pg_temp.ok(not exists (select 1 from public.cowork_sessions where 'user_ben' in (host, guest)), 'their sessions go');
   perform pg_temp.ok(not exists (select 1 from public.friendships where 'user_ben' in (requester, addressee)), 'their friendships go');
+  perform pg_temp.ok(not exists (select 1 from private.friend_requests_sent where requester = 'user_ben'), 'the count of their requests goes');
+  perform pg_temp.ok(not exists (select 1 from private.profile_lookups where user_id = 'user_ben'), 'the count of their lookups goes');
+  perform pg_temp.ok((select count(*) from public.profiles where id in ('user_ana', 'user_cat')) = 2, 'nobody else''s profile is touched');
 end;
 $$;
 
