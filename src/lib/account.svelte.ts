@@ -4,8 +4,10 @@
  * an account is for friends and writing together.
  */
 
+import { api } from './api';
 import { cloud, type CloudUser, type Profile, type Provider } from './cloud';
 import { t } from './i18n';
+import { isDesktop } from './platform';
 
 class Account {
   user = $state<CloudUser | null>(null);
@@ -91,6 +93,48 @@ class Account {
     await (await cloud()).signOut();
     this.user = null;
     this.profile = null;
+  }
+
+  /**
+   * Deleting the account, step one: the sign-in is proved afresh. Null if it was lately; otherwise a code has
+   * been emailed, to the address returned, and `confirmDelete` takes it.
+   */
+  async startDelete(): Promise<string | null> {
+    return (await cloud()).startAccountCheck();
+  }
+
+  async confirmDelete(code: string) {
+    await (await cloud()).finishAccountCheck(code.replace(/\s/g, ''));
+  }
+
+  /**
+   * Deletes the account for good, in an order that leaves nothing half-kept if a step fails: first a check that
+   * deletes nothing, then the server
+   * (it stops Pro renewing, and only then removes the synced copy and the assistant's counts; if it can't,
+   * nothing is deleted), then the profile with its friends and invitations, then the sign-in itself. Every step
+   * can be run again. The notes on this computer are not touched.
+   */
+  async deleteAccount() {
+    const c = await cloud();
+    const id = this.user?.id;
+    const token = await c.accessToken();
+    if (!id || !token) throw new Error(t('settings.account.delete.signedOut'));
+    // First, with nothing deleted: can the last steps go through? (The database knows how, and finds the sign-in fresh.)
+    await c.checkDeleteAccount();
+    const { base } = await import('./assistant/client');
+    let res: Response;
+    try {
+      res = await fetch(`${base()}/account`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    } catch {
+      throw new Error(t('settings.account.delete.offline'));
+    }
+    if (!res.ok) throw new Error(t(res.status === 403 || res.status === 401 ? 'settings.account.delete.unproved' : 'settings.account.delete.failed'));
+    for (const step of this.beforeSignOut) await step().catch((e) => console.warn(e));
+    await c.deleteAccount();
+    this.user = null;
+    this.profile = null;
+    // The key to a synced copy that no longer exists.
+    if (isDesktop()) await api.syncVaultForget(id).catch(() => {});
   }
 }
 

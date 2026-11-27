@@ -31,7 +31,29 @@
     "signedOut": "Not signed in",
     "signedOutHint": "Sign in to add friends and write together. Your notes stay on this computer.",
     "signIn": "Sign In…",
-    "@signIn": "Settings → Account: button that opens the sign-in sheet"
+    "@signIn": "Settings → Account: button that opens the sign-in sheet",
+    "delete": {
+      "heading": "Leaving Thought Desk",
+      "@heading": "Settings → Account: heading over the row that deletes the account for good",
+      "label": "Delete account",
+      "hint": "Deletes your sign-in, profile, friends and synced copy for good. The notes on this computer stay.",
+      "button": "Delete Account…",
+      "title": "Delete your account?",
+      "message": "This deletes your sign-in, your profile and friends, your synced copy and what the assistant counted, and cancels Thought Desk Pro. It can’t be undone. The notes on this computer stay.",
+      "confirm": "Delete Account",
+      "@confirm": "the button that goes ahead and deletes the account, in the dialog that asks and in the one that takes the code",
+      "codeTitle": "Enter the code we sent",
+      "codeMessage": "To make sure it’s you, we emailed a 6-digit code to {email}.",
+      "@codeMessage": "{email} is the account’s email address",
+      "codePlaceholder": "6-digit code",
+      "done": "Your account was deleted.",
+      "signedOut": "Sign in first.",
+      "offline": "Couldn’t reach Thought Desk’s server, so nothing was deleted. Check your connection and try again.",
+      "unproved": "Your sign-in needs confirming again. Nothing was deleted. Try once more.",
+      "failed": "Couldn’t delete the account just now. Nothing was deleted. Try again in a little while, or write to support@thoughtdesk.org.",
+      "unavailable": "The account can’t be deleted from here right now. Write to support@thoughtdesk.org and we’ll delete it for you."
+    },
+    "@delete": "Settings → Account: deleting the account for good; a code emailed to the person confirms it is them"
   },
   "sync": {
     "label": "Sync storage",

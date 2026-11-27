@@ -546,3 +546,18 @@ export interface CreatedRow {
   page: PageMeta;
   row: DbRow;
 }
+
+/** A past conversation with the assistant, kept on this computer. */
+export interface ChatMeta {
+  /** A UUID the caller makes. */
+  id: string;
+  title: string;
+  /** Milliseconds since the epoch. */
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Chat extends ChatMeta {
+  /** JSON text the app wrote; opaque to the storage. */
+  data: string;
+}

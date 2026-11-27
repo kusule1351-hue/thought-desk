@@ -13,6 +13,7 @@ import { YServer } from 'y-partyserver';
 import { authorize, isLocal, PROTOCOL, tokenFrom } from './auth';
 import { handleSync, type SyncEnv } from './sync';
 import { handleAssistant, type AssistantEnv } from './assistant';
+import { handleAccount } from './account';
 import { handleBilling, type BillingEnv } from './billing';
 
 export { Vault } from './vault';
@@ -112,6 +113,7 @@ export default {
     if (url.pathname === '/sync' || url.pathname.startsWith('/sync/')) return handleSync(request, env);
     if (url.pathname.startsWith('/assistant/')) return handleAssistant(request, env, ctx);
     if (url.pathname.startsWith('/billing/')) return handleBilling(request, env, ctx);
+    if (url.pathname === '/account') return handleAccount(request, env);
     if (url.pathname === '/') return new Response('Thought Desk live sessions', { headers: { 'content-type': 'text/plain' } });
     const room = ROOM.exec(url.pathname)?.[1];
     if (!room) return new Response('Not found', { status: 404 });

@@ -112,10 +112,7 @@
     if (ready) void assistant.refreshAllowance();
   });
 
-  async function goPro() {
-    const failed = await upgrade();
-    if (failed === 'failed') ui.error(t('assistant.plan.failed'));
-  }
+  const goPro = () => upgrade();
   $effect(() => {
     if (field) field.focus({ preventScroll: true });
   });
@@ -188,7 +185,7 @@
 <div class="body" bind:this={body} onscroll={onScroll}>
   <div class="content" bind:this={content}>
     {@render top?.()}
-    {#if assistant.gate === 'off'}
+    {#if !assistant.items.length && assistant.gate === 'off'}
       <div class="intro">
         <h3>{t('assistant.intro.canTitle')}</h3>
         <p>{t('assistant.intro.can')}</p>
@@ -198,7 +195,7 @@
         <p>{t('assistant.intro.never')}</p>
         <button class="btn primary" onclick={() => (prefs.assistantOn = true)}>{t('assistant.intro.turnOn')}</button>
       </div>
-    {:else if assistant.gate === 'signed-out'}
+    {:else if !assistant.items.length && assistant.gate === 'signed-out'}
       <div class="signed-out">
         <p>{t('assistant.signedOut.text')}</p>
         <button class="btn primary" onclick={() => (ui.accountSheet = true)}>{t('assistant.signIn')}</button>
@@ -292,7 +289,18 @@
         <button class="send round" disabled={!canSend} onclick={() => void send()} aria-label={t('assistant.composer.send')} data-tip={t('assistant.composer.send')}><Icon name="arrow-up" size={16} stroke={2.4} /></button>
       {/if}
     </div>
-    {#if percent !== null}<p class="allowance">{t('assistant.composer.allowance', { percent })}</p>{/if}
+    <!-- Said wherever it is talked to: this is a machine, and it can be wrong. -->
+    <p class="allowance">{t('assistant.composer.ai', { name: assistant.name })}{#if percent !== null}{' · '}{t('assistant.composer.allowance', { percent })}{/if}</p>
+  </div>
+{:else if assistant.items.length}
+  <!-- An old chat, open where nothing can be asked: it can be read, and this says what asking needs. -->
+  <div class="composer closed">
+    {#if assistant.gate === 'off'}
+      <button class="btn small primary" onclick={() => (prefs.assistantOn = true)}>{t('assistant.intro.turnOn')}</button>
+    {:else}
+      <span>{t('assistant.signedOut.text')}</span>
+      <button class="btn small primary" onclick={() => (ui.accountSheet = true)}>{t('assistant.signIn')}</button>
+    {/if}
   </div>
 {/if}
 </div>
@@ -581,6 +589,15 @@
     .example {
       transition: none;
     }
+  }
+  .composer.closed {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px 12px;
+    font-size: var(--fs-footnote);
+    color: var(--text-2);
   }
   .allowance {
     margin: 0;

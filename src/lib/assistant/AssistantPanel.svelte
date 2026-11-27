@@ -11,6 +11,7 @@
   import { face } from './face.svelte';
   import Face from './ui/Face.svelte';
   import Conversation from './ui/Conversation.svelte';
+  import History from './ui/History.svelte';
 
   const MIN = 280;
   const MAX = 720;
@@ -47,7 +48,7 @@
 </script>
 
 
-<aside class="assistant" class:resizing aria-label={assistant.name} style:width="{prefs.assistantWidth}px">
+<aside class="assistant" class:resizing aria-label={assistant.name}>
   <!-- A focusable separator is a resize control (arrow keys move it). -->
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <div
@@ -67,6 +68,7 @@
   <header class="head">
     <Face mood={face.mood} size={30} />
     <h2>{assistant.name}</h2>
+    <History />
     <button class="btn small new-chat" disabled={!assistant.items.length} onclick={() => assistant.clear()}>{t('assistant.newChat')}</button>
     <button class="icon-btn" onclick={() => (prefs.assistantOpen = false)} aria-label={t('common.actions.close')} data-tip={t('common.actions.close')}><Icon name="x" /></button>
   </header>
@@ -75,16 +77,20 @@
 </aside>
 
 <style>
+  /* A rounded card of its own, a little in from the window's edge (as the two sides of a split are).
+     Its width is its slot's (App.svelte), less the space around it. */
   .assistant {
     position: relative;
-    flex: none;
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    height: 100%;
-    max-width: calc(100vw - 48px);
+    margin: 2px 10px 10px 0;
+    border-radius: var(--r-card);
     background: var(--bg-sidebar);
-    box-shadow: inset 1px 0 0 var(--separator);
+    box-shadow: 0 0 0 1px var(--hairline);
     color: var(--text);
+    --r-card: 18px;
     --face-ground: var(--bg-sidebar);
   }
   .assistant.resizing {
@@ -95,11 +101,12 @@
   /* Resize grip on the left edge: invisible until hovered, then a 2px rule (as the sidebar's). */
   .resizer {
     position: absolute;
-    top: 0;
+    /* Clear of the rounded corners, so its rule is a straight run of the edge. */
+    top: var(--r-card);
+    bottom: var(--r-card);
     left: -4px;
     z-index: 5;
     width: 8px;
-    height: 100%;
     cursor: col-resize;
     outline: none;
   }

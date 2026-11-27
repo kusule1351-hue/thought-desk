@@ -65,9 +65,69 @@
       void m.refreshPlan(true);
     });
   });
+  // ---- deleting the account
+  let deleting = $state(false);
+  /** Asks once in plain words, proves the sign-in with a code from the person's email if it must, then deletes. */
+  async function deleteAccount() {
+    if (deleting) return;
+    const sure = await ui.confirm({
+      title: t('settings.account.delete.title'),
+      message: t('settings.account.delete.message'),
+      confirmLabel: t('settings.account.delete.confirm'),
+      danger: true,
+    });
+    if (!sure) return;
+    deleting = true;
+    try {
+      const sentTo = await account.startDelete();
+      // A wrong code asks again; leaving the box deletes nothing.
+      while (sentTo !== null) {
+        const typed = await ui.prompt({
+          title: t('settings.account.delete.codeTitle'),
+          message: t('settings.account.delete.codeMessage', { email: sentTo }),
+          placeholder: t('settings.account.delete.codePlaceholder'),
+          confirmLabel: t('settings.account.delete.confirm'),
+          icon: 'trash',
+        });
+        if (!typed) return;
+        try {
+          await account.confirmDelete(typed.value);
+          break;
+        } catch (e) {
+          ui.error(e);
+        }
+      }
+      await account.deleteAccount();
+      ui.toast(t('settings.account.delete.done'));
+    } catch (e) {
+      ui.error(e);
+    } finally {
+      deleting = false;
+    }
+  }
+
   async function toPolar(how: 'upgrade' | 'manage') {
-    const failed = await billing?.[how]();
+    // Upgrading starts with a sheet of its own (what Pro is, and the terms), which opens the payment page.
+    if (how === 'upgrade') return billing?.upgrade();
+    const failed = await billing?.manage();
     if (failed === 'failed' || failed === 'none') ui.error(t('assistant.plan.failed'));
+  }
+  /** Cancelling asks once, in words that say what is kept. */
+  async function cancelPro() {
+    if (!billing) return;
+    const until = billing.plan.until;
+    const sure = await ui.confirm({
+      title: t('assistant.plan.cancelTitle'),
+      message: until ? t('assistant.plan.cancelMessage', { date: fmt.date(until) }) : t('assistant.plan.cancelMessageNoDate'),
+      confirmLabel: t('assistant.plan.cancelConfirm'),
+      cancelLabel: t('assistant.plan.keep'),
+      danger: true,
+      icon: 'x',
+    });
+    if (sure && (await billing.cancel())) ui.error(t('assistant.plan.cancelFailed'));
+  }
+  async function keepPro() {
+    if (await billing?.resume()) ui.error(t('assistant.plan.cancelFailed'));
   }
 
   // ---- the panes
@@ -421,6 +481,19 @@
                 </div>
               {/if}
             </div>
+            {#if account.user}
+              <!-- Leaving for good is here, in the open, and takes everything we hold with it. -->
+              <h3 class="group-title">{t('settings.account.delete.heading')}</h3>
+              <div class="group">
+                <div class="group-row">
+                  <div class="row-label">
+                    {t('settings.account.delete.label')}
+                    <small>{t('settings.account.delete.hint')}</small>
+                  </div>
+                  <button class="btn small raised destructive" disabled={deleting} onclick={() => void deleteAccount()}>{t('settings.account.delete.button')}</button>
+                </div>
+              </div>
+            {/if}
           {:else if pane === 'general'}
             <div class="group">
               <div class="group-row">
@@ -767,6 +840,7 @@
             <p class="group-note">{t('assistant.settings.kept')}</p>
             {#if billing?.plan.on}
               {@const plan = billing.plan}
+              <h3 class="group-title">{t('assistant.plan.title')}</h3>
               <div class="group plan">
                 <div class="group-row">
                   <div class="row-label">
@@ -787,6 +861,24 @@
                     <button class="btn small primary" disabled={plan.busy} onclick={() => void toPolar('upgrade')}>{t('assistant.plan.upgrade')}</button>
                   {/if}
                 </div>
+                {#if plan.pro}
+                  <!-- Leaving is as easy as joining: one button, here, and it can be taken back. -->
+                  <div class="group-row">
+                    {#if plan.ending}
+                      <div class="row-label">
+                        {t('assistant.plan.keepLabel')}
+                        <small>{t('assistant.plan.keepHint')}</small>
+                      </div>
+                      <button class="btn small raised" disabled={plan.busy} onclick={() => void keepPro()}>{t('assistant.plan.keep')}</button>
+                    {:else}
+                      <div class="row-label">
+                        {t('assistant.plan.cancelLabel')}
+                        <small>{plan.until ? t('assistant.plan.cancelHint', { date: fmt.date(plan.until) }) : t('assistant.plan.cancelHintNoDate')}</small>
+                      </div>
+                      <button class="btn small raised destructive" disabled={plan.busy} onclick={() => void cancelPro()}>{t('assistant.plan.cancel')}</button>
+                    {/if}
+                  </div>
+                {/if}
               </div>
               <p class="group-note">{t('assistant.plan.note')}</p>
             {/if}
@@ -1389,6 +1481,11 @@
     left: 52px;
   }
 
+  /* A button beside a long explanation keeps its own width: the words wrap, the button doesn't squeeze. */
+  .group-row > .btn {
+    flex: none;
+    white-space: nowrap;
+  }
   .account-row {
     display: flex;
     align-items: center;

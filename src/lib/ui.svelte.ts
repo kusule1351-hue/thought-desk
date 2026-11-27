@@ -44,6 +44,8 @@ export interface ConfirmState {
   confirmLabel: string;
   danger: boolean;
   icon?: string;
+  /** What the way out is called, when "Cancel" would mislead; null for a dialog with one button. */
+  cancelLabel?: string | null;
   /** Present for prompts: the text field's starting value and placeholder. */
   input?: { value: string; placeholder: string; select?: 'all' | 'stem' };
   /** Present for prompts that also pick a colour. */
@@ -114,6 +116,8 @@ class UI {
   /** Choosing how to start a new database (inside `parentId`, or on its own). */
   /** The sign-in and profile sheet. */
   accountSheet = $state(false);
+  /** The sheet before paying for Pro: what it is, and agreeing to the terms (assistant/ui/ProSheet.svelte). */
+  proSheet = $state(false);
   /** The page whose live session panel is open. */
   liveSheet = $state<string | null>(null);
   /** The page a friend is being invited to. */
@@ -141,6 +145,7 @@ class UI {
       this.liveSheet !== null ||
       this.inviteSheet !== null ||
       this.accountSheet ||
+      this.proSheet ||
       this.capture !== null
     );
   }
@@ -183,13 +188,15 @@ class UI {
     this.iconPicker = { x: r.left, y: r.bottom + 6, onPick, onRemove, current };
   }
 
-  confirm(opts: { title: string; message: string; confirmLabel?: string; danger?: boolean }): Promise<boolean> {
+  confirm(opts: { title: string; message: string; confirmLabel?: string; cancelLabel?: string | null; danger?: boolean; icon?: string }): Promise<boolean> {
     return new Promise((resolve) => {
       this.confirmState = {
         title: opts.title,
         message: opts.message,
         confirmLabel: opts.confirmLabel ?? t('app.confirm'),
+        cancelLabel: opts.cancelLabel,
         danger: opts.danger ?? false,
+        icon: opts.icon,
         resolve,
       };
     });

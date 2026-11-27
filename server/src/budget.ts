@@ -38,6 +38,15 @@ export class Budget extends DurableObject {
     this.#sql.exec(`CREATE TABLE IF NOT EXISTS plan (id INTEGER PRIMARY KEY CHECK (id = 1), pro INTEGER NOT NULL, until INTEGER, ending INTEGER NOT NULL, checked INTEGER NOT NULL)`);
   }
 
+  /** Forgets everything counted and kept for this account: it has been deleted. */
+  async clear(): Promise<void> {
+    this.#starts = [];
+    await this.ctx.storage.deleteAll();
+    // The tables are made again, empty, so a late request finds them (its account no longer signs in).
+    this.#sql.exec(`CREATE TABLE IF NOT EXISTS spend (period TEXT PRIMARY KEY, micro INTEGER NOT NULL)`);
+    this.#sql.exec(`CREATE TABLE IF NOT EXISTS plan (id INTEGER PRIMARY KEY CHECK (id = 1), pro INTEGER NOT NULL, until INTEGER, ending INTEGER NOT NULL, checked INTEGER NOT NULL)`);
+  }
+
   #read(period: string): number {
     return Number(this.#sql.exec(`SELECT micro FROM spend WHERE period = ?`, period).toArray()[0]?.micro ?? 0);
   }

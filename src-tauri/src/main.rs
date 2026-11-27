@@ -3,6 +3,7 @@
 
 mod auth;
 mod cards;
+mod chats;
 mod commands;
 mod cowork;
 mod databases;
@@ -217,6 +218,10 @@ fn main() {
             commands::set_page_shared,
             commands::get_page_yjs,
             commands::save_page_yjs,
+            commands::list_chats,
+            commands::get_chat,
+            commands::save_chat,
+            commands::delete_chat,
             commands::export_begin,
             commands::export_write,
             commands::export_reveal,

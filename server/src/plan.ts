@@ -59,11 +59,14 @@ export class PolarError extends Error {
   }
 }
 
-/** One request to Polar, as us. A 404 is `null` (no such customer); anything else that isn't a success throws. */
-export async function polar<T>(env: PlanEnv, path: string, init: { method?: string; body?: unknown } = {}): Promise<T | null> {
+/**
+ * One request to Polar, as us, or (`as`) as one customer, with the short-lived token of a session Polar made for
+ * them. A 404 is `null` (no such customer); anything else that isn't a success throws.
+ */
+export async function polar<T>(env: PlanEnv, path: string, init: { method?: string; body?: unknown; as?: string } = {}): Promise<T | null> {
   const res = await fetch(base(env) + path, {
     method: init.method ?? 'GET',
-    headers: { Authorization: `Bearer ${env.POLAR_ACCESS_TOKEN}`, Accept: 'application/json', ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+    headers: { Authorization: `Bearer ${init.as ?? env.POLAR_ACCESS_TOKEN}`, Accept: 'application/json', ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }) },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
     signal: AbortSignal.timeout(TIMEOUT),
   });
@@ -79,18 +82,21 @@ const time = (v: unknown) => {
   return Number.isFinite(at) ? at : null;
 };
 
+/** The running subscriptions to a Pro product in what Polar says of a customer, as Polar gives them. */
+export function proSubscriptions(state: unknown, env: PlanEnv): Json[] {
+  const subscriptions = isObject(state) && Array.isArray(state.active_subscriptions) ? state.active_subscriptions : [];
+  const ours = new Set(proProducts(env));
+  return subscriptions.filter((s): s is Json => isObject(s) && typeof s.product_id === 'string' && ours.has(s.product_id) && (s.status === 'active' || s.status === 'trialing'));
+}
+
 /**
  * The plan in what Polar says of a customer (its "customer state", from the
  * API or in a notice): Pro if one of their running subscriptions is for a Pro
  * product. Polar lists only subscriptions that are active or in a trial.
  */
 export function planIn(state: unknown, env: PlanEnv): Plan {
-  const subscriptions = isObject(state) && Array.isArray(state.active_subscriptions) ? state.active_subscriptions : [];
-  const ours = new Set(proProducts(env));
   let best: Plan | null = null;
-  for (const s of subscriptions) {
-    if (!isObject(s) || typeof s.product_id !== 'string' || !ours.has(s.product_id)) continue;
-    if (s.status !== 'active' && s.status !== 'trialing') continue;
+  for (const s of proSubscriptions(state, env)) {
     const plan: Plan = { pro: true, until: time(s.ends_at) ?? time(s.current_period_end), ending: s.cancel_at_period_end === true };
     // Two at once (a mistake, or a yearly bought over a monthly): the one that runs longest counts.
     if (!best || (plan.until ?? Infinity) > (best.until ?? Infinity)) best = plan;

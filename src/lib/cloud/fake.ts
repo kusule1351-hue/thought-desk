@@ -51,6 +51,23 @@ class FakeCloud implements Cloud {
     return call<string | null>('accessToken');
   }
 
+  startAccountCheck() {
+    return call<string | null>('startAccountCheck');
+  }
+
+  async finishAccountCheck(code: string) {
+    await call('finishAccountCheck', code);
+  }
+
+  async checkDeleteAccount() {
+    await call('checkDeleteAccount');
+  }
+
+  async deleteAccount() {
+    await call('deleteAccount');
+    await this.#changed();
+  }
+
   myProfile() {
     return call<Profile | null>('myProfile');
   }

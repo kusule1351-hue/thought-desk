@@ -38,6 +38,19 @@ function sse(blocks: Block[], stop: string): string {
   return out.join('');
 }
 
+/** The Terms and Privacy Policy the stand-in server says are in force. */
+const TERMS = '2026-11-27';
+/** The sheet shown before paying: what Pro is, and the box to tick. */
+const proSheet = (page: Page) => page.locator('.pro');
+/** Agrees and goes on to pay. */
+async function agreeAndPay(page: Page) {
+  const sheet = proSheet(page);
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('checkbox').check();
+  await sheet.getByRole('button', { name: 'Continue to Payment' }).click();
+  await expect(sheet).toHaveCount(0);
+}
+
 /** The flag, a signed-in account, the assistant turned on, and a model that answers from `script` (one reply per request). */
 /** What the stand-in server says of the account's plan; a test changes it to play a payment. */
 interface Billing {
@@ -66,11 +79,17 @@ async function setup(page: Page, script: (sent: Sent, n: number) => Reply, { on 
   await page.route('**/__ai/assistant/usage', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ used: 30_000, limit: billing.plan === 'pro' ? 3_000_000 : 300_000, month: '2026-11', on: true, plan: billing.plan }) }),
   );
-  await page.route('**/__ai/billing/plan*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ on: billing.on, plan: billing.plan, until: billing.until, ending: billing.ending }) }));
+  await page.route('**/__ai/billing/plan*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ on: billing.on, plan: billing.plan, until: billing.until, ending: billing.ending, terms: TERMS }) }));
   await page.route('**/__ai/billing/{checkout,portal}', (route) => {
     const path = new URL(route.request().url()).pathname.split('/').pop()!;
     billing.asked.push({ path, body: route.request().postDataJSON() });
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: `https://sandbox.polar.sh/${path}/polar_c_1` }) });
+  });
+  await page.route('**/__ai/billing/{cancel,resume}', (route) => {
+    const path = new URL(route.request().url()).pathname.split('/').pop()!;
+    billing.asked.push({ path, body: route.request().postDataJSON() });
+    billing.ending = path === 'cancel';
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ on: billing.on, plan: billing.plan, until: billing.until, ending: billing.ending, terms: TERMS }) });
   });
   await page.addInitScript(() => {
     const w = window as unknown as Record<string, unknown>;
@@ -757,6 +776,8 @@ test.describe('the panel', () => {
     expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
     await expect(panel(page).locator('textarea')).toHaveValue('');
     await expect(panel(page)).toContainText('10% of this month');
+    // Wherever it is talked to, it says what it is.
+    await expect(panel(page)).toContainText('Socrates is an AI and can be wrong. Check what matters.');
     await answer.getByRole('button', { name: 'Study plan' }).click();
     await expect(page.locator('h1.title')).toHaveText('Study plan');
   });
@@ -853,36 +874,108 @@ test.describe('the panel', () => {
     await openSettings();
     await expect(settings.getByText('Free plan')).toBeVisible();
     await settings.getByRole('button', { name: 'Upgrade to Pro' }).click();
-    // The checkout is Polar's page, opened in the browser, for this account's email.
+    // First a sheet: what Pro is, that it renews and how to stop it, and the terms. Nothing is asked of Polar yet.
+    const sheet = proSheet(page);
+    await expect(sheet).toContainText('Paid every month until you cancel');
+    await expect(sheet).toContainText('within 14 days');
+    await expect(sheet).toContainText('18 or older');
+    const go = sheet.getByRole('button', { name: 'Continue to Payment' });
+    // The box starts empty, and the way on waits for it.
+    await expect(sheet.getByRole('checkbox')).not.toBeChecked();
+    await expect(go).toBeDisabled();
+    expect(billing.asked).toHaveLength(0);
+    // Both documents open in the browser from here, and reading one ticks nothing.
+    await sheet.getByRole('link', { name: 'Terms of Use' }).click();
+    await sheet.getByRole('link', { name: 'Privacy Policy' }).click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __opened: string[] }).__opened)).toEqual(['https://thoughtdesk.org/terms', 'https://thoughtdesk.org/privacy']);
+    await expect(sheet.getByRole('checkbox')).not.toBeChecked();
+    // Leaving the sheet starts nothing.
+    await sheet.getByRole('button', { name: 'Cancel' }).click();
+    await expect(sheet).toHaveCount(0);
+    expect(billing.asked).toHaveLength(0);
+    await settings.getByRole('button', { name: 'Upgrade to Pro' }).click();
+    await expect(proSheet(page).getByRole('checkbox')).not.toBeChecked();
+    await page.evaluate(() => ((window as unknown as { __opened: string[] }).__opened.length = 0));
+    await agreeAndPay(page);
+    // The checkout is Polar's page, opened in the browser, for this account's email, with the terms that were agreed to.
     await expect.poll(() => page.evaluate(() => (window as unknown as { __opened: string[] }).__opened)).toEqual(['https://sandbox.polar.sh/checkout/polar_c_1']);
-    expect(billing.asked).toEqual([{ path: 'checkout', body: { email: 'ana@example.com' } }]);
+    expect(billing.asked).toEqual([{ path: 'checkout', body: { email: 'ana@example.com', accepted: TERMS } }]);
 
     // Paid: the app looks again by itself while the person is away at Polar.
     billing.plan = 'pro';
     billing.until = '2026-12-24T10:00:00Z';
     await expect(settings.getByText('Thought Desk Pro')).toBeVisible({ timeout: 15_000 });
     await expect(settings.getByText('Renews on Dec 24, 2026.')).toBeVisible();
-    await settings.getByRole('button', { name: 'Manage subscription' }).click();
+    await settings.getByRole('button', { name: 'Card and receipts' }).click();
     await expect.poll(() => page.evaluate(() => (window as unknown as { __opened: string[] }).__opened.length)).toBe(2);
     expect(billing.asked[1].path).toBe('portal');
 
-    // Cancelled at Polar: Pro to the end of what was paid for.
+    // Cancelling is one button here. It asks once, in words that say what is kept, and the way out keeps Pro.
+    await expect(settings.getByText('You keep Pro until Dec 24, 2026. Nothing more is charged.')).toBeVisible();
+    await settings.getByRole('button', { name: 'Cancel Subscription' }).click();
+    const sure = page.getByRole('alertdialog');
+    await expect(sure).toContainText('Cancel Thought Desk Pro?');
+    await expect(sure).toContainText('You keep Pro until Dec 24, 2026');
+    await sure.getByRole('button', { name: 'Keep Pro' }).click();
+    await expect(sure).toHaveCount(0);
+    expect(billing.asked).toHaveLength(2);
+    await settings.getByRole('button', { name: 'Cancel Subscription' }).click();
+    await sure.getByRole('button', { name: 'Cancel Pro', exact: true }).click();
+    await expect(settings.getByText('Cancelled. Pro lasts until Dec 24, 2026.')).toBeVisible();
+    expect(billing.asked[2].path).toBe('cancel');
+    // Nothing opened in the browser for it.
+    expect(await page.evaluate(() => (window as unknown as { __opened: string[] }).__opened.length)).toBe(2);
+    await expect(settings.getByRole('button', { name: 'Cancel Subscription' })).toHaveCount(0);
+
+    // And it can be taken back, with one more.
+    await settings.getByRole('button', { name: 'Keep Pro' }).click();
+    await expect(settings.getByText('Renews on Dec 24, 2026.')).toBeVisible();
+    expect(billing.asked[3].path).toBe('resume');
+    await expect(settings.getByRole('button', { name: 'Cancel Subscription' })).toBeVisible();
+
+    // Cancelled at Polar instead: the same is shown here.
     billing.ending = true;
     await expect(settings.getByText('Cancelled. Pro lasts until Dec 24, 2026.')).toBeVisible({ timeout: 15_000 });
   });
 
-  test('when the month’s allowance is used up, the notice offers Pro, but not to someone already on it', async ({ page, errors }) => {
+  test('when the month’s allowance is used up a dialog says so once and offers Pro; after that the notice does, but not to someone already on it', async ({ page, errors }) => {
     const billing = { on: true, plan: 'free' as 'free' | 'pro', until: null as string | null, ending: false, asked: [] as { path: string; body: unknown }[] };
     await setup(page, () => ({ status: 429, reason: 'spent' }), { billing });
     await openPanel(page);
     await panel(page).locator('textarea').fill('Hello');
     await page.keyboard.press('Enter');
     const notice = panel(page).locator('.item.notice');
-    await expect(notice).toHaveAttribute('data-reason', 'spent');
-    await notice.getByRole('button', { name: 'Upgrade to Pro' }).click();
+    await expect(notice.first()).toHaveAttribute('data-reason', 'spent');
+    // The first time, it is worth stopping for.
+    const said = page.getByRole('alertdialog');
+    await expect(said).toContainText('This month’s allowance is used up');
+    await expect(said).toContainText(/starts again on \w+ 1\b/);
+    await expect(said).toContainText('Pro gives a much larger one');
+    await said.getByRole('button', { name: 'Not Now' }).click();
+    await expect(said).toHaveCount(0);
+    expect(billing.asked).toHaveLength(0);
+
+    // Asked again: no dialog this time, only the line, which still has the way to Pro.
+    await panel(page).locator('textarea').fill('Hello again');
+    await page.keyboard.press('Enter');
+    await expect(notice).toHaveCount(2);
+    await idle(page);
+    await page.waitForTimeout(400);
+    await expect(said).toHaveCount(0);
+    await notice.last().getByRole('button', { name: 'Upgrade to Pro' }).click();
+    await agreeAndPay(page);
     await expect.poll(() => billing.asked.map((a) => a.path)).toEqual(['checkout']);
     billing.plan = 'pro';
-    await expect(notice.getByRole('button')).toHaveCount(0, { timeout: 15_000 });
+    await expect(notice.last().getByRole('button')).toHaveCount(0, { timeout: 15_000 });
+
+    // On Pro and out again: said once more, with nothing to sell.
+    await panel(page).locator('textarea').fill('Once more');
+    await page.keyboard.press('Enter');
+    await expect(said).toContainText('This month’s allowance is used up');
+    await expect(said).not.toContainText('Pro gives');
+    await expect(said.getByRole('button')).toHaveText(['OK']);
+    await said.getByRole('button', { name: 'OK' }).click();
+    await expect(said).toHaveCount(0);
     errors.splice(0, errors.length, ...errors.filter((e) => !e.includes('Failed to load resource')));
   });
 
@@ -907,6 +1000,164 @@ test.describe('the panel', () => {
     await page.getByText('Keep from the assistant').click();
     const found = await runTool(page, 'search_notes', { query: 'midterm' });
     expect(found.ok && found.out).not.toContain('Study plan');
+  });
+});
+
+test.describe('chats are kept on this computer', () => {
+  const panel = (page: Page) => page.locator('aside.assistant');
+  const openPanel = async (page: Page) => {
+    if (!(await panel(page).isVisible())) await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+    await expect(panel(page)).toBeVisible();
+  };
+  /** Opens the list of kept chats from the panel. */
+  const history = async (page: Page) => {
+    await panel(page).getByRole('button', { name: 'Chat history' }).click();
+    const menu = page.getByRole('menu');
+    await expect(menu).toBeVisible();
+    return menu;
+  };
+  const ask = async (page: Page, text: string) => {
+    await panel(page).locator('textarea').fill(text);
+    await page.keyboard.press('Enter');
+    await expect(panel(page).locator('.item.ask').last()).toHaveText(text);
+    await idle(page);
+  };
+  const OLD = '0b9a1c2d-3e4f-4a5b-8c6d-7e8f9a0b1c2d';
+  /** Keeps a chat as an earlier run of the app would have. */
+  const keepOld = (page: Page, id: string) =>
+    page.evaluate(async (id) => {
+      const { api } = await import('/src/lib/api.ts');
+      const { write } = await import('/src/lib/assistant/chats.ts');
+      await api.saveChat(
+        id,
+        'What is osmosis?',
+        write({
+          items: [
+            { id: 1, type: 'ask', text: 'What is osmosis?' },
+            { id: 2, type: 'answer', text: 'Water crossing a membrane.', writing: false },
+          ],
+          history: [
+            { role: 'user', content: 'What is osmosis?' },
+            { role: 'assistant', content: [{ type: 'text', text: 'Water crossing a membrane.' }] },
+          ],
+          next: 3,
+        }),
+      );
+    }, id);
+
+  test('a chat is there after the app is closed: it opens from the list and goes on where it stopped', async ({ page }) => {
+    const { sent } = await setup(page, (_s, n) => [{ type: 'text', text: n === 1 ? 'Water crossing a membrane.' : n === 2 ? 'Yes, both even things out.' : 'Proteins that speed reactions up.' }]);
+    await openPanel(page);
+    await ask(page, 'What is osmosis?');
+    await expect(panel(page).locator('.item.answer')).toContainText('Water crossing');
+
+    // The app is closed and opened again: the conversation on screen is a new one, and the old one is in the list.
+    await open(page);
+    await openPanel(page);
+    await expect(panel(page).locator('.item')).toHaveCount(0);
+    let menu = await history(page);
+    await expect(menu.locator('.header')).toHaveText('Chats');
+    await menu.getByRole('menuitem', { name: /What is osmosis\?/ }).click();
+    await expect(panel(page).locator('.item.ask')).toHaveText('What is osmosis?');
+    await expect(panel(page).locator('.item.answer')).toContainText('Water crossing');
+
+    // It goes on: the model is given what was said before.
+    await ask(page, 'Is it like diffusion?');
+    await expect(panel(page).locator('.item.answer').last()).toContainText('both even things out');
+    expect(sent).toHaveLength(2);
+    expect(sent[1].messages.map((m) => m.role)).toEqual(['user', 'assistant', 'user']);
+    expect(JSON.stringify(sent[1].messages[1].content)).toContain('Water crossing a membrane.');
+
+    // A new chat leaves the old one in the list; the one that is open is the one marked.
+    await panel(page).getByRole('button', { name: 'New chat' }).click();
+    await expect(panel(page).locator('.item')).toHaveCount(0);
+    await ask(page, 'What are enzymes?');
+    menu = await history(page);
+    const rows = menu.locator('button.item:not(.danger) .label');
+    await expect(rows).toHaveText(['What are enzymes?', 'What is osmosis?']);
+    await expect(menu.locator('button.item', { hasText: 'What are enzymes?' }).locator('.check')).toHaveCount(1);
+    await expect(menu.locator('button.item', { hasText: 'What is osmosis?' }).locator('.check')).toHaveCount(0);
+
+    // Deleting asks first, and takes only that chat.
+    await menu.getByRole('menuitem', { name: 'Delete This Chat…' }).click();
+    const sure = page.getByRole('alertdialog');
+    await expect(sure).toContainText('Delete this chat?');
+    await sure.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(panel(page).locator('.item')).toHaveCount(0);
+    menu = await history(page);
+    await expect(menu.locator('button.item .label')).toHaveText(['What is osmosis?']);
+  });
+
+  test('signed out, a kept chat can still be read: it says what asking needs, and nothing is sent', async ({ page }) => {
+    const { sent } = await setup(page, () => [{ type: 'text', text: 'Hello.' }], { signedIn: false });
+    await keepOld(page, OLD);
+    await openPanel(page);
+    await expect(panel(page).locator('.signed-out')).toBeVisible();
+    const menu = await history(page);
+    await menu.getByRole('menuitem', { name: /What is osmosis\?/ }).click();
+    await expect(panel(page).locator('.item.ask')).toHaveText('What is osmosis?');
+    await expect(panel(page).locator('.item.answer')).toHaveText('Water crossing a membrane.');
+    await expect(panel(page).locator('textarea')).toHaveCount(0);
+    await expect(panel(page).locator('.composer.closed button.primary')).toHaveText('Sign in');
+
+    // The same chat on his page, which has the list too.
+    await page.locator('.sidebar').getByText('Socrates', { exact: true }).click();
+    const own = page.locator('section.assistant-page');
+    await expect(own.locator('.item.answer')).toHaveText('Water crossing a membrane.');
+    await expect(own.getByRole('button', { name: 'Chat history' })).toBeVisible();
+    await own.getByRole('button', { name: 'New chat' }).click();
+    await expect(own.locator('.item')).toHaveCount(0);
+    await expect(own.getByRole('button', { name: 'Chat history' })).toBeVisible();
+    expect(sent).toHaveLength(0);
+  });
+
+  test('what was in the air when the app closed is settled: nothing waits, and the model will take the history', async ({ page }) => {
+    await setup(page, () => [{ type: 'text', text: 'Hi.' }]);
+    const kept = await page.evaluate(async () => {
+      const { read } = await import('/src/lib/assistant/chats.ts');
+      return read(
+        JSON.stringify({
+          v: 1,
+          next: 2,
+          items: [
+            { id: 1, type: 'ask', text: 'Make two notes' },
+            { id: 2, type: 'read', label: 'Searching', state: 'running' },
+            { id: 3, type: 'change', kind: 'create', preview: { title: 'One' }, state: 'done', summary: 'Made One', place: null, canUndo: true },
+            { id: 4, type: 'change', kind: 'create', preview: { title: 'Two' }, state: 'asking', summary: '', place: null, canUndo: false },
+            { id: 5, type: 'answer', text: 'Half an ans', writing: true },
+            { id: 6, type: 'answer', text: '  ', writing: true },
+            { id: 7, type: 'from-a-later-version' },
+          ],
+          history: [
+            { role: 'user', content: 'Make two notes' },
+            {
+              role: 'assistant',
+              content: [
+                { type: 'tool_use', id: 'tu_1', name: 'create_note', input: {} },
+                { type: 'tool_use', id: 'tu_2', name: 'create_note', input: {} },
+              ],
+            },
+          ],
+        }),
+      );
+    });
+    expect(kept.items.map((i) => [i.type, (i as { state?: string }).state ?? null])).toEqual([
+      ['ask', null],
+      ['read', 'failed'],
+      ['change', 'done'],
+      ['change', 'declined'],
+      ['answer', null],
+    ]);
+    expect(kept.items.every((i) => !(i as { canUndo?: boolean }).canUndo && !(i as { writing?: boolean }).writing)).toBe(true);
+    expect(kept.next).toBe(6);
+    const last = kept.history.at(-1)! as { role: string; content: { type: string; tool_use_id: string }[] };
+    expect(last.role).toBe('user');
+    expect(last.content.map((b) => [b.type, b.tool_use_id])).toEqual([
+      ['tool_result', 'tu_1'],
+      ['tool_result', 'tu_2'],
+    ]);
+    expect(await page.evaluate(async () => (await import('/src/lib/assistant/chats.ts')).read.length)).toBe(1);
+    await expect(page.evaluate(async () => (await import('/src/lib/assistant/chats.ts')).read('{"v":99,"items":[]}'))).rejects.toThrow();
   });
 });
 
@@ -964,6 +1215,8 @@ test.describe('its page and its face', () => {
     await ask('Hello');
     await expect(pageOf(page).locator('.item.notice')).toHaveAttribute('data-reason', 'spent');
     await expect(face(page)).toHaveClass(/\bbroke\b/);
+    // The dialog that says so: with nothing to buy, it only has OK.
+    await page.getByRole('alertdialog').getByRole('button', { name: 'OK' }).click();
     reply = { status: 503, reason: 'busy' };
     await ask('Hello');
     await expect(face(page)).toHaveClass(/\bdizzy\b/);

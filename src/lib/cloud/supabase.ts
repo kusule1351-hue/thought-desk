@@ -103,6 +103,23 @@ class SupabaseCloud implements Cloud {
     return clerk.sessionToken();
   }
 
+  startAccountCheck = clerk.startCheck;
+  finishAccountCheck = clerk.finishCheck;
+
+  /** The database's own check, with nothing deleted: it knows the function, and finds this sign-in freshly proved. */
+  async checkDeleteAccount() {
+    const { error } = await this.client.rpc('delete_account', { check_only: true });
+    if (error) throw friendly(error);
+    if (!(await clerk.canDeleteUser())) throw new Error(t('settings.account.delete.unavailable'));
+  }
+
+  /** The profile first (and with it friends, sessions and the rest: delete_account in supabase/migrations), then the sign-in. */
+  async deleteAccount() {
+    const { error } = await this.client.rpc('delete_account');
+    if (error) throw friendly(error);
+    await clerk.deleteUser();
+  }
+
   /** Makes your profile the first time (from your Clerk name and picture),
    *  and keeps its picture in step with Clerk's. */
   async myProfile() {

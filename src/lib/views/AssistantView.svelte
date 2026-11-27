@@ -11,12 +11,14 @@
   import type { Mood } from '../assistant/mood.svelte';
   import Face from '../assistant/ui/Face.svelte';
   import Conversation from '../assistant/ui/Conversation.svelte';
+  import History from '../assistant/ui/History.svelte';
   import { keepFace } from '../assistant/ui/keep-face.svelte';
 
   keepFace();
 
   let typing = $state(false);
-  const started = $derived(assistant.gate === 'ready' && assistant.items.length > 0);
+  // A chat that is open shows whether or not anything can be asked just now: an old one can be read signed out and offline.
+  const started = $derived(assistant.items.length > 0);
 
   /** What it says, for the face it is making. */
   function line(mood: Mood): string {
@@ -68,8 +70,12 @@
           <h1>{assistant.name}</h1>
           <p>{said}</p>
         </div>
+        <History />
         <button class="btn small new-chat" onclick={() => assistant.clear()}>{t('assistant.newChat')}</button>
       </header>
+    {:else}
+      <!-- Before anything is said, the way back to earlier chats sits alone in the corner. -->
+      <div class="corner"><History /></div>
     {/if}
     <Conversation roomy bind:typing>
       {#snippet top()}
@@ -126,6 +132,12 @@
     color: var(--text-2);
   }
 
+  .corner {
+    flex: none;
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 0 0;
+  }
   .strip {
     flex: none;
     display: flex;
