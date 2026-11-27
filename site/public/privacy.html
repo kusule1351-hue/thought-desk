@@ -34,25 +34,25 @@
 
     <main id="main" class="prose">
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated November 1, 2026</p>
+      <p class="updated">Last updated November 27, 2026</p>
 
       <div class="summary">
         <h2>In short</h2>
         <ul>
-          <li>Your notes are stored on your computer. We never receive them, except the title of a page you invite a friend to write with you.</li>
-          <li>The app has no analytics or ads. It only goes online to check for updates, and for online features you choose to use.</li>
-          <li>If you make an account, we keep only what those features need: your sign-in, profile, friends and invitations.</li>
-          <li>We don't sell your information.</li>
+          <li>Your notes are stored on your computer. We don't receive them unless you use a feature that sends them: writing with a friend, the assistant, or sync.</li>
+          <li>The assistant is an AI, and it is off until you turn it on. Then what you ask, and the notes it reads to answer, go through our server to Anthropic, which makes the model. Our server doesn't keep them.</li>
+          <li>Sync, where it is on, stores your notes encrypted with a key only you hold. We can't read them.</li>
+          <li>The app has no analytics, ads or trackers. We don't sell your information.</li>
+          <li>If you pay for Thought Desk Pro, Polar takes the payment. We never see your card.</li>
         </ul>
       </div>
 
       <h2>Who we are</h2>
-      <p>Thought Desk is made and run by Kusule, an individual developer ("we"). Kusule decides how the information described here is used, and is its controller. Email: <a href="mailto:support@thoughtdesk.org">support@thoughtdesk.org</a>.</p>
-      <p>This policy covers the Thought Desk app, thoughtdesk.org and the optional online features: accounts, friends and writing together.</p>
+      <p>Thought Desk is made and run by Kusule, an individual developer living in Mongolia ("we"). Kusule decides how the information described here is used, and is its controller. Email: <a href="mailto:support@thoughtdesk.org">support@thoughtdesk.org</a>. We are not a company and have no data protection officer, and we have not appointed a representative in the European Union or the United Kingdom; write to us directly, wherever you live.</p>
+      <p>This policy covers the Thought Desk app, thoughtdesk.org and the optional online features: accounts, friends and writing together, the assistant, sync, and Thought Desk Pro.</p>
 
       <h2>Your notes</h2>
-      <p>Your pages, databases, assignments, events, flashcards and files are stored on your computer, in a folder you choose. They aren't uploaded to us or to anyone else, so we can't see, analyse or sell them. Keeping them backed up is in your hands; you can export everything as Markdown at any time.</p>
-      <p>There's one exception. When you invite a friend to write a page with you, the invitation includes the page's title, so they know what it's about, and it's stored with the invitation. While you write together, the page passes between your computers through our relay, which doesn't keep it (see below).</p>
+      <p>Your pages, databases, assignments, events, flashcards and files are stored on your computer, in a folder you choose. So are your conversations with the assistant. They aren't uploaded to us or to anyone else unless you use one of the features below, so we can't see, analyse or sell them. Keeping them backed up is in your hands; you can export everything as Markdown at any time.</p>
 
       <h2>What the app sends</h2>
       <ul>
@@ -62,66 +62,100 @@
       </ul>
       <p>Nothing else. The app has no analytics, crash reporting, ads or trackers.</p>
 
-      <h2>Accounts and writing together</h2>
-      <p>Friends and writing together need an account. Making one is optional. If you do:</p>
+      <h2>Accounts, friends and writing together</h2>
+      <p>The online features need an account. Making one is optional. If you do:</p>
       <ul>
         <li><strong>Signing in</strong> is handled by Clerk. It keeps your email address, and your name and profile picture if you sign in with Google or GitHub. It also records sign-in details such as your IP address and browser, to keep your account secure. If you sign in with Google or GitHub, that service learns that you signed in to Thought Desk. That sign-in happens in your web browser, on Clerk's sign-in pages, which use cookies to complete it.</li>
         <li><strong>Your profile, friends and invitations</strong> are stored with Supabase, in Frankfurt, Germany: your display name, @username and a link to your profile picture (the picture itself stays with Clerk; we don't copy it); your friends and friend requests; when you were last in the app; and your invitations to write together, including the title of the page.</li>
-        <li><strong>Writing together.</strong> While you and a friend write a page, its text passes between your computers through our relay on Cloudflare. The relay doesn't store it. Like any server, it sees your IP address and when you connect. The page is kept on both of your computers.</li>
+        <li><strong>Writing together.</strong> When you invite a friend to write a page with you, the invitation includes the page's title, so they know what it's about. While you write, the page's text passes between your computers through our relay on Cloudflare. The relay doesn't store it. Like any server, it sees your IP address and when you connect. The page is kept on both of your computers.</li>
       </ul>
       <p>Your friends can see your profile, and whether you're in the app while you're signed in. There's no setting to hide that yet; signing out stops it. Someone who types your exact @username can see your name and picture, to send you a friend request. Nobody else can look you up or see your friends.</p>
 
-      <h2>Buying or sponsoring Thought Desk</h2>
-      <p>If we offer paid plans, Polar (polar.sh) sells them for us as the merchant of record: Polar handles the payment, taxes and receipts, under its own <a href="https://polar.sh/legal/terms">terms</a> and <a href="https://polar.sh/legal/privacy">privacy policy</a>. Polar and its payment provider, Stripe (<a href="https://stripe.com/privacy">privacy policy</a>), receive your payment details; we never see your card number. We receive your name, email address, country and what you bought, so we can provide it and help with any problems.</p>
+      <h2>The assistant</h2>
+      <p>Thought Desk has an assistant you can ask about your notes and ask to make or change things. It is an artificial intelligence (AI), not a person. It runs on Claude, a model made by Anthropic. It is off until you turn it on, and you can turn it off again in Settings at any time.</p>
+      <ul>
+        <li><strong>What is sent.</strong> When you ask something, the app sends your question, the conversation so far, the title of the page you have open, and the parts of your notes, assignments, calendar and databases that the assistant reads to answer that request. They go to our server on Cloudflare and from there to Anthropic. Nothing is sent in the background: only when you ask. Your name and email address are not sent to Anthropic, though anything you write or keep in a note that it reads is.</li>
+        <li><strong>What you can keep from it.</strong> You can keep any note away from the assistant from the note's menu, and it reads notes you share with friends only if you allow that in Settings.</li>
+        <li><strong>What our server keeps.</strong> None of the content. It checks that you're signed in and counts what each request cost, so each account gets a fair monthly allowance. It stores that count for each month, and whether your account is on Pro. Like any server, it sees your IP address and when you connect.</li>
+        <li><strong>What Anthropic does with it.</strong> Anthropic handles this content for us, to produce the answer. Under its commercial terms it does not use it to train its models. It deletes it within 30 days, unless it has flagged the content as breaking its usage rules, when it may keep it longer (up to two years) to enforce those rules, or where the law requires. Its <a href="https://www.anthropic.com/legal/privacy">privacy policy</a> and <a href="https://www.anthropic.com/legal/aup">usage policy</a> say more.</li>
+        <li><strong>Your conversations</strong> with the assistant are kept on your computer, with your notes, so you can read them later. They aren't synced or uploaded. You can delete any of them.</li>
+        <li><strong>Changes it makes.</strong> The assistant shows you each change and waits for your yes. It can't delete anything for good, share anything, or touch sync or your sign-in.</li>
+      </ul>
+      <p>The assistant answers when you ask; it makes no decisions about you, and we don't use it or anything else to profile you. Its answers can be wrong, so check anything that matters. Please don't put other people's private information into a question unless you have the right to.</p>
+
+      <h2>Sync</h2>
+      <p>Sync keeps your notes on all your computers. It is being opened gradually, so it may not be available to your account yet. If you turn it on:</p>
+      <ul>
+        <li>Your notes and files are encrypted on your computer before they leave it, with a key that is made on your computer and never sent to us. Our server stores the encrypted copy on Cloudflare, in the European Union. It sees how much you store and when you sync, and your IP address, but not your notes, their titles or their file names.</li>
+        <li>You are given a recovery key. Our server holds a copy of your encryption key that only the recovery key opens. We can't open it, so if you lose the recovery key and your computers, we can't get your synced notes back.</li>
+        <li>You can delete the synced copy in Settings at any time. That removes all of it from our server, and it can't be undone. Turning sync off without deleting leaves the copy there.</li>
+      </ul>
+
+      <h2>Thought Desk Pro</h2>
+      <p>Pro is a paid plan that gives the assistant a larger monthly allowance. <a href="https://polar.sh">Polar</a> (Polar Software Inc.) sells it as our reseller and the merchant of record: Polar handles the payment, taxes, receipts and refunds, under <a href="https://polar.sh/legal/checkout-buyer-terms">its own terms</a> and <a href="https://polar.sh/legal/privacy">privacy policy</a>.</p>
+      <ul>
+        <li>When you start a purchase, our server gives Polar your account's ID, your email address (to fill in the form) and your IP address (so Polar shows the right tax), and a note of which version of our terms you agreed to and when. Polar keeps that with the purchase.</li>
+        <li>Polar and its payment provider, Stripe (<a href="https://stripe.com/privacy">privacy policy</a>), receive your payment details. We never see your card number.</li>
+        <li>Polar tells us whether your account has Pro and until when, and we can see your name, email address, country and what you bought, so we can provide it and help with any problems.</li>
+      </ul>
       <p>If you sponsor Thought Desk, you do it on GitHub Sponsors, and GitHub handles the payment under its own <a href="https://docs.github.com/en/site-policy/github-terms/github-sponsors-additional-terms">terms</a> and <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">privacy statement</a>. We see your GitHub username and how much you give, even if you sponsor privately (then only we see it), and your email address only if you choose to share it. We use them to thank you and to give you what your tier includes.</p>
 
       <h2>This website</h2>
-      <p>The pages of thoughtdesk.org use no cookies, analytics or trackers. The site is hosted on Cloudflare, which processes your IP address and the pages you request in order to deliver the site and protect it from attacks. Downloads come from GitHub.</p>
+      <p>The pages of thoughtdesk.org use no cookies, analytics or trackers, and no other company collects information about you across websites through them. Because nothing tracks you, browser "Do Not Track" signals change nothing. The site is hosted on Cloudflare, which processes your IP address and the pages you request in order to deliver the site and protect it from attacks. Downloads come from GitHub.</p>
 
       <h2>Email</h2>
       <p>If you write to us, we use your email address and message to reply, and keep them for two years after our last exchange, unless we need them longer for a legal claim.</p>
 
       <h2>Who else handles your information</h2>
       <ul>
-        <li><strong>Clerk:</strong> signing in (United States). <a href="https://clerk.com/legal/privacy">Privacy policy</a></li>
-        <li><strong>Supabase:</strong> profiles, friends and invitations (stored in Germany). <a href="https://supabase.com/privacy">Privacy policy</a></li>
-        <li><strong>Cloudflare:</strong> this website, email to support@thoughtdesk.org and the relay for writing together (worldwide). <a href="https://www.cloudflare.com/privacypolicy/">Privacy policy</a></li>
-        <li><strong>GitHub:</strong> downloads, updates and sponsorships (United States). <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">Privacy statement</a></li>
-        <li><strong>Polar and Stripe:</strong> payments, if you buy something. <a href="https://polar.sh/legal/privacy">Polar</a>, <a href="https://stripe.com/privacy">Stripe</a></li>
+        <li><strong>Clerk</strong>: signing in (United States). <a href="https://clerk.com/legal/privacy">Privacy policy</a></li>
+        <li><strong>Supabase</strong>: profiles, friends and invitations (stored in Germany; some support and operational data is handled elsewhere). <a href="https://supabase.com/privacy">Privacy policy</a></li>
+        <li><strong>Cloudflare</strong>: this website, email to support@thoughtdesk.org, the relay for writing together, the assistant's server and sync storage (worldwide; sync storage in the EU). <a href="https://www.cloudflare.com/privacypolicy/">Privacy policy</a></li>
+        <li><strong>Anthropic</strong>: the assistant's model, if you use the assistant (United States). <a href="https://www.anthropic.com/legal/privacy">Privacy policy</a></li>
+        <li><strong>GitHub</strong>: downloads, updates and sponsorships (United States). <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">Privacy statement</a></li>
+        <li><strong>Polar and Stripe</strong>: payments, if you buy Pro (United States and elsewhere). <a href="https://polar.sh/legal/privacy">Polar</a>, <a href="https://stripe.com/privacy">Stripe</a></li>
       </ul>
-      <p>Each handles your information to provide its part of Thought Desk, under its own privacy policy and its data processing terms with us. We don't sell your information or share it for advertising.</p>
+      <p>Each handles your information to provide its part of Thought Desk, under its own privacy policy and its data processing terms with us. Polar, as the seller, also uses your purchase information for its own legal duties. We don't sell your information or share it for advertising, and nobody uses it to train AI models.</p>
 
       <h2>International transfers</h2>
-      <p>Some of these services are in the United States or work worldwide. When your information goes from the EU, the EEA or the UK to a country the European Commission (or the UK) hasn't recognised as protecting it adequately, it's protected by the EU-US Data Privacy Framework where the service is certified under it, and otherwise by the European Commission's Standard Contractual Clauses in that service's data processing terms, with the UK International Data Transfer Addendum for people in the UK.</p>
+      <p>We are in Mongolia, and most of these services are in the United States or work worldwide, so your information is handled outside the country you live in. By making an account, and by using the assistant or buying Pro, you agree to your information being stored and handled in those places for the purposes described here. You can withdraw that at any time by deleting your account or turning the feature off.</p>
+      <p>When your information goes from the EU, the EEA or the UK to a country the European Commission (or the UK) hasn't recognised as protecting it adequately, it's protected by the EU-US Data Privacy Framework where the service is certified under it, and otherwise by the European Commission's Standard Contractual Clauses in that service's data processing terms, with the UK International Data Transfer Addendum for people in the UK.</p>
 
       <h2>Why we use it</h2>
       <ul>
-        <li><strong>Your account, profile, friends, invitations and when you were last here,</strong> and passing pages between you and a friend: to provide the features you ask for (performance of a contract).</li>
-        <li><strong>Sign-in records, website and relay logs:</strong> to keep Thought Desk secure and working (our legitimate interest).</li>
-        <li><strong>Purchase records:</strong> to provide what you bought (performance of a contract) and to meet tax and accounting rules (legal obligation).</li>
-        <li><strong>Your emails:</strong> to answer you (our legitimate interest in helping you).</li>
+        <li>Your account, profile, friends, invitations and when you were last here, and passing pages between you and a friend: to provide the features you ask for (performance of a contract).</li>
+        <li>What you send to the assistant: to answer you, because you turned the assistant on and asked (performance of a contract). The count of what you've used: to share the service fairly and control its cost (performance of a contract, and our legitimate interest).</li>
+        <li>Your encrypted synced copy: to sync your notes, because you turned sync on (performance of a contract).</li>
+        <li>Sign-in records, website, relay and server logs: to keep Thought Desk secure and working (our legitimate interest).</li>
+        <li>Your plan and purchase records, and the record of the terms you agreed to: to provide what you bought (performance of a contract), to meet tax and accounting rules (legal obligation), and to be able to show what was agreed (our legitimate interest).</li>
+        <li>Your emails: to answer you (our legitimate interest in helping you).</li>
       </ul>
+      <p>Where the law of your country asks for your consent instead, as Mongolian law does, making an account or turning a feature on after reading this policy is that consent, and you can withdraw it as described under "Your rights". You don't have to give us any of this information, but the online features can't work without it; the app itself works without an account.</p>
 
       <h2>Security</h2>
-      <p>Everything the app and this website exchange with us and the services above travels encrypted (HTTPS and secure WebSockets). Your profile, friends and invitations are stored in Germany, and each person can read only their own and their friends' information. The relay checks that you're one of the two people in a session before it passes anything on. If a breach affects your information, we'll tell you, and the authorities where the law requires it.</p>
+      <p>Everything the app and this website exchange with us and the services above travels encrypted (HTTPS and secure WebSockets). Your profile, friends and invitations are stored in Germany, and each person can read only their own and their friends' information. The relay checks that you're one of the two people in a session before it passes anything on. Synced notes are encrypted before they leave your computer, so a break-in at the storage would not reveal them. The assistant's server keeps no content to steal. If a breach affects your information, we'll tell you without delay, and the authorities where the law requires it (within 72 hours where that rule applies).</p>
 
       <h2>How long we keep it</h2>
       <ul>
-        <li><strong>Your account</strong> is kept while you have it. To delete it, email us from the address you sign in with; within 30 days we delete your profile, friends and invitations (you disappear from your friends' lists), and your Clerk account with its sign-in records, except anything Clerk must keep by law under its own policy. Pages you wrote with friends stay on their computers. Deleting your account from inside the app is coming.</li>
+        <li><strong>Your account</strong> is kept while you have it. You can delete it yourself in the app: Settings, then Account, then "Delete Account". We email you a code first, to be sure it's you. That deletes, straight away, your profile, friends and invitations (you disappear from your friends' lists), your synced copy, the assistant's counts for your account, and your Clerk account with its sign-in records, except anything Clerk must keep by law under its own policy; and it cancels Pro, so nothing more is charged. If you can't get into the app, email us from the address you sign in with and we'll do the same within 30 days. Pages you wrote with friends stay on their computers, and the notes on your own computer aren't touched.</li>
         <li><strong>When you were last in the app</strong> is overwritten each time you use it.</li>
+        <li><strong>What you send to the assistant</strong> is not kept by us. Anthropic deletes it within 30 days, with the exceptions above. The monthly counts of what your account used, and whether it had Pro, are numbers with no content; they're deleted with your account.</li>
+        <li><strong>Your synced copy</strong> is kept until you delete it in Settings, or delete your account.</li>
         <li><strong>Emails</strong> are kept for two years after our last exchange.</li>
-        <li><strong>Purchase records</strong> are kept as long as tax law requires.</li>
-        <li><strong>Website and relay logs</strong> are kept by Cloudflare for a short time, under its policy.</li>
+        <li><strong>Purchase records</strong> are kept by Polar, and by us, as long as tax law requires.</li>
+        <li><strong>Website, relay and server logs</strong> are kept by Cloudflare for a short time, under its policy.</li>
       </ul>
 
       <h2>Your rights</h2>
-      <p>You can ask us for a copy of your information, to correct it, to delete it, to restrict how we use it, to receive it in a portable format, or object to how we use it. Where we rely on your consent, you can withdraw it at any time. Email <a href="mailto:support@thoughtdesk.org">support@thoughtdesk.org</a>; we reply within one month. If you're in the EU, you can also complain to your data protection authority, and in the UK to the <a href="https://ico.org.uk/make-a-complaint/">Information Commissioner's Office</a>.</p>
+      <p>You can delete your account, and everything we hold with it, in the app at any time (Settings, then Account). Wherever you live, you can also ask us for a copy of your information, to correct it, to delete it, to restrict how we use it, to receive it in a portable format, or object to how we use it. Where we rely on your consent, you can withdraw it at any time. Email <a href="mailto:support@thoughtdesk.org">support@thoughtdesk.org</a>; we reply within one month, and tell you what we did. We won't treat you differently for using these rights.</p>
+      <p>If you're unhappy with our answer, you can complain to the authority where you live: in the EU, your data protection authority; in the UK, the Information Commissioner's Office; in Mongolia, the National Human Rights Commission. If you live in California or another US state with a privacy law: we don't sell or share personal information, and we are too small for most of those laws to apply to us, but we'll answer the same requests all the same.</p>
 
-      <h2>Children</h2>
-      <p>Accounts are for people aged 13 or older, or older where your country's law requires it (up to 16 in some EU countries). If we learn that an account belongs to someone younger, we delete it.</p>
+      <h2>Children and teenagers</h2>
+      <p>Thought Desk is not directed at children under 13. Accounts are for people aged 13 or older, or older where your country's law requires it (up to 16 in some EU countries, where a younger person needs a parent's or guardian's permission). We don't knowingly collect information from a child under 13, in line with the US Children's Online Privacy Protection Act (COPPA) and similar laws. If we learn that an account belongs to someone younger, we delete it. A parent or guardian who believes their child has made one can write to <a href="mailto:support@thoughtdesk.org">support@thoughtdesk.org</a>, and we'll delete it.</p>
+      <p>People aged 13 to 17 may use the assistant. It is told to keep its answers suitable for young people, it always says it is an AI, and it can't contact anyone or share anything. Buying Pro needs an adult, or a parent's or guardian's permission, as our <a href="/terms">Terms</a> say.</p>
 
       <h2>Changes</h2>
-      <p>If this policy changes, we'll update the date at the top. For important changes, we'll tell you in the app or by email at least 30 days before they take effect. Earlier versions are in the <a href="https://github.com/kusule1351-hue/thought-desk/commits/main/site/public/privacy.html">page's history</a>.</p>
+      <p>If this policy changes, we'll update the date at the top. For important changes, we'll tell you in the app or by email at least 30 days before they take effect. Earlier versions are in the page's <a href="https://github.com/kusule1351-hue/thought-desk/commits/main/site/public/privacy.html">history</a>.</p>
     </main>
 
     <footer class="footer">
