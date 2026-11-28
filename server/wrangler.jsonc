@@ -52,10 +52,11 @@
     // 2026-11-28; "testers" closes it again to the accounts in the ASSISTANT_TESTERS secret.
     "ASSISTANT_ACCESS": "everyone",
     "ASSISTANT_MODEL": "claude-haiku-5-5",
-    // The most one account on the free plan may cost a month (10 cents) and everyone
-    // together, Pro included, a day (10 dollars: about 300 dollars in the worst month),
-    // in millionths of a US dollar. Raise the day's as paying accounts grow: when it is
-    // reached the assistant stops for everybody until the next day.
+    // The most one account on the free plan may cost a month (10 cents) and the free
+    // accounts together a day (10 dollars: about 300 dollars in the worst month), in
+    // millionths of a US dollar. When the day's is reached the assistant stops for the
+    // free accounts until the next day. An account on Pro is outside it: its own
+    // allowance (below) is its only limit, so the free plan can't close it out.
     "ASSISTANT_MONTHLY_MICROUSD": "100000",
     "ASSISTANT_DAILY_MICROUSD": "10000000",
     // Pro (src/plan.ts, src/billing.ts): Polar sells it. Nothing can be bought until its key is set

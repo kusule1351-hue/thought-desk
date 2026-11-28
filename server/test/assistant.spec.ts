@@ -2,10 +2,11 @@
 // Anthropic is faked: the SDK's fetch to api.anthropic.com is answered by `anthropic.answer`.
 // Run with `npm test`. Sign-in tokens are made like sync.spec.ts makes them.
 import { env } from 'cloudflare:workers';
-import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
+import { createExecutionContext, runInDurableObject, waitOnExecutionContext } from 'cloudflare:test';
 import { SignJWT, exportJWK, generateKeyPair } from 'jose';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { costOf, MAX_BODY, parseAsk } from '../src/assistant';
+import type { Budget } from '../src/budget';
 import worker from '../src/index';
 
 const ISSUER = env.CLERK_ISSUERS.split(',')[0];
@@ -325,6 +326,38 @@ describe('counting', () => {
     expect(got.reason).toBe('busy');
     expect(anthropic.calls).toHaveLength(0);
     expect(await used(sub)).toBe(0);
+  });
+
+  it('never turns an account on Pro away for the day’s limit, and counts what it spends in its own allowance only', async () => {
+    // Billing on, and each plan as the server last heard it (kept beside the account's budget; Polar isn't asked).
+    const paying = { ...env, POLAR_ACCESS_TOKEN: 'polar_test', POLAR_PRO_PRODUCTS: 'prod_pro' };
+    const keep = (sub: string, pro: boolean) =>
+      runInDurableObject(env.BUDGET.get(env.BUDGET.idFromName(`account:${sub}`)), (b: Budget) => void b.setPlan(pro, pro ? Date.now() + 86_400_000 : null, false));
+    const today = () => runInDurableObject(env.BUDGET.get(env.BUDGET.idFromName('everyone')), (b: Budget) => b.spent(new Date().toISOString().slice(0, 10)));
+    const [paid, free] = [account(), account()];
+    await keep(paid, true);
+    await keep(free, false);
+
+    // The free plan's day is used up: a free account waits for tomorrow, the one on Pro is answered.
+    const full = { ...paying, ASSISTANT_DAILY_MICROUSD: '0' };
+    const refused = await ask(free, VALID, { env: full });
+    expect(refused.res.status).toBe(503);
+    expect(refused.reason).toBe('busy');
+    const before = await today();
+    const answered = await ask(paid, VALID, { env: full });
+    expect(answered.res.status).toBe(200);
+    expect(anthropic.calls).toHaveLength(1);
+    // Its own allowance is what it spent from, and the day's is as it was.
+    expect((await runInDurableObject(env.BUDGET.get(env.BUDGET.idFromName(`account:${paid}`)), (b: Budget) => b.spent(new Date().toISOString().slice(0, 7))))).toBe(HAIKU_1000_200);
+    expect(await today()).toBe(before);
+
+    // A free account still draws on the day's, and Pro still ends at its own allowance.
+    const open = await ask(free, VALID, { env: paying });
+    expect(open.res.status).toBe(200);
+    expect(await today()).toBe(before + HAIKU_1000_200);
+    const spent = await ask(paid, VALID, { env: { ...full, ASSISTANT_PRO_MONTHLY_MICROUSD: '0' } });
+    expect(spent.res.status).toBe(429);
+    expect(spent.reason).toBe('spent');
   });
 
   it('charges nothing for a request that is not valid', async () => {
