@@ -1,5 +1,5 @@
 //! Where the notes live: the app's own data folder, or a folder the user
-//! chose (OneDrive, a USB drive…). The choice is remembered in
+//! chose (a USB drive, a second disk…). The choice is remembered in
 //! `location.json` in the app's own folder, which is always there to read.
 //! Moving copies the workspace and never deletes anything: the old folder
 //! stays as it was, and notes a folder already had are set aside.
@@ -68,6 +68,31 @@ pub struct FolderState {
     pub has_notes: bool,
     /// When that workspace was last changed (ms).
     pub modified: Option<i64>,
+    /// The cloud drive the folder looks to be in (see `cloud_drive`).
+    pub cloud: Option<&'static str>,
+}
+
+/// The cloud drive a folder is inside, going by its path alone: "OneDrive",
+/// "Dropbox", "iCloud Drive" or "Google Drive". Such a client uploads the
+/// database and its write-ahead log as separate files, so the folder must
+/// never be open on two computers at once. A drive that syncs a plain-looking
+/// folder (iCloud's Desktop and Documents on a Mac) can't be told this way.
+pub fn cloud_drive(dir: &Path) -> Option<&'static str> {
+    dir.components().find_map(|part| {
+        let name = part.as_os_str().to_string_lossy().to_lowercase();
+        let named = |word: &str| name == word || [" ", "-", "("].iter().any(|sep| name.starts_with(&format!("{word}{sep}")));
+        if named("onedrive") {
+            Some("OneDrive")
+        } else if named("dropbox") {
+            Some("Dropbox")
+        } else if ["iclouddrive", "icloud drive", "mobile documents", "com~apple~clouddocs"].contains(&name.as_str()) || name.starts_with("icloud~") {
+            Some("iCloud Drive")
+        } else if named("google drive") || named("googledrive") || name == "my drive" {
+            Some("Google Drive")
+        } else {
+            None
+        }
+    })
 }
 
 pub fn inspect(dir: &Path) -> FolderState {
@@ -77,7 +102,7 @@ pub fn inspect(dir: &Path) -> FolderState {
         .max()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_millis() as i64);
-    FolderState { has_notes: dir.join(DB).is_file(), modified }
+    FolderState { has_notes: dir.join(DB).is_file(), modified, cloud: cloud_drive(dir) }
 }
 
 /// Moves a workspace already in `dir` into a dated folder inside it, so a
@@ -87,13 +112,7 @@ fn set_aside(dir: &Path) -> Result<()> {
     if !names.iter().any(|n| dir.join(n).exists()) {
         return Ok(());
     }
-    let stamp = now_stamp();
-    let mut aside = dir.join(format!("Replaced {stamp}"));
-    let mut n = 1;
-    while aside.exists() {
-        n += 1;
-        aside = dir.join(format!("Replaced {stamp} ({n})"));
-    }
+    let aside = aside_folder(dir, crate::db::now());
     std::fs::create_dir_all(&aside)?;
     for name in names {
         let from = dir.join(name);
@@ -104,9 +123,22 @@ fn set_aside(dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// "2026-10-24 0930" in UTC (good enough to tell copies apart).
-fn now_stamp() -> String {
-    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+/// A "Replaced <date>" folder in `dir` that isn't there yet, for notes that are
+/// set aside at `now` (ms).
+pub(crate) fn aside_folder(dir: &Path, now: i64) -> PathBuf {
+    let stamp = stamp(now);
+    let mut aside = dir.join(format!("Replaced {stamp}"));
+    let mut n = 1;
+    while aside.exists() {
+        n += 1;
+        aside = dir.join(format!("Replaced {stamp} ({n})"));
+    }
+    aside
+}
+
+/// "2026-10-24 0930" in UTC, for a time in ms (good enough to tell copies apart).
+pub(crate) fn stamp(ms: i64) -> String {
+    let secs = ms.div_euclid(1000);
     let (days, rest) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
     // Civil date from days since 1970 (Howard Hinnant's algorithm).
     let z = days + 719_468;
@@ -260,8 +292,37 @@ mod tests {
 
     #[test]
     fn stamps_dates() {
-        let s = now_stamp();
+        let s = stamp(crate::db::now());
         assert_eq!(s.len(), 15, "{s}");
         assert!(s.starts_with("20"));
+        assert_eq!(stamp(0), "1970-01-01 0000");
+        // 2026-10-24 09:30:59 UTC, and the leap day of 2024.
+        assert_eq!(stamp(1_792_834_259_000), "2026-10-24 0930");
+        assert_eq!(stamp(1_709_251_199_000), "2024-02-29 2359");
+    }
+
+    #[test]
+    fn tells_a_cloud_drive_by_its_path() {
+        for (path, drive) in [
+            (r"C:\Users\ana\OneDrive\Notes", "OneDrive"),
+            (r"C:\Users\ana\OneDrive - Contoso\Notes", "OneDrive"),
+            ("/Users/ana/Library/CloudStorage/OneDrive-Personal/Notes", "OneDrive"),
+            (r"D:\Dropbox\Thought Desk", "Dropbox"),
+            ("/Users/ana/Dropbox (Personal)/Notes", "Dropbox"),
+            (r"C:\Users\ana\iCloudDrive\Notes", "iCloud Drive"),
+            ("/Users/ana/Library/Mobile Documents/com~apple~CloudDocs/Notes", "iCloud Drive"),
+            (r"G:\My Drive\Notes", "Google Drive"),
+            ("/Users/ana/Library/CloudStorage/GoogleDrive-ana@example.com/My Drive", "Google Drive"),
+            (r"C:\Users\ana\Google Drive\Notes", "Google Drive"),
+        ] {
+            // Windows paths only split on a backslash on Windows.
+            if path.contains('\\') && !cfg!(windows) {
+                continue;
+            }
+            assert_eq!(cloud_drive(Path::new(path)), Some(drive), "{path}");
+        }
+        for path in [r"C:\Users\ana\Documents\Notes", "/home/ana/notes", r"E:\Dropboxes\Notes","/Users/ana/OneDriveBackup"] {
+            assert_eq!(cloud_drive(Path::new(path)), None, "{path}");
+        }
     }
 }

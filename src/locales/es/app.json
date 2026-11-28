@@ -41,6 +41,11 @@
       "message": "Tus notas y archivos se copian a {folder} y Thought Desk se reinicia usándolos. La carpeta en la que están ahora conserva su copia como respaldo. No abras la misma carpeta desde dos equipos a la vez.",
       "confirm": "Mover notas"
     },
+    "cloud": {
+      "title": "Esta carpeta está en {service}",
+      "message": "No hay problema en una sola computadora. Nunca abras estas notas en dos computadoras a la vez: {service} puede dañar la base de datos. Las copias de seguridad se guardan aparte, en esta computadora.",
+      "confirm": "Continuar"
+    },
     "keepDefault": {
       "title": "¿Seguir usando esta carpeta?",
       "message": "Thought Desk dejará de buscar la carpeta que elegiste y seguirá usando las notas de su propia carpeta, las que están abiertas ahora. No se toca nada de la carpeta que elegiste.",
@@ -53,5 +58,12 @@
     },
     "missing": "La carpeta de tus notas ({folder}) no está disponible, así que Thought Desk abrió su propia carpeta. Conecta la unidad y reinicia.",
     "restart": "Reiniciar"
+  },
+  "backups": {
+    "restoring": "Restaurando la copia…",
+    "restored": "Se restauró la copia. Las notas que tenías antes están en la carpeta “{folder}” dentro de tu carpeta de notas.",
+    "restoreFailed": "No se pudo restaurar la copia, así que tus notas están como estaban. {reason}",
+    "damaged": "Tu base de datos de notas no pasó su comprobación, así que no se hizo ninguna copia nueva. Las copias que tienes se conservan.",
+    "show": "Ver copias"
   }
 }

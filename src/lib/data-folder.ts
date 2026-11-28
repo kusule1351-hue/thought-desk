@@ -1,7 +1,9 @@
 /**
  * Choosing the folder notes are kept in (Settings → Storage): copy them to
- * a folder of your own (OneDrive, a USB drive…), open notes a folder already
- * has, or go back to Thought Desk's own folder. Each restarts the app.
+ * a folder of your own (a USB drive, a second disk…), open notes a folder
+ * already has, or go back to Thought Desk's own folder. Each restarts the app.
+ * A folder inside a cloud drive is pointed out first: it's fine on one
+ * computer, and damages the database when two have it open.
  */
 
 import { open } from '@tauri-apps/plugin-dialog';
@@ -42,7 +44,15 @@ export async function chooseDataFolder() {
   }
   if (typeof dir !== 'string') return;
   try {
-    const { hasNotes, modified } = await api.dataFolderCheck(dir);
+    const { hasNotes, modified, cloud } = await api.dataFolderCheck(dir);
+    if (cloud) {
+      const goOn = await ui.confirm({
+        title: t('app.dataFolder.cloud.title', { service: cloud }),
+        message: t('app.dataFolder.cloud.message', { service: cloud }),
+        confirmLabel: t('app.dataFolder.cloud.confirm'),
+      });
+      if (!goOn) return;
+    }
     if (hasNotes) {
       // The date and time as toLocaleString() writes them, in the interface's locale.
       const date = modified ? fmt.dateTime(modified, { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }) : '';

@@ -7,6 +7,7 @@
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { onMount, type Component } from 'svelte';
   import { warnIfFolderMissing } from './lib/data-folder';
+  import { backupNotices, warnDamaged } from './lib/backups';
   import { t } from './lib/i18n';
   import { tabs } from './lib/tabs.svelte';
   import { api } from './lib/api';
@@ -265,6 +266,7 @@
   onMount(() => {
     let unlistenClose: (() => void) | undefined;
     let unlistenCapture: (() => void) | undefined;
+    let unlistenBackup: (() => void) | undefined;
     void (async () => {
       try {
         // Pages decide where to start, so the planner and files load alongside.
@@ -276,6 +278,7 @@
         initSync();
         void cards.load();
         void warnIfFolderMissing();
+        void backupNotices();
       } catch (e) {
         ui.error(e);
       }
@@ -297,6 +300,8 @@
       unlistenCapture = await listen('td-quick-capture', () => {
         if (!ui.capture) ui.capture = { text: '' };
       }).catch(() => undefined);
+      // The database failed its check before a backup (backups.rs).
+      unlistenBackup = await listen('td-backup-damaged', warnDamaged).catch(() => undefined);
       unlistenClose = await win.onCloseRequested(async () => {
         window.dispatchEvent(new Event('td:flush'));
         await flushAll();
@@ -305,6 +310,7 @@
     return () => {
       unlistenClose?.();
       unlistenCapture?.();
+      unlistenBackup?.();
     };
   });
 

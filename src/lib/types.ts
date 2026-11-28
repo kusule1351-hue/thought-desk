@@ -59,6 +59,8 @@ export interface DataInfo {
   envDir: boolean;
   /** A chosen folder that wasn't there at start-up. */
   missingDir: string | null;
+  /** The cloud drive the notes folder looks to be in ("OneDrive", "Dropbox"…), going by its path. */
+  cloud: string | null;
   dbBytes: number;
   /** Bytes of everything in the files folder. */
   fileBytes: number;
@@ -68,6 +70,28 @@ export interface DataInfo {
   assignmentCount: number;
   eventCount: number;
   version: string;
+}
+
+/** A backup of the notes database, made by the app about once a day (backups.rs). */
+export interface Backup {
+  /** Its file name in the backups folder. */
+  name: string;
+  /** When it was made (ms). */
+  at: number;
+  bytes: number;
+}
+
+export interface BackupStatus {
+  /** The backups folder: in Thought Desk's own folder, never a chosen one. */
+  dir: string;
+  /** Newest first. */
+  backups: Backup[];
+  /** Why the last try made none: the database failed its check, or the copy couldn't be written. */
+  problem: 'damaged' | 'failed' | null;
+  /** A restore was done at this start: the folder the earlier notes were set aside in. */
+  restored: string | null;
+  /** A restore asked for before this start couldn't be done, and why. */
+  restoreError: string | null;
 }
 
 export interface Course {

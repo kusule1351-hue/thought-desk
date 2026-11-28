@@ -126,9 +126,27 @@ test('notes can move to a folder you pick, open notes a folder has, or go back',
     await page.evaluate(() => ((window as any).__pickFolder = 'D:\\OneDrive\\Notes'));
     await openStorage();
     await page.getByRole('button', { name: 'Change…' }).click();
+    // A cloud drive's folder is pointed out first.
+    const cloud = page.getByRole('alertdialog');
+    await expect(cloud).toContainText('This folder is in OneDrive');
+    await expect(cloud).toContainText('Never open these notes on two computers at once: OneDrive can damage the database. Backups are kept separately, on this computer.');
+    await cloud.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByText('Keep your notes in this folder?')).toBeVisible();
     await page.getByRole('button', { name: 'Move Notes' }).click();
     await expect.poll(moves).toEqual([{ cmd: 'data_folder_move', dir: 'D:\\OneDrive\\Notes', openExisting: false }]);
+  });
+
+  await test.step('turning back at the cloud drive notice moves nothing', async () => {
+    await page.reload();
+    await page.evaluate(() => ((window as any).__pickFolder = 'D:\\Dropbox (Personal)\\Notes'));
+    await openStorage();
+    await page.getByRole('button', { name: 'Change…' }).click();
+    const cloud = page.getByRole('alertdialog');
+    await expect(cloud).toContainText('This folder is in Dropbox');
+    await cloud.getByRole('button', { name: 'Cancel' }).click();
+    await page.waitForTimeout(300);
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    expect(await moves()).toEqual([]);
   });
 
   await test.step('a folder with notes: open those, never overwrite them', async () => {
@@ -157,6 +175,7 @@ test('notes can move to a folder you pick, open notes a folder has, or go back',
     await page.reload();
     await page.evaluate(() => ((window as any).__dataDir = 'D:\\OneDrive\\Notes'));
     await openStorage();
+    await expect(page.getByText('This folder is in OneDrive')).toBeVisible();
     await page.getByRole('button', { name: 'Use Default' }).click();
     await page.getByRole('button', { name: 'Move Notes Back' }).click();
     await expect.poll(moves).toEqual([{ cmd: 'data_folder_reset' }]);
