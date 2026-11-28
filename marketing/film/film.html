@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Thought Desk: the film</title>
+    <!--
+      The marketing film, pass 2: the page each frame of the film is a picture of (render.mjs takes them).
+
+      Nothing here moves by itself. draw(frame) sets everything for that frame from the time alone: which picture of
+      the app shows (app.mjs took them), where the camera is, which words are up. So any frame can be drawn on its
+      own, and the film comes out the same every time.
+    -->
+    <style>
+      @font-face {
+        font-family: 'Inter';
+        font-weight: 100 900;
+        src: url('../../site/public/fonts/inter-latin.woff2') format('woff2-variations');
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      :root {
+        --ground: #f5f5f7;
+        --ink: #1d1d1f;
+        --grey: #6e6e73;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--ground);
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+        font-optical-sizing: auto;
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      #stage {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+      .layer {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* The app's window, in the app's own pixels (1280 by 720): the camera scales and moves it. */
+      #cam {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1280px;
+        height: 720px;
+        transform-origin: 0 0;
+      }
+      #win {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        background: #fff;
+      }
+      /* The window's edge and shadow, as a shape of its own: the window is cut down to the chat while he is asked,
+         and a cut shape has no shadow. */
+      #shade {
+        position: absolute;
+        background: #fff;
+        box-shadow:
+          0 0 0 0.5px rgba(0, 0, 0, 0.16),
+          0 30px 70px -24px rgba(0, 0, 0, 0.26),
+          0 12px 28px -14px rgba(0, 0, 0, 0.12);
+      }
+      #win img {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1280px;
+        height: 720px;
+        object-fit: cover;
+        object-position: top;
+      }
+      .still {
+        opacity: 0;
+      }
+      #cursor {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        overflow: visible;
+        opacity: 0;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+      }
+      #pulse {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(29, 29, 31, 0.22);
+        opacity: 0;
+      }
+
+      .cap {
+        position: absolute;
+        left: 128px;
+        top: 50%;
+        width: 940px;
+        opacity: 0;
+      }
+      .cap .who {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 30px;
+        font-size: 28px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      .cap .who svg {
+        width: 52px;
+        height: 52px;
+      }
+      .cap h2 {
+        font-size: 88px;
+        font-weight: 700;
+        line-height: 1.02;
+        letter-spacing: -0.045em;
+        text-wrap: balance;
+      }
+      .cap p {
+        max-width: 700px;
+        margin-top: 30px;
+        font-size: 33px;
+        line-height: 1.4;
+        letter-spacing: -0.01em;
+        color: var(--grey);
+        text-wrap: pretty;
+      }
+      .below {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 954px;
+        text-align: center;
+        font-size: 46px;
+        font-weight: 650;
+        letter-spacing: -0.03em;
+        opacity: 0;
+      }
+
+      /* His head, as the app draws it: one colour, the curls of his beard cut out in the colour behind him. */
+      .soc {
+        overflow: visible;
+      }
+      .soc-ink,
+      .soc-cut {
+        fill: none;
+        stroke: var(--ink);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .soc-hair {
+        fill: var(--ink);
+        stroke: var(--ink);
+        stroke-linejoin: round;
+      }
+      .soc-cut {
+        stroke: var(--ground);
+      }
+
+      .card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--ground);
+        text-align: center;
+      }
+      #title .soc {
+        width: 150px;
+        height: 150px;
+        margin-bottom: 40px;
+      }
+      .card h1 {
+        font-size: 140px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.05em;
+      }
+      .card .sub {
+        margin-top: 34px;
+        font-size: 40px;
+        letter-spacing: -0.015em;
+        color: var(--grey);
+      }
+      /* Three things said in words alone, one after another: private, light, fast. */
+      #facts {
+        background: var(--ground);
+        opacity: 0;
+      }
+      .fact {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        padding: 0 160px;
+        text-align: center;
+        opacity: 0;
+      }
+      .fact .kicker {
+        margin-bottom: 30px;
+        font-size: 26px;
+        font-weight: 650;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #86868b;
+      }
+      .fact h2 {
+        font-size: 124px;
+        font-weight: 700;
+        line-height: 1.02;
+        letter-spacing: -0.05em;
+        text-wrap: balance;
+      }
+      .fact p {
+        margin-top: 36px;
+        font-size: 40px;
+        line-height: 1.35;
+        letter-spacing: -0.015em;
+        color: var(--grey);
+        text-wrap: balance;
+      }
+      /* Speed, in the figures measured (docs/PERFORMANCE.md): three numbers side by side. */
+      .stats {
+        display: flex;
+        justify-content: center;
+        gap: 120px;
+        margin-top: 14px;
+      }
+      .stat strong {
+        display: block;
+        font-size: 150px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.055em;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat span {
+        display: block;
+        margin-top: 22px;
+        font-size: 34px;
+        letter-spacing: -0.015em;
+        color: var(--grey);
+      }
+      .fact .foot {
+        margin-top: 64px;
+        font-size: 28px;
+        color: #86868b;
+      }
+      #end {
+        opacity: 0;
+      }
+      #end img {
+        width: 132px;
+        height: 132px;
+        margin-bottom: 44px;
+      }
+      #end h1 {
+        font-size: 124px;
+      }
+      #end .where {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        margin-top: 60px;
+        font-size: 32px;
+        color: var(--grey);
+      }
+      #end .site {
+        padding: 18px 36px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-size: 34px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute">
+      <defs>
+        <g id="socrates">
+          <path class="soc-ink" d="M23,35 C22,20 33,10 50,10 C67,10 78,20 77,35" stroke-width="2.17" />
+          <path class="soc-hair" d="M77,33 C82,31 87,36 83.5,43 C89,43.5 91,51 84.8,55.5 C91,57 91.5,66 84.2,68.5 C89,72 86,80 78,80.5 C79,86 72,91 66,89.5 C65,94 59,95.5 57,92 C56,97 44,97 43,92 C41,95.5 35,94 34,89.5 C28,91 21,86 22,80.5 C14,80 11,72 15.8,68.5 C8.5,66 9,57 15.2,55.5 C9,51 11,43.5 16.5,43 C13,36 18,31 23,33 L23.6,48 C24.5,57 32,61 38,61 C42,61 46,63.5 50,63.5 C54,63.5 58,61 62,61 C68,61 75.5,57 76.4,48 Z" stroke-width="2.17" />
+          <path class="soc-ink" d="M41,24.5 Q50,22.4 59,24.5 M43.6,29.6 Q50,28 56.4,29.6" stroke-width="1.52" />
+          <path class="soc-cut" d="M25.5,71 c2.6,-2.8 6.8,-1.2 5.8,2.6 M65,74 c2.6,-2.8 6.8,-1.2 5.8,2.6 M36.5,82 c2.6,-2.8 6.8,-1.2 5.8,2.6 M55,84.5 c2.6,-2.8 6.8,-1.2 5.8,2.6 M14.6,61.6 c2,-2.4 5.4,-1 4.6,2.2 M79.6,50 c2,-2.4 5.4,-1 4.6,2.2 M72,62.5 c2.4,-2.6 6.2,-1 5.2,2.4" stroke-width="1.52" />
+          <path class="soc-ink" d="M46.8,44.5 C46.4,49.5 43.6,52.5 44.2,55.6 C44.9,59 55.1,59 55.8,55.6 C56.1,54 55.2,52.8 54,52" stroke-width="1.95" />
+          <g transform="translate(50 43) scale(0.875) translate(-50 -44)">
+            <path class="soc-ink" stroke-width="6.6" d="M37.99,44 Q38,44 38.01,44" />
+            <path class="soc-ink" stroke-width="6.6" d="M61.99,44 Q62,44 62.01,44" />
+            <path class="soc-ink" stroke-width="2.85" d="M30.5,35.3 L45.5,33.9" />
+            <path class="soc-ink" stroke-width="2.85" d="M54.5,33.9 L69.5,35.3" />
+          </g>
+          <g transform="translate(50 70.5) scale(0.8) translate(-50 -69.5)">
+            <path class="soc-cut" stroke-width="3.2" d="M43.5,69.5 Q50,74.5 56.5,69.5" />
+          </g>
+        </g>
+      </defs>
+    </svg>
+
+    <div id="stage">
+      <div id="cam">
+        <div id="shade"></div>
+        <div id="win">
+          <img id="app" alt="" />
+          <img class="still" alt="" />
+          <img class="still" alt="" />
+          <img class="still" alt="" />
+        </div>
+        <div id="pulse"></div>
+        <svg id="cursor" viewBox="0 0 20 20"><path d="M2 1.5 L2 16.2 L6.1 12.6 L8.7 18.4 L11.3 17.2 L8.7 11.5 L14 11.3 Z" fill="#111" stroke="#fff" stroke-width="1.3" stroke-linejoin="round" /></svg>
+      </div>
+
+      <div class="cap" id="c1">
+        <div class="who"><svg class="soc" viewBox="0 0 100 100"><use href="#socrates" /></svg>Socrates</div>
+        <h2>Ask about anything you’ve written.</h2>
+        <p>He searches your notes and answers from them.</p>
+      </div>
+      <div class="cap" id="c2">
+        <div class="who"><svg class="soc" viewBox="0 0 100 100"><use href="#socrates" /></svg>Socrates</div>
+        <h2>He asks before he changes anything.</h2>
+        <p>You allow it, or you don’t. And you can always undo it.</p>
+      </div>
+      <div class="below" id="b1">Then study what he made.</div>
+      <div class="below" id="b2">Notes, calendar, databases and flashcards, in one quiet place.</div>
+
+      <div id="title" class="layer card">
+        <svg class="soc" viewBox="0 0 100 100"><use href="#socrates" /></svg>
+        <h1>Meet Socrates.</h1>
+        <p class="sub">Your study assistant, inside Thought Desk.</p>
+      </div>
+      <div id="facts" class="layer">
+        <div class="fact">
+          <div class="kicker">Private</div>
+          <h2>Your notes live on your computer.</h2>
+          <p>No account needed. No ads, no tracking. Socrates stays off until you turn him on.</p>
+        </div>
+        <div class="fact">
+          <div class="kicker">Lightweight</div>
+          <h2>Under 5 MB to download.</h2>
+          <p>And about 115 MB of memory while it’s open.</p>
+        </div>
+        <div class="fact">
+          <div class="kicker">Fast</div>
+          <div class="stats">
+            <div class="stat"><strong>0.13 s</strong><span>to open a 49,000-row table</span></div>
+            <div class="stat"><strong>0.3 s</strong><span>to sort 50,000 rows</span></div>
+            <div class="stat"><strong>0.2 ms</strong><span>to save a change</span></div>
+          </div>
+          <p class="foot">Measured on Windows 11, in a workspace of 7,500 pages and 58,000 database rows.</p>
+        </div>
+      </div>
+      <div id="end" class="layer card">
+        <img src="../../site/public/icon.svg" alt="" />
+        <h1>Thought Desk</h1>
+        <p class="sub">Write, plan and study in one quiet place.</p>
+        <div class="where"><span class="site">thoughtdesk.org</span>Free for Windows, Mac and Linux</div>
+      </div>
+    </div>
+
+    <script>
+      const FPS = 30;
+      /** The app's first frame is this far into the film. */
+      const T0 = 1.9;
+      /** Each still of the rest of the app stays this long. */
+      const STILL = 1.25;
+      /** How long each of the three things said in words stays: the first has the most to read. */
+      const FACTS = [2.5, 1.8, 3.3];
+      /** The camera's two places: the whole window, and the chat beside the words. */
+      const WHOLE = { s: 1.2, x: 192, y: 52 };
+      const CHAT = { s: 1.5, x: -140, y: -30 };
+
+      const $ = (id) => document.getElementById(id);
+      const clamp = (x) => Math.max(0, Math.min(1, x));
+      const span = (t, a, b) => clamp((t - a) / (b - a));
+      const mix = (a, b, k) => a + (b - a) * k;
+      const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+      const out = (x) => 1 - Math.pow(1 - x, 3);
+      /** Up from `from` to `to`, fading at each end. */
+      const show = (t, from, to, fin = 0.4, fout = 0.3) => Math.min(out(span(t, from, from + fin)), 1 - span(t, to - fout, to));
+      /** Words come up a little as they appear. */
+      const rise = (el, k, by = 22, keep = '') => {
+        el.style.opacity = k;
+        el.style.transform = `${keep} translateY(${(1 - k) * by}px)`;
+      };
+
+      let M, FRAMES, APP_END, MONT, FACT0, END0, last = -1;
+      const A = (name, d = 0) => T0 + M[name].frame / FPS + d;
+
+      window.setup = async ({ marks, frames, stills }) => {
+        M = marks;
+        FRAMES = frames;
+        APP_END = T0 + M.frames / FPS;
+        MONT = APP_END - 0.25;
+        FACT0 = MONT + stills.length * STILL + 0.3;
+        END0 = FACT0 + FACTS.reduce((a, b) => a + b, 0);
+        const imgs = [...document.querySelectorAll('.still')];
+        await Promise.all(
+          stills.map((src, i) => {
+            imgs[i].src = src;
+            return imgs[i].decode();
+          }),
+        );
+        await document.fonts.load('700 100px Inter');
+        await document.fonts.ready;
+        return Math.ceil((END0 + 3.9) * FPS);
+      };
+
+      window.draw = async (f) => {
+        const t = f / FPS;
+
+        // The app, as it was that thirtieth of a second.
+        const a = Math.max(0, Math.min(M.frames - 1, Math.round((t - T0) * FPS)));
+        if (a !== last) {
+          $('app').src = `${FRAMES}/${String(a).padStart(5, '0')}.jpg`;
+          await $('app').decode();
+          last = a;
+        }
+
+        // The camera: in on the chat while he is asked and answers, back out for the cards.
+        const k = ease(span(t, A('ask', 0.1), A('ask', 1.3))) * (1 - ease(span(t, A('toCards', -1.6), A('toCards', -0.45))));
+        const enter = out(span(t, T0 - 0.1, T0 + 0.6));
+        const s = mix(WHOLE.s, CHAT.s, k);
+        $('cam').style.transform = `translate(${mix(WHOLE.x, CHAT.x, k)}px, ${mix(WHOLE.y, CHAT.y, k) + (1 - enter) * 40}px) scale(${s})`;
+        $('cam').style.opacity = enter;
+        // On the chat, the window is cut down to it: a card of its own beside the words.
+        const P = M.start.panel;
+        const cut = { top: P.y * k, right: (1280 - P.x - P.width) * k, bottom: (720 - P.y - P.height) * k, left: P.x * k, round: mix(10, 18, k) };
+        $('win').style.clipPath = `inset(${cut.top}px ${cut.right}px ${cut.bottom}px ${cut.left}px round ${cut.round}px)`;
+        Object.assign($('shade').style, { left: `${cut.left}px`, top: `${cut.top}px`, width: `${1280 - cut.left - cut.right}px`, height: `${720 - cut.top - cut.bottom}px`, borderRadius: `${cut.round}px` });
+
+        rise($('c1'), show(t, A('ask', 0.95), A('yes', -0.15)), 22, 'translateY(-50%)');
+        rise($('c2'), show(t, A('yes', 0.2), A('toCards', -1.5)), 22, 'translateY(-50%)');
+        rise($('b1'), show(t, A('toCards', -0.4), MONT + 0.05), 14);
+        rise($('b2'), show(t, MONT + 0.3, FACT0 + 0.1), 14);
+
+        // The rest of the app, one still over another.
+        document.querySelectorAll('.still').forEach((img, i) => {
+          const from = MONT + i * STILL;
+          img.style.opacity = span(t, from, from + 0.35);
+          img.style.transform = `scale(${1 + 0.025 * span(t, from, from + STILL + 0.4)})`;
+        });
+
+        // The pointer: to Allow, then to Flashcards and the new deck.
+        const allow = M.allow.allow, cards = M.toCards.at, study = M.study.at;
+        let x = 0, y = 0, seen = 0;
+        if (t < A('allow', 1.2)) {
+          const g = ease(span(t, A('allow', -1.15), A('allow', -0.2)));
+          x = mix(allow.x + 120, allow.x + 4, g);
+          y = mix(allow.y + 96, allow.y + 5, g);
+          seen = show(t, A('allow', -1.3), A('allow', 1.1), 0.25, 0.3);
+        } else {
+          const g1 = ease(span(t, A('toCards', -1.0), A('toCards', -0.15)));
+          const g2 = ease(span(t, A('toCards', 0.12), A('study', -0.15)));
+          x = mix(mix(470, cards.x + 6, g1), study.x + 4, g2);
+          y = mix(mix(360, cards.y + 4, g1), study.y + 5, g2);
+          seen = show(t, A('toCards', -1.1), A('study', 0.9), 0.25, 0.3);
+        }
+        let press = 0, ring = 0, at = 0;
+        for (const name of ['allow', 'toCards', 'study']) {
+          const d = t - A(name);
+          if (d >= -0.07 && d < 0.1) press = 1;
+          if (d >= 0 && d < 0.45) {
+            ring = d / 0.45;
+            at = 1;
+          }
+        }
+        $('cursor').style.opacity = seen;
+        $('cursor').style.transform = `translate(${x - 2}px, ${y - 1.5}px) scale(${press ? 0.88 : 1})`;
+        const r = 4 + out(ring) * 20;
+        Object.assign($('pulse').style, { opacity: at ? 1 - ring : 0, width: `${2 * r}px`, height: `${2 * r}px`, transform: `translate(${x - r}px, ${y - r}px)` });
+
+        // The two cards: his name first, the app's last.
+        const title = $('title');
+        title.style.opacity = 1 - span(t, T0 - 0.5, T0 - 0.15);
+        title.style.visibility = t < T0 - 0.15 ? 'visible' : 'hidden';
+        rise(title.children[0], out(span(t, 0.1, 0.65)), 26);
+        rise(title.children[1], out(span(t, 0.22, 0.8)), 26);
+        rise(title.children[2], out(span(t, 0.5, 1.05)), 20);
+        // Private, light, fast: each in its turn, on the plain ground.
+        $('facts').style.opacity = span(t, FACT0 - 0.05, FACT0 + 0.3);
+        let from = FACT0 + 0.15;
+        document.querySelectorAll('.fact').forEach((fact, i) => {
+          const to = FACT0 + FACTS.slice(0, i + 1).reduce((a, b) => a + b, 0);
+          rise(fact, show(t, from, to, 0.4, 0.22), 26, 'translateY(-50%)');
+          // The numbers come up one after another.
+          fact.querySelectorAll('.stat').forEach((stat, n) => rise(stat, out(span(t, from + 0.1 + n * 0.22, from + 0.6 + n * 0.22)), 30));
+          from = to;
+        });
+        const end = $('end');
+        end.style.opacity = span(t, END0, END0 + 0.4);
+        rise(end.children[0], out(span(t, END0 + 0.15, END0 + 0.7)), 26);
+        rise(end.children[1], out(span(t, END0 + 0.27, END0 + 0.85)), 26);
+        rise(end.children[2], out(span(t, END0 + 0.45, END0 + 1.0)), 20);
+        rise(end.children[3], out(span(t, END0 + 0.7, END0 + 1.25)), 20);
+      };
+    </script>
+  </body>
+</html>
