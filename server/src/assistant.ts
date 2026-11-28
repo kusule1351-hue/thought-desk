@@ -38,11 +38,11 @@ export interface AssistantEnv extends AuthEnv, PlanEnv {
 }
 
 export const DEFAULT_MODEL = 'claude-haiku-5-5';
-/** 30 cents a month for one account; 3 dollars a day for everyone. */
-const DEFAULT_MONTHLY = 300_000;
+/** 10 cents a month for one account on the free plan; 10 dollars a day for everyone. */
+const DEFAULT_MONTHLY = 100_000;
 /** 3 dollars a month for an account on Pro. */
 const DEFAULT_PRO_MONTHLY = 3_000_000;
-const DEFAULT_DAILY = 3_000_000;
+const DEFAULT_DAILY = 10_000_000;
 /** The longest answer to one request: a whole note fits. */
 export const MAX_TOKENS = 8000;
 /** The biggest request (bytes of JSON): about what the model's lower price covers. */

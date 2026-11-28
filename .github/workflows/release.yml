@@ -56,6 +56,11 @@ permissions:
   # SignPath reads this run's artifacts, to check where they came from.
   actions: read
 
+env:
+  # Released builds have the assistant (src/lib/assistant/flag.ts). A build made any other way leaves it out
+  # unless it sets this too; the server decides who may use it either way.
+  VITE_ASSISTANT: '1'
+
 jobs:
   windows:
     runs-on: windows-latest

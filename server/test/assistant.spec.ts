@@ -279,7 +279,7 @@ describe('counting', () => {
     await ask(sub);
     const got = await usage(sub);
     expect(got.used).toBe(HAIKU_1000_200);
-    expect(got.limit).toBe(300000);
+    expect(got.limit).toBe(100000);
     expect(got.month).toBe(new Date().toISOString().slice(0, 7));
     expect(got.on).toBe(true);
   });

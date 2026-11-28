@@ -48,14 +48,16 @@
     "SYNC_ACCESS": "testers",
     "SYNC_LIMIT_BYTES": "1073741824",
     // The assistant (src/assistant.ts). It is off until its key is set
-    // (`npx wrangler secret put ANTHROPIC_API_KEY`), and closed to everyone but the
-    // accounts in the ASSISTANT_TESTERS secret until this says "everyone".
-    "ASSISTANT_ACCESS": "testers",
+    // (`npx wrangler secret put ANTHROPIC_API_KEY`). Open to every signed-in account since
+    // 2026-11-28; "testers" closes it again to the accounts in the ASSISTANT_TESTERS secret.
+    "ASSISTANT_ACCESS": "everyone",
     "ASSISTANT_MODEL": "claude-haiku-5-5",
-    // The most one account may cost a month (30 cents) and everyone together a
-    // day (3 dollars), in millionths of a US dollar.
-    "ASSISTANT_MONTHLY_MICROUSD": "300000",
-    "ASSISTANT_DAILY_MICROUSD": "3000000",
+    // The most one account on the free plan may cost a month (10 cents) and everyone
+    // together, Pro included, a day (10 dollars: about 300 dollars in the worst month),
+    // in millionths of a US dollar. Raise the day's as paying accounts grow: when it is
+    // reached the assistant stops for everybody until the next day.
+    "ASSISTANT_MONTHLY_MICROUSD": "100000",
+    "ASSISTANT_DAILY_MICROUSD": "10000000",
     // Pro (src/plan.ts, src/billing.ts): Polar sells it. Nothing can be bought until its key is set
     // (`npx wrangler secret put POLAR_ACCESS_TOKEN`, and POLAR_WEBHOOK_SECRET for its notices).
     // The product is "Thought Desk Pro" in the Polar organisation; an account on it may cost 3 dollars a month.
@@ -99,8 +101,8 @@
         // The key for this computer goes in server/.dev.vars (ANTHROPIC_API_KEY=...), which git ignores.
         "ASSISTANT_ACCESS": "everyone",
         "ASSISTANT_MODEL": "claude-haiku-5-5",
-        "ASSISTANT_MONTHLY_MICROUSD": "300000",
-        "ASSISTANT_DAILY_MICROUSD": "3000000",
+        "ASSISTANT_MONTHLY_MICROUSD": "100000",
+        "ASSISTANT_DAILY_MICROUSD": "10000000",
         // Polar's sandbox (fake money): its key goes in server/.dev.vars as POLAR_ACCESS_TOKEN.
         "POLAR_API": "https://sandbox-api.polar.sh",
         "POLAR_PRO_PRODUCTS": "15e2bb72-fdda-4ba5-8938-456e0693bee1",
