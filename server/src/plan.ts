@@ -54,8 +54,30 @@ export const billingOn = (env: PlanEnv) => !!env.POLAR_ACCESS_TOKEN && proProduc
 const base = (env: PlanEnv) => (env.POLAR_API || 'https://api.polar.sh').replace(/\/$/, '');
 
 export class PolarError extends Error {
-  constructor(readonly status: number) {
-    super(`Polar answered ${status}`);
+  /**
+   * `code`: Polar's own short name for what went wrong ("insufficient_scope", "Unauthorized"), when it gave one.
+   * Only that name is kept: the rest of its answer can quote what was sent, and nothing of that is logged.
+   */
+  constructor(
+    readonly status: number,
+    readonly code = '',
+  ) {
+    super(`Polar answered ${status}${code ? ` (${code})` : ''}`);
+  }
+  /** For the log: the status, and Polar's name for it. */
+  get said(): string {
+    return this.code ? `${this.status} ${this.code}` : String(this.status);
+  }
+}
+
+/** Polar's short name for an error, from its answer: a plain word or two, or nothing. */
+async function codeOf(res: Response): Promise<string> {
+  try {
+    const body: unknown = await res.json();
+    const name = body && typeof body === 'object' ? (body as { error?: unknown }).error : undefined;
+    return typeof name === 'string' && /^[A-Za-z][A-Za-z0-9_ -]{0,48}$/.test(name) ? name : '';
+  } catch {
+    return '';
   }
 }
 
@@ -71,7 +93,7 @@ export async function polar<T>(env: PlanEnv, path: string, init: { method?: stri
     signal: AbortSignal.timeout(TIMEOUT),
   });
   if (res.status === 404) return null;
-  if (!res.ok) throw new PolarError(res.status);
+  if (!res.ok) throw new PolarError(res.status, await codeOf(res));
   return (await res.json()) as T;
 }
 
@@ -123,7 +145,7 @@ export async function planOf(sub: string, env: PlanEnv, { fresh = false, now = D
     return worth(await box.setPlan(plan.pro, plan.until, plan.ending, now), now);
   } catch (e) {
     // Polar can't be reached: what was known stands, and it is asked again next time.
-    console.error('Could not ask Polar for a plan', e instanceof PolarError ? e.status : e instanceof Error ? e.name : typeof e);
+    console.error('Could not ask Polar for a plan', e instanceof PolarError ? e.said : e instanceof Error ? e.name : typeof e);
     return kept ? worth(kept, now) : FREE;
   }
 }

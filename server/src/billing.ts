@@ -86,7 +86,7 @@ export async function handleBilling(request: Request, env: BillingEnv, ctx: Pick
     if (e instanceof BadRequest) res = refuse(400, 'bad');
     else if (e instanceof Nothing) res = refuse(404, 'none');
     else {
-      console.error('Billing failed', e instanceof PolarError ? e.status : e instanceof Error ? e.name : typeof e);
+      console.error('Billing failed', route, e instanceof PolarError ? e.said : e instanceof Error ? e.name : typeof e);
       res = refuse(502, 'unavailable');
     }
   }
