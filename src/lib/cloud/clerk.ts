@@ -268,8 +268,10 @@ export async function startCheck(): Promise<string | null> {
     const c = await clerk();
     const session = c.session;
     if (!session || !c.user) throw new Error(t('settings.account.delete.signedOut'));
-    const age = session.factorVerificationAge?.[0];
-    if (typeof age === 'number' && age >= 0 && age < FRESH_MINUTES) return null;
+    // Read from a token made this moment: it is what the server and the database will be shown. (The session
+    // object's own `factorVerificationAge` is as old as the last time it was loaded, and goes on saying "just now".)
+    const age = provedAgo(await session.getToken({ skipCache: true }));
+    if (age !== null && age >= 0 && age < FRESH_MINUTES) return null;
     const started = await session.startVerification({ level: 'first_factor' });
     const byEmail = started.supportedFirstFactors?.find((f) => f.strategy === 'email_code');
     if (!byEmail || !('emailAddressId' in byEmail)) throw new Error(t('settings.account.delete.unavailable'));
@@ -288,9 +290,26 @@ export async function finishCheck(code: string) {
     const done = await session.attemptFirstFactorVerification({ strategy: 'email_code', code });
     if (done.status !== 'complete') throw new Error(t('social.cloud.codeWrong'));
     // The one in hand was made before the check, and says so.
-    await session.getToken({ skipCache: true });
+    const age = provedAgo(await session.getToken({ skipCache: true }));
+    if (age === null || age < 0 || age >= FRESH_MINUTES) throw new Error(t('settings.account.delete.unavailable'));
   } catch (e) {
     throw friendly(e);
+  }
+}
+
+/**
+ * How many minutes ago a session token says the sign-in was last proved (its `fva` claim, first factor), or null
+ * when it doesn't say. Only read, never trusted: the server and the database check the signed token themselves.
+ */
+export function provedAgo(jwt: string | null): number | null {
+  try {
+    const part = (jwt ?? '').split('.')[1];
+    if (!part) return null;
+    const payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) as { fva?: unknown };
+    const age = Array.isArray(payload.fva) ? payload.fva[0] : undefined;
+    return typeof age === 'number' ? age : null;
+  } catch {
+    return null;
   }
 }
 

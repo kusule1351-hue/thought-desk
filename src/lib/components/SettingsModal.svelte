@@ -70,8 +70,10 @@
   /** Asks once in plain words, proves the sign-in with a code from the person's email if it must, then deletes. */
   async function deleteAccount() {
     if (deleting) return;
+    // It names the account: someone signed in to the wrong one sees it before it is gone.
+    const who = account.user?.email || account.name;
     const sure = await ui.confirm({
-      title: t('settings.account.delete.title'),
+      title: who ? t('settings.account.delete.titleFor', { who }) : t('settings.account.delete.title'),
       message: t('settings.account.delete.message'),
       confirmLabel: t('settings.account.delete.confirm'),
       danger: true,

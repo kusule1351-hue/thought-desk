@@ -12,30 +12,19 @@
   const PROVIDER_NAMES: Record<Provider, string> = { google: 'Google', github: 'GitHub' };
 
   /**
-   * Who has been asked for a username on this computer and closed the sheet without choosing one. A username is
-   * only for friends, so someone who signs in for something else is asked once, not at every sign-in. The Friends
-   * view still asks, and still opens this sheet for it.
+   * The sheet was opened to sign in (and not, already signed in, to pick a username or edit the profile). A
+   * username is only for friends, so signing in doesn't ask for one: the Friends view does, and Edit Profile
+   * offers it, both by opening this sheet again.
    */
-  const ASKED = 'thoughtdesk.usernameAsked';
-  function asked(): string[] {
-    try {
-      const list: unknown = JSON.parse(localStorage.getItem(ASKED) ?? '[]');
-      return Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : [];
-    } catch {
-      return [];
-    }
-  }
-  /** The sheet was opened to sign in (and not, already signed in, to pick a username or edit the profile). */
   const cameToSignIn = !account.user;
 
   const close = () => {
     if (account.waiting) account.cancelSignIn();
-    if (account.user && account.needsUsername && !asked().includes(account.user.id)) localStorage.setItem(ASKED, JSON.stringify([...asked(), account.user.id].slice(-20)));
     ui.accountSheet = false;
   };
-  // Signed in here, by someone who has already been asked: the sheet's work is done.
+  // Signed in here, with no username yet: the sheet's work is done, and nothing more is asked.
   $effect(() => {
-    if (cameToSignIn && account.user && account.needsUsername && asked().includes(account.user.id)) ui.accountSheet = false;
+    if (cameToSignIn && account.user && account.needsUsername) ui.accountSheet = false;
   });
 
   let busy = $state(false);
