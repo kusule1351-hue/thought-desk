@@ -263,6 +263,19 @@ fn main() {
             commands::sync_file_open,
             commands::sync_file_done,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Thought Desk");
+        .build(tauri::generate_context!())
+        .expect("error while running Thought Desk")
+        .run(|app, event| {
+            // Closing the window, quitting and restarting all end here, and
+            // then the process just ends: the database is never dropped, so
+            // it never closes. Fold its write-ahead log into the main file
+            // now, so a closed app leaves one whole file behind (db.rs). The
+            // window is gone by this point; a busy database is waited on only
+            // briefly, and whatever stays in the log is read back next time.
+            if let tauri::RunEvent::Exit = event {
+                if let Some(db) = app.try_state::<db::Db>() {
+                    db.settle(std::time::Duration::from_secs(2));
+                }
+            }
+        });
 }

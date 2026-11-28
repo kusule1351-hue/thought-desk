@@ -12,8 +12,8 @@ use rusqlite::{params, Connection, OpenFlags, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{Mutex, MutexGuard, TryLockError};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// Error surfaced to the frontend as a plain string.
 #[derive(Debug)]
@@ -537,11 +537,15 @@ const WELCOME_HTML: &str = r#"<p>Thought Desk is a quiet place to write. Everyth
 <p></p>"#;
 
 pub struct Db {
-    conn: Mutex<Connection>,
     /// A second, read-only connection for the long reads (search, listing):
     /// WAL lets it read while the main one writes, so a search never holds
     /// up a save.
+    ///
+    /// Declared before `conn` so that it closes first. SQLite folds the
+    /// write-ahead log into the main file when the last connection closes,
+    /// and a read-only one can't: closed last, it left the notes in the log.
     reader: Mutex<Connection>,
+    conn: Mutex<Connection>,
     pub data_dir: PathBuf,
     pub files_dir: PathBuf,
 }
@@ -580,8 +584,8 @@ impl Db {
              PRAGMA mmap_size = 268435456;",
         )?;
         let db = Db {
-            conn: Mutex::new(conn),
             reader: Mutex::new(reader),
+            conn: Mutex::new(conn),
             data_dir: data_dir.to_path_buf(),
             files_dir,
         };
@@ -599,6 +603,30 @@ impl Db {
     /// The read-only connection, for reads that can take a while.
     pub(crate) fn reader(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.reader.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    /// Folds the write-ahead log into `thoughtdesk.db` and empties it, so that
+    /// file alone is the whole database. The notes folder may sit in a cloud
+    /// folder (OneDrive, Dropbox…), which uploads the two files separately.
+    ///
+    /// Closing a `Db` does this by itself, but the app never gets that far:
+    /// Tauri ends the process without dropping what it manages. So the app
+    /// calls this on its way out (main.rs).
+    ///
+    /// Waits up to `patience` for a save or a search of ours that's under
+    /// way, and not at all for another program that has the file open.
+    /// False if the log couldn't be emptied; nothing is lost either way.
+    pub fn settle(&self, patience: Duration) -> bool {
+        let deadline = Instant::now() + patience;
+        // Both locks: the log can't be emptied while our reader is in it.
+        let Some(_reader) = lock_by(&self.reader, deadline) else { return false };
+        let Some(conn) = lock_by(&self.conn, deadline) else { return false };
+        let _ = conn.busy_timeout(Duration::ZERO);
+        let emptied = conn
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |r| r.get::<_, i64>(0))
+            .is_ok_and(|busy| busy == 0);
+        let _ = conn.busy_timeout(BUSY_WAIT);
+        emptied
     }
 
     fn migrate(&self) -> Result<()> {
@@ -1379,6 +1407,23 @@ pub(crate) fn replace_ids(content: &str, map: &HashMap<String, String>) -> Strin
     out
 }
 
+/// How long a statement waits on another program's lock (rusqlite's default).
+const BUSY_WAIT: Duration = Duration::from_secs(5);
+
+/// The lock, if it comes free by `deadline`. Never waits past it, so taking
+/// two locks this way can't deadlock with code that takes them the other way.
+fn lock_by<T>(lock: &Mutex<T>, deadline: Instant) -> Option<MutexGuard<'_, T>> {
+    loop {
+        match lock.try_lock() {
+            Ok(guard) => return Some(guard),
+            // Safe to reuse, as in `Db::conn`.
+            Err(TryLockError::Poisoned(p)) => return Some(p.into_inner()),
+            Err(TryLockError::WouldBlock) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(5)),
+            Err(TryLockError::WouldBlock) => return None,
+        }
+    }
+}
+
 /// Returns unused space to the file system. Databases made before
 /// incremental vacuuming was turned on get one full VACUUM (which turns it
 /// on), when there's space worth winning or right after an upgrade.
@@ -1549,6 +1594,54 @@ mod tests {
         drop(db);
         let db = Db::open(&dir).unwrap();
         assert_eq!(children(&db, None).len(), 1, "reopening must not seed again");
+    }
+
+    /// How much sits in the write-ahead log beside `dir`'s database.
+    fn log_len(dir: &Path) -> u64 {
+        std::fs::metadata(dir.join("thoughtdesk.db-wal")).map(|m| m.len()).unwrap_or(0)
+    }
+
+    /// Opens `thoughtdesk.db` alone, copied out of `dir`, and reads a page's title from it.
+    fn title_in_main_file(dir: &Path, id: &str) -> String {
+        let alone = TempDir::new("td-test-alone");
+        std::fs::copy(dir.join("thoughtdesk.db"), alone.join("thoughtdesk.db")).unwrap();
+        Db::open(&alone).unwrap().get_page(id).map(|p| p.meta.title).unwrap_or_default()
+    }
+
+    #[test]
+    fn closing_leaves_one_whole_file() {
+        let dir = TempDir::new("td-test");
+        let db = Db::open(&dir).unwrap();
+        let page = db.create_page(None, None, "Kept", "").unwrap();
+        drop(db);
+        assert_eq!(log_len(&dir), 0, "nothing is left in the write-ahead log");
+        assert_eq!(title_in_main_file(&dir, &page.id), "Kept");
+    }
+
+    /// What the app does on its way out: it never closes the database.
+    #[test]
+    fn settling_folds_the_log_into_the_main_file() {
+        let dir = TempDir::new("td-test");
+        let db = Db::open(&dir).unwrap();
+        let page = db.create_page(None, None, "Kept", "").unwrap();
+        assert!(log_len(&dir) > 0, "a new page starts out in the log");
+        assert_eq!(title_in_main_file(&dir, &page.id), "", "and not in the main file");
+
+        // A save under way: gives up when its patience runs out.
+        let saving = db.conn();
+        assert!(!db.settle(Duration::from_millis(20)));
+        drop(saving);
+        assert!(log_len(&dir) > 0);
+
+        assert!(db.settle(Duration::ZERO));
+        assert_eq!(log_len(&dir), 0);
+        assert_eq!(title_in_main_file(&dir, &page.id), "Kept");
+
+        // Both connections carry on, and settling again is fine.
+        let later = db.create_page(None, None, "Later", "").unwrap();
+        assert_eq!(db.list_pages().unwrap().iter().filter(|p| p.id == later.id).count(), 1, "the reader sees it");
+        assert!(db.settle(Duration::ZERO) && db.settle(Duration::ZERO));
+        assert_eq!(title_in_main_file(&dir, &later.id), "Later");
     }
 
     #[test]
