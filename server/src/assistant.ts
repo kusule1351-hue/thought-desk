@@ -1,7 +1,7 @@
 /**
  * The assistant's way to its model. The app holds no key: it sends what the
  * person asked, the notes it picked and the tools it offers; this checks the
- * sign-in, the account's allowance and everybody's daily limit, asks Claude
+ * sign-in, the account's allowance and the free accounts' daily limit, asks Claude
  * with the key kept here, and passes the answer back as it is written.
  *
  * Nothing that passes through is kept or logged: only what it cost is counted
@@ -38,7 +38,7 @@ export interface AssistantEnv extends AuthEnv, PlanEnv {
 }
 
 export const DEFAULT_MODEL = 'claude-haiku-5-5';
-/** 10 cents a month for one account on the free plan; 10 dollars a day for everyone. */
+/** 10 cents a month for one account on the free plan; 10 dollars a day for the free accounts together. */
 const DEFAULT_MONTHLY = 100_000;
 /** 3 dollars a month for an account on Pro. */
 const DEFAULT_PRO_MONTHLY = 3_000_000;
@@ -249,13 +249,17 @@ async function answer(request: Request, env: AssistantEnv, ctx: Pick<ExecutionCo
     if (own.reason === 'fast') return refuse(429, 'rate_limit_error', 'fast', 'That was a lot at once. Try again in a moment.', { 'Retry-After': String(own.retryAfter) });
     return refuse(429, 'rate_limit_error', 'spent', 'This month’s assistant allowance is used up.');
   }
-  const all: Admitted = await everyone.admit(day, daily, hold);
+  // The day's limit is the free plan's: it keeps what the accounts that pay nothing cost, together, in bounds.
+  // An account on Pro has paid for its own allowance, and that is its only limit: a busy day among the free
+  // accounts never closes it out, and what it spends is not taken from theirs.
+  const shared = !plan.pro;
+  const all: Admitted = shared ? await everyone.admit(day, daily, hold) : { ok: true, spent: 0 };
   let settled = false;
-  /** Counts what the request cost (once), in both budgets. */
+  /** Counts what the request cost (once): in the account's own budget, and in the day's if it draws on that. */
   const settle = async (cost: number) => {
     if (settled) return;
     settled = true;
-    await Promise.all([mine.settle(month, hold, cost), all.ok ? everyone.settle(day, hold, cost) : null]);
+    await Promise.all([mine.settle(month, hold, cost), shared && all.ok ? everyone.settle(day, hold, cost) : null]);
   };
   if (!all.ok) {
     await settle(0);
