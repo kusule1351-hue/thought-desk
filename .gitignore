@@ -13,3 +13,6 @@ playwright-report
 
 # The assistant key for a server run on this computer (server/.dev.vars).
 .dev.vars
+
+# The rendered marketing film (marketing/film makes it; see its scripts).
+marketing/*.mp4
