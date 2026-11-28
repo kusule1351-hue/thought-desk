@@ -42,7 +42,7 @@ export async function handleAccount(request: Request, env: AccountEnv): Promise<
   try {
     res = await answer(request, env);
   } catch (e) {
-    console.error('Deleting an account failed', e instanceof PolarError ? e.status : e instanceof Error ? e.name : typeof e);
+    console.error('Deleting an account failed', e instanceof PolarError ? e.said : e instanceof Error ? e.name : typeof e);
     res = json({ error: 'unavailable' }, 502);
   }
   const out = new Headers(res.headers);

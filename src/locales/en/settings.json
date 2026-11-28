@@ -39,6 +39,8 @@
       "hint": "Deletes your sign-in, profile, friends and synced copy for good. The notes on this computer stay.",
       "button": "Delete Account…",
       "title": "Delete your account?",
+      "titleFor": "Delete the account {who}?",
+      "@titleFor": "title of the dialog that asks before deleting the account for good; {who} is the account’s email address (or its name), so it is plain which account goes",
       "message": "This deletes your sign-in, your profile and friends, your synced copy and what the assistant counted, and cancels Thought Desk Pro. It can’t be undone. The notes on this computer stay.",
       "confirm": "Delete Account",
       "@confirm": "the button that goes ahead and deletes the account, in the dialog that asks and in the one that takes the code",

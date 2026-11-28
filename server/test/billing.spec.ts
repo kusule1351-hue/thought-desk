@@ -357,6 +357,27 @@ describe('checkout', () => {
     expect(odd.res.status).toBe(502);
   });
 
+  it('logs Polar’s own short name for a refusal, and nothing else of its answer', async () => {
+    const logged: unknown[][] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args) => void logged.push(args));
+    try {
+      polar.answer = (url) =>
+        url.includes('/v1/checkouts/') ? Response.json({ error: 'insufficient_scope', error_description: 'needs checkouts:write', detail: [{ input: 'me@example.com' }] }, { status: 403 }) : new Response('{}', { status: 404 });
+      const got = await call({ method: 'POST', path: '/checkout', as: account(), json: { email: 'me@example.com', accepted: TERMS } });
+      expect(got.res.status).toBe(502);
+      expect(logged).toEqual([['Billing failed', '/checkout', '403 insufficient_scope']]);
+      // An answer that isn't JSON, or whose name is not a plain word, is only its number.
+      logged.length = 0;
+      polar.answer = (url) => (url.includes('/v1/checkouts/') ? new Response('<html>blocked</html>', { status: 403 }) : new Response('{}', { status: 404 }));
+      await call({ method: 'POST', path: '/checkout', as: account(), json: { accepted: TERMS } });
+      polar.answer = (url) => (url.includes('/v1/checkouts/') ? Response.json({ error: 'me@example.com wrote <b>this</b>' }, { status: 403 }) : new Response('{}', { status: 404 }));
+      await call({ method: 'POST', path: '/checkout', as: account(), json: { accepted: TERMS } });
+      expect(logged).toEqual([['Billing failed', '/checkout', '403'], ['Billing failed', '/checkout', '403']]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('turns away a wrong method and a body that is not JSON', async () => {
     const sub = account();
     expect((await call({ method: 'GET', path: '/checkout', as: sub })).res.status).toBe(405);

@@ -109,7 +109,8 @@ class SupabaseCloud implements Cloud {
   /** The database's own check, with nothing deleted: it knows the function, and finds this sign-in freshly proved. */
   async checkDeleteAccount() {
     const { error } = await this.client.rpc('delete_account', { check_only: true });
-    if (error) throw friendly(error);
+    // The database's own words for a sign-in it doesn't find fresh are not for people: say what to do.
+    if (error) throw /confirm your sign-in/i.test(error.message) ? new Error(t('settings.account.delete.unproved')) : friendly(error);
     if (!(await clerk.canDeleteUser())) throw new Error(t('settings.account.delete.unavailable'));
   }
 

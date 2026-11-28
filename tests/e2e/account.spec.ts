@@ -17,7 +17,7 @@ async function openAccount(page: Page) {
   await button.click();
 }
 
-test('signing in with Google, then picking a username', async ({ page }) => {
+test('signing in with Google asks for nothing more; a username is picked later, from Edit Profile', async ({ page }) => {
   const cloud = new FakeCloud();
   cloud.addUser({ email: 'someone@example.com', name: 'Another Ana', username: 'analima' });
   await cloud.attach(page.context(), { email: 'ana@example.com', name: 'Ana Lima' });
@@ -25,6 +25,10 @@ test('signing in with Google, then picking a username', async ({ page }) => {
   await openAccount(page);
 
   await page.getByRole('button', { name: 'Continue with Google' }).click();
+  // Signed in, and the sheet is gone: nobody is made to pick a name to sign in.
+  await expect(page.getByRole('dialog', { name: 'Account' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Pick a username' })).toHaveCount(0);
+  await openAccount(page);
   await expect(page.getByRole('heading', { name: 'Pick a username' })).toBeVisible();
   // Someone who signed in with the wrong account can leave before picking anything.
   await expect(page.getByRole('button', { name: 'Sign Out' })).toBeVisible();
@@ -65,6 +69,8 @@ test('signing in with an emailed code, and staying signed in', async ({ page }) 
 
   await page.getByLabel('Code').fill(EMAIL_CODE);
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Account' })).toHaveCount(0);
+  await openAccount(page);
   await expect(page.getByRole('heading', { name: 'Pick a username' })).toBeVisible();
   await page.getByLabel('Username').fill('ben');
   await expect(page.getByText('@ben is available.')).toBeVisible();
@@ -100,7 +106,7 @@ test('editing the profile, then signing out', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Sign In…' })).toBeVisible();
 });
 
-test('someone who closed the username step once is not asked again at each sign-in, only where a username is needed', async ({ page }) => {
+test('signing in never asks for a username, the first time or later; opened where one is needed, the sheet offers it', async ({ page }) => {
   const cloud = new FakeCloud();
   await cloud.attach(page.context(), { email: 'ana@example.com', name: 'Ana Lima' });
   await open(page);
@@ -119,19 +125,18 @@ test('someone who closed the username step once is not asked again at each sign-
       await account.signOut();
     });
 
-  // The first sign-in asks, and closing it is an answer.
+  // The first sign-in: the sheet goes away by itself, signed in, with nothing asked.
   await signIn();
-  await expect(page.getByRole('heading', { name: 'Pick a username' })).toBeVisible();
-  await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
+  expect(await page.evaluate(async () => (await import('/src/lib/account.svelte.ts' as string)).account.signedIn)).toBe(true);
 
-  // Signing in again: the sheet goes away by itself, signed in.
+  // And the same every time after.
   await signOut();
   await signIn();
   await expect(sheet).toHaveCount(0);
   expect(await page.evaluate(async () => (await import('/src/lib/account.svelte.ts' as string)).account.signedIn)).toBe(true);
 
-  // Opened on purpose (as the Friends view does), it still offers the username.
+  // Opened on purpose (as the Friends view does), it offers the username.
   await page.evaluate(async () => {
     const { ui } = await import('/src/lib/ui.svelte.ts' as string);
     ui.accountSheet = true;
@@ -175,7 +180,8 @@ test('deleting the account from Settings: asked once, proved with a code from th
 
   // It asks first, in words that say what goes and what stays; backing out deletes nothing.
   await settings.getByRole('button', { name: 'Delete Account…' }).click();
-  await expect(ask).toContainText('Delete your account?');
+  // It names the account that is about to go.
+  await expect(ask).toContainText('Delete the account ana@example.com?');
   await expect(ask).toContainText('It can’t be undone. The notes on this computer stay.');
   await ask.getByRole('button', { name: 'Cancel' }).click();
   await expect(ask).toHaveCount(0);
@@ -231,4 +237,25 @@ test('deleting the account from Settings: asked once, proved with a code from th
   // The wrong code, the server's refusal (and the browser's own line about it) were shown, and are the only errors there were.
   expect(errors).toHaveLength(4);
   errors.length = 0;
+});
+
+test('how fresh a sign-in is, is read from the token itself', async ({ page }) => {
+  await open(page);
+  const ages = await page.evaluate(async () => {
+    const { provedAgo } = await import('/src/lib/cloud/clerk.ts' as string);
+    // As a real token is: the JSON's UTF-8 bytes, in base64url.
+    const b64url = (o: unknown) => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const token = (claims: unknown) => `${b64url({ alg: 'RS256' })}.${b64url(claims)}.signature`;
+    return [
+      provedAgo(token({ sub: 'user_a', fva: [3, -1] })),
+      provedAgo(token({ sub: 'user_a', fva: [0, 0] })),
+      provedAgo(token({ sub: 'user_a', fva: [47, -1], name: 'Ünï ✓' })),
+      provedAgo(token({ sub: 'user_a', fva: [-1, -1] })),
+      provedAgo(token({ sub: 'user_a' })),
+      provedAgo(token({ sub: 'user_a', fva: ['3', 1] })),
+      provedAgo('not a token'),
+      provedAgo(null),
+    ];
+  });
+  expect(ages).toEqual([3, 0, 47, -1, null, null, null, null]);
 });
