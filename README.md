@@ -15,6 +15,10 @@ flashcards and databases, all linked together. Bring a friend onto a page when y
 [![Discord](https://img.shields.io/badge/chat-Discord-5865F2)](https://discord.gg/JEaUHwz5bP)
 [![Sponsor](https://img.shields.io/badge/sponsor-GitHub-111111?logo=githubsponsors&logoColor=ea4aaa)](https://github.com/sponsors/kusule1351-hue)
 
+<a href="https://trendshift.io/repositories/311991?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-311991" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/311991/daily?language=Svelte" alt="Thought Desk: #1 Svelte Repository Of The Day on Trendshift" width="250" height="55"/></a>
+&nbsp;
+<a href="https://trendshift.io/repositories/311991?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-311991" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/311991/weekly?language=Svelte" alt="Thought Desk: #2 Svelte Repository Of The Week on Trendshift" width="250" height="55"/></a>
+
 [**Download for Windows**](https://thoughtdesk.org/download/windows) &nbsp;·&nbsp; [**Mac**](https://thoughtdesk.org/download/mac) &nbsp;·&nbsp; [**Linux**](https://thoughtdesk.org/download/linux) &nbsp;·&nbsp; [thoughtdesk.org](https://thoughtdesk.org)
 
 Thought Desk is free and open source. [**❤️ Sponsor it**](https://github.com/sponsors/kusule1351-hue) to help bring it to your phone, with sync.
