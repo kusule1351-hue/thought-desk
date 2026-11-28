@@ -383,6 +383,18 @@ function countWords(text: string): number {
 
 /** A page's text without its markup, for the sample pages, which were never
  *  saved from the editor and so have no `text`. Content is editor JSON or HTML. */
+/** The cloud drive a folder is inside, by its path, as location.rs tells it. */
+function cloudDrive(dir: string): string | null {
+  for (const part of dir.toLowerCase().split(/[\\/]/)) {
+    const named = (word: string) => part === word || [' ', '-', '('].some((sep) => part.startsWith(word + sep));
+    if (named('onedrive')) return 'OneDrive';
+    if (named('dropbox')) return 'Dropbox';
+    if (['iclouddrive', 'icloud drive', 'mobile documents', 'com~apple~clouddocs'].includes(part) || part.startsWith('icloud~')) return 'iCloud Drive';
+    if (named('google drive') || named('googledrive') || part === 'my drive') return 'Google Drive';
+  }
+  return null;
+}
+
 function plainText(content: string): string {
   try {
     // Every node but text ends in a space, so words in neighbouring blocks stay apart.
@@ -1503,6 +1515,7 @@ mockIPC((cmd, payload) => {
           chosenDir: !!(window as any).__dataDir,
           envDir: false,
           missingDir: (window as any).__missingDir ?? null,
+          cloud: cloudDrive((window as any).__dataDir ?? ''),
           dbBytes: JSON.stringify(rows).length + JSON.stringify(planner).length,
           fileBytes: planner.files.reduce((n, f) => n + f.size, 0),
           fileCount: planner.files.filter((f) => !f.deletedAt).length,
@@ -1515,10 +1528,25 @@ mockIPC((cmd, payload) => {
         // Tests set the folder a person would pick.
         return (window as any).__pickFolder ?? null;
       case 'data_folder_check':
-        return { hasNotes: !!(window as any).__folderHasNotes, modified: null };
+        return { hasNotes: !!(window as any).__folderHasNotes, modified: null, cloud: cloudDrive(String(a.dir ?? '')) };
       case 'data_folder_move':
       case 'data_folder_reset':
         (window as any).__folderMoves = [...((window as any).__folderMoves ?? []), { cmd, ...a }];
+        return null;
+      case 'backup_status':
+        // What the Rust side would answer: a test's own, or one backup from a set day.
+        return (
+          (window as any).__backups ?? {
+            dir: 'C:\\(browser preview)\\Backups',
+            backups: [{ name: 'thoughtdesk 2026-10-24 0930.db', at: Date.UTC(2026, 9, 24, 9, 30), bytes: 270336 }],
+            problem: null,
+            restored: null,
+            restoreError: null,
+          }
+        );
+      case 'backup_reveal':
+      case 'backup_restore':
+        (window as any).__backupCalls = [...((window as any).__backupCalls ?? []), { cmd, ...a }];
         return null;
       case 'set_page_shared': {
         const r = find(a.id);

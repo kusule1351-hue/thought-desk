@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod auth;
+mod backups;
 mod cards;
 mod chats;
 mod commands;
@@ -123,6 +124,12 @@ fn main() {
                 Some(dir) => location::Location { dir, default_dir, from_env: true, chosen: false, missing: None },
                 None => location::resolve(&default_dir),
             };
+            // Backups stay in the app's own folder, whatever folder the notes are in
+            // (it may be on a cloud drive). THOUGHTDESK_DATA_DIR keeps everything
+            // of a portable or scratch copy together, apart from the installed app's.
+            let backups_dir = if place.from_env { &place.dir } else { &place.default_dir }.join(backups::FOLDER);
+            // A restore asked for before this start, done before the database opens.
+            let restored = backups::apply_pending(&backups_dir, &place.dir, db::now());
             let db = db::Db::open(&place.dir).map_err(|e| e.0)?;
             // This install's name in sync stamps; without one sync falls back to the notes folder's.
             if let Some(id) = app.path().app_config_dir().ok().and_then(|dir| install_id(&dir)) {
@@ -130,16 +137,23 @@ fn main() {
             }
             app.manage(db);
             app.manage(place);
+            app.manage(backups::Backups::new(backups_dir, restored));
             // The sign-in: in the app's own folder, never the notes folder.
             app.manage(secrets::Secrets::new(app.path().app_local_data_dir()?.join("secrets")));
             app.manage(sync::vault::SyncVault::default());
 
             reminders::start(app.handle().clone());
+            backups::start(app.handle().clone());
 
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(20));
-                files::collect_garbage(&handle.state::<db::Db>());
+                let db = handle.state::<db::Db>();
+                // After a restore the database that was set aside still counts
+                // on the files added since the backup: they stay until it's gone.
+                if !backups::has_set_aside(&db.data_dir) {
+                    files::collect_garbage(&db);
+                }
             });
             Ok(())
         })
@@ -234,6 +248,9 @@ fn main() {
             commands::data_folder_check,
             commands::data_folder_move,
             commands::data_folder_reset,
+            commands::backup_status,
+            commands::backup_reveal,
+            commands::backup_restore,
             commands::sync_vault_create,
             commands::sync_vault_join,
             commands::sync_vault_open,

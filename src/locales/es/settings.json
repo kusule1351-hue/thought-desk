@@ -323,12 +323,28 @@
     "useThisFolder": "Usar esta carpeta",
     "ownFolder": "La propia carpeta de Thought Desk",
     "useDefault": "Usar predeterminada",
+    "cloud": "Esta carpeta está en {service}",
+    "cloudHint": "No hay problema en una sola computadora. Nunca abras estas notas en dos computadoras a la vez, o la base de datos puede dañarse. Las copias de seguridad se guardan aparte, en esta computadora.",
+    "backups": "Copias de seguridad",
+    "backupLast": "Última copia: {date}",
+    "backupNone": "Aún no hay ninguna copia. La primera se hace un minuto después de abrir Thought Desk.",
+    "backupDamaged": "La base de datos no pasó su comprobación, así que no se hizo ninguna copia nueva. Las que tienes se conservan.",
+    "backupFailed": "No se pudo hacer la última copia. Thought Desk lo intenta de nuevo cada hora.",
+    "openBackups": "Abrir carpeta",
+    "restore": "Restaurar…",
+    "restoreThis": "Restaurar",
+    "restoreFrom": "Restaurar la copia del {date}",
+    "restoreConfirm": {
+      "title": "¿Restaurar esta copia?",
+      "message": "Thought Desk se reinicia con tus notas como estaban el {date}. Las notas que tienes ahora se apartan en una carpeta “{replaced}” dentro de tu carpeta de notas, no se eliminan. Los archivos que has añadido se quedan como están.",
+      "messageSync": "Thought Desk se reinicia con tus notas como estaban el {date}. Las notas que tienes ahora se apartan en una carpeta “{replaced}” dentro de tu carpeta de notas, no se eliminan. Los archivos que has añadido se quedan como están. La sincronización está activada, así que los cambios que tu copia sincronizada ya tiene vuelven después.",
+      "confirm": "Restaurar copia"
+    },
     "export": "Exportar todas las notas",
     "exportHint": "Cada página como un archivo Markdown, en carpetas como la barra lateral, con bases de datos como CSV y los archivos que utilizan.",
     "exportButton": "Exportar…",
     "@exportButton": "Configuración → Almacenamiento: botón que exporta cada nota a una carpeta",
-    "note": "Todo se almacena en un archivo SQLite y una carpeta de archivos, en la carpeta de arriba. Haz una copia de seguridad para mantener tu trabajo seguro, o mantenlo en una carpeta que ya tenga copia de seguridad (Cambiar…).",
-    "@note": "Configuración → Almacenamiento, debajo de la sección; “Cambiar…” entre corchetes es el botón de arriba que elige otra carpeta (storage.change): escríbelo de la misma manera"
+    "noteBackups": "Todo se almacena en un archivo SQLite y una carpeta de archivos, en la carpeta de arriba. Más o menos una vez al día Thought Desk copia la base de datos a la carpeta de copias de seguridad, y conserva los últimos siete días y cuatro semanas anteriores. Los archivos que has añadido no están en las copias."
   },
   "about": {
     "title": "Acerca de",

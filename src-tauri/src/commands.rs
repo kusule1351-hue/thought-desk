@@ -5,6 +5,7 @@
 //! resizing, painting). The few left synchronous are instant or must run on
 //! the main thread.
 
+use crate::backups::Backups;
 use crate::cards::{Card, Deck, Review};
 use crate::chats::{Chat, ChatMeta};
 use crate::databases::{CreatedDatabase, CreatedRow, Database, DatabaseInput, ListedRow, NewRow, RowChange, SchemaItem};
@@ -843,6 +844,8 @@ pub struct DataInfo {
     env_dir: bool,
     /// A chosen folder that wasn't there at start-up.
     missing_dir: Option<String>,
+    /// The cloud drive the notes folder looks to be in ("OneDrive"…), by its path.
+    cloud: Option<&'static str>,
     db_bytes: u64,
     file_bytes: u64,
     /// Live files in the library.
@@ -875,6 +878,7 @@ pub fn data_info(app: AppHandle, db: State<Db>, place: State<Location>) -> Resul
         chosen_dir: place.chosen,
         env_dir: place.from_env,
         missing_dir: place.missing.as_ref().map(|d| d.to_string_lossy().into_owned()),
+        cloud: crate::location::cloud_drive(&db.data_dir),
         db_bytes,
         file_bytes,
         file_count: db.live_count(Table::Files)?,
@@ -924,6 +928,27 @@ pub fn data_folder_reset(db: State<Db>, place: State<Location>) -> Result<()> {
         db.copy_to(&place.default_dir, true)?;
     }
     crate::location::remember(&place.default_dir, None)
+}
+
+/// The automatic backups of the database (backups.rs): the folder, the
+/// backups in it, and whether the last one couldn't be made.
+#[tauri::command(async)]
+pub fn backup_status(backups: State<Backups>) -> crate::backups::Status {
+    backups.status()
+}
+
+/// Opens the backups folder in the system's file manager.
+#[tauri::command(async)]
+pub fn backup_reveal(app: AppHandle, backups: State<Backups>) -> Result<()> {
+    std::fs::create_dir_all(&backups.dir)?;
+    app.opener().open_path(backups.dir.to_string_lossy(), None::<&str>).map_err(|e| Error(e.to_string()))
+}
+
+/// Has a backup take the notes' place at the next start (the notes open now
+/// are set aside then, not deleted). The app restarts after.
+#[tauri::command(async)]
+pub fn backup_restore(db: State<Db>, backups: State<Backups>, name: String) -> Result<()> {
+    crate::backups::request_restore(&backups.dir, &db.data_dir, &name)
 }
 
 #[cfg(test)]

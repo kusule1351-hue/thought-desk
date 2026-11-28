@@ -39,6 +39,7 @@
   import Face from '../assistant/ui/Face.svelte';
   import Avatar from './Avatar.svelte';
   import { chooseDataFolder, useDefaultDataFolder } from '../data-folder';
+  import { backupDate, restoreBackup } from '../backups';
   import { SIDEBAR_ITEMS, setShownInSidebar, shownInSidebar, type SidebarItem } from '../sidebar-items';
   import { changeLook } from '../look-transition';
   import { fade } from '../motion';
@@ -49,9 +50,12 @@
   import { LANGUAGES, i18n, t, type MessageKey, type PluralKey } from '../i18n';
   import { fmt } from '../i18n/format';
   import Rich from '../i18n/Rich.svelte';
-  import type { DataInfo } from '../types';
+  import type { BackupStatus, DataInfo } from '../types';
 
   let info = $state<DataInfo | null>(null);
+  let backups = $state<BackupStatus | null>(null);
+  /** The backups are listed, to choose one to restore. */
+  let choosingBackup = $state(false);
 
   // The assistant's name rules live with its logic, which is only loaded once something needs it.
   let named = $state.raw<Pick<typeof import('../assistant/assistant.svelte'), 'DEFAULT_NAME' | 'MAX_NAME' | 'cleanName'> | null>(null);
@@ -196,6 +200,7 @@
     // Focus starts on the chosen pane's row, so the keys reach the list at once.
     document.getElementById(`settings-tab-${pane}`)?.focus({ preventScroll: true });
     api.dataInfo().then((d) => (info = d), ui.error);
+    api.backupStatus().then((b) => (backups = b), ui.error);
     // Settings is the most expensive screen to draw. Chromium keeps those
     // graphics around for minutes; let it go as soon as Settings closes.
     return () => void api.trimMemory().catch(() => {});
@@ -929,6 +934,40 @@
                     <button class="btn small raised" onclick={() => void useDefaultDataFolder()}>{t('settings.storage.useDefault')}</button>
                   </div>
                 {/if}
+                {#if info.cloud}
+                  <div class="group-row">
+                    <div class="row-label">
+                      {t('settings.storage.cloud', { service: info.cloud })}
+                      <small>{t('settings.storage.cloudHint')}</small>
+                    </div>
+                  </div>
+                {/if}
+                {#if backups}
+                  <div class="group-row">
+                    <div class="row-label path-label">
+                      {t('settings.storage.backups')}
+                      <small>{backups.backups.length ? t('settings.storage.backupLast', { date: backupDate(backups.backups[0]) }) : t('settings.storage.backupNone')}</small>
+                      {#if backups.problem}
+                        <small class="problem">{backups.problem === 'damaged' ? t('settings.storage.backupDamaged') : t('settings.storage.backupFailed')}</small>
+                      {/if}
+                    </div>
+                    <button class="btn small raised" onclick={() => void api.backupReveal().catch(ui.error)}>{t('settings.storage.openBackups')}</button>
+                    <button class="btn small raised" disabled={!backups.backups.length} aria-expanded={choosingBackup} onclick={() => (choosingBackup = !choosingBackup)}
+                      >{t('settings.storage.restore')}</button
+                    >
+                  </div>
+                  {#if choosingBackup}
+                    {#each backups.backups as backup (backup.name)}
+                      <div class="group-row backup">
+                        <div class="row-label path-label">{backupDate(backup)}</div>
+                        <span class="value">{formatBytes(backup.bytes)}</span>
+                        <button class="btn small raised" aria-label={t('settings.storage.restoreFrom', { date: backupDate(backup) })} onclick={() => void restoreBackup(backup)}
+                          >{t('settings.storage.restoreThis')}</button
+                        >
+                      </div>
+                    {/each}
+                  {/if}
+                {/if}
                 <div class="group-row">
                   <div class="row-label">
                     {t('settings.storage.export')}
@@ -940,7 +979,7 @@
                 <div class="group-row"><div class="row-label"><small>{t('common.loading')}</small></div></div>
               {/if}
             </div>
-            <p class="group-note">{t('settings.storage.note')}</p>
+            <p class="group-note">{t('settings.storage.noteBackups')}</p>
           {/if}
         </div>
       {/key}
@@ -1528,6 +1567,15 @@
   }
   .path-label {
     flex: 1;
+  }
+  .row-label small.problem {
+    color: var(--danger);
+  }
+  /* One backup in the list under the Backups row: a date, not a setting's name. */
+  .backup .row-label {
+    font-weight: var(--fw-400);
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
   }
   .path {
     font-family: var(--font-mono);

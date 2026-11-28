@@ -11,6 +11,7 @@ import type {
   CardReview,
   Deck,
   DataInfo,
+  BackupStatus,
   EventPatch,
   ExportEntry,
   FileMeta,
@@ -76,11 +77,17 @@ export const api = {
   secretSet: (name: string, value: string) => invoke<void>('secret_set', { name, value }),
   secretRemove: (name: string) => invoke<void>('secret_remove', { name }),
   /** What a folder holds before keeping notes there. */
-  dataFolderCheck: (dir: string) => invoke<{ hasNotes: boolean; modified: number | null }>('data_folder_check', { dir }),
+  dataFolderCheck: (dir: string) => invoke<{ hasNotes: boolean; modified: number | null; cloud: string | null }>('data_folder_check', { dir }),
   /** Keeps notes in `dir` from the next start: a copy of these, or the notes it has. */
   dataFolderMove: (dir: string, openExisting: boolean) => invoke<void>('data_folder_move', { dir, openExisting }),
   /** Keeps notes in Thought Desk's own folder again from the next start. */
   dataFolderReset: () => invoke<void>('data_folder_reset'),
+  /** The backups of the database the app makes by itself, and how the last one went. */
+  backupStatus: () => invoke<BackupStatus>('backup_status'),
+  /** Opens the backups folder in the system's file manager. */
+  backupReveal: () => invoke<void>('backup_reveal'),
+  /** Has a backup take the notes' place at the next start; the notes open now are set aside then. */
+  backupRestore: (name: string) => invoke<void>('backup_restore', { name }),
 
   /** Adds a file to the library (bytes are copied into the data folder). */
   async saveFile(file: Blob, name: string): Promise<FileMeta> {

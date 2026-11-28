@@ -65,6 +65,14 @@
       "confirm": "Move Notes",
       "@confirm": "button that copies the notes to that folder and restarts the app"
     },
+    "cloud": {
+      "title": "This folder is in {service}",
+      "@title": "dialog after choosing a folder for the notes that is inside a cloud drive's folder; {service} is the drive's name (OneDrive, Dropbox, iCloud Drive or Google Drive)",
+      "message": "That's fine on one computer. Never open these notes on two computers at once: {service} can damage the database. Backups are kept separately, on this computer.",
+      "@message": "the text of that dialog; {service} is the drive's name",
+      "confirm": "Continue",
+      "@confirm": "button in that dialog that goes on to the next step with the chosen folder (a verb)"
+    },
     "keepDefault": {
       "title": "Keep using this folder?",
       "@title": "dialog when the folder chosen for notes is missing and the app has opened its own folder instead",
@@ -85,5 +93,15 @@
     "@missing": "notice at start-up when the folder chosen for notes can't be found (a drive not plugged in); {folder} is its path",
     "restart": "Restart",
     "@restart": "button in that notice that restarts the app (a verb)"
+  },
+  "backups": {
+    "restoring": "Restoring the backup…",
+    "@restoring": "notice while a backup is being put in place, before the app restarts",
+    "restored": "The backup was restored. The notes you had before are in the “{folder}” folder in your notes folder.",
+    "@restored": "notice at start-up after a backup was restored; {folder} is the name of the folder the earlier notes were put in (Replaced, then a date), always in English",
+    "restoreFailed": "The backup couldn't be restored, so your notes are as they were. {reason}",
+    "@restoreFailed": "notice at start-up when restoring a backup failed; {reason} is a sentence from the storage engine, in English",
+    "damaged": "Your notes database didn't pass its check, so no new backup was made. The backups you have are kept.",
+    "show": "Show Backups"
   }
 }
