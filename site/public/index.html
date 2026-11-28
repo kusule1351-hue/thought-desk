@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Thought Desk: notes, classes and plans in one fast app</title>
-    <meta name="description" content="Thought Desk is a free, fast notes app for Windows, Mac and Linux. Pages, databases, assignments, a calendar and flashcards in one place, kept on your own computer." />
+    <title>Thought Desk: write, plan and study in one quiet place</title>
+    <meta name="description" content="Thought Desk is a free, fast notes app for Windows, Mac and Linux. Pages, databases, assignments, a calendar and flashcards in one place, kept on your own computer, with Socrates, a study assistant who answers from your notes." />
     <link rel="canonical" href="https://thoughtdesk.org/" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
@@ -16,8 +16,8 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://thoughtdesk.org/" />
     <meta property="og:site_name" content="Thought Desk" />
-    <meta property="og:title" content="Thought Desk: notes, classes and plans in one fast app" />
-    <meta property="og:description" content="Pages, databases, assignments, a calendar and flashcards in one free app for Windows, Mac and Linux, kept on your own computer." />
+    <meta property="og:title" content="Thought Desk: write, plan and study in one quiet place" />
+    <meta property="og:description" content="Pages, databases, assignments, a calendar and flashcards in one free app for Windows, Mac and Linux, with a study assistant who answers from your own notes." />
     <meta property="og:image" content="https://thoughtdesk.org/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -32,6 +32,8 @@
         <a class="brand" href="/"><img src="/icon.svg" alt="" width="28" height="28" />Thought Desk</a>
         <nav aria-label="Main">
           <a href="#features">Features</a>
+          <a href="#socrates">Socrates</a>
+          <a href="#pricing">Pricing</a>
           <a href="#private">Privacy</a>
           <a href="#faq">FAQ</a>
           <a href="https://github.com/kusule1351-hue/thought-desk">GitHub<span class="stars" data-stars hidden><svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 5.96 6.56.95-4.75 4.63 1.12 6.54L12 17.5l-5.87 3.08 1.12-6.54L2.5 9.41l6.56-.95z" /></svg><span data-star-count></span></span></a>
@@ -44,7 +46,7 @@
     <main id="main">
       <section class="hero">
         <div class="wrap">
-          <p class="eyebrow">Free and open source · for Windows, Mac and Linux</p>
+          <a class="eyebrow" href="#socrates"><span class="new">New</span>Meet Socrates, your study assistant<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></a>
           <h1>Write, plan and study in one quiet place.</h1>
           <p class="lede">Thought Desk keeps your notes, databases, assignments, calendar and flashcards together in one fast app. It runs on your own computer, works offline, and your notes stay yours.</p>
           <div class="actions">
@@ -64,135 +66,194 @@
           <p class="fine" data-release><span data-version>Free</span><span data-stars-line hidden> · <a href="https://github.com/kusule1351-hue/thought-desk">★ <span data-star-count></span> on GitHub</a></span></p>
           <p class="fine" data-os-note hidden>Thought Desk is a desktop app: download it on a Windows, Mac or Linux computer.</p>
           <p class="fine" data-deb hidden>On Ubuntu or Debian? Get the <a href="/download/linux-deb">.deb</a> instead.</p>
-          <p class="fine sponsor-line"><a href="https://github.com/sponsors/kusule1351-hue">Sponsor Thought Desk</a> to help bring it to your phone, with sync.</p>
         </div>
-        <div class="shot">
-          <figure class="window">
-            <picture>
-              <source srcset="/img/notes-dark.webp" media="(prefers-color-scheme: dark)" />
-              <img src="/img/notes-light.webp" width="1280" height="800" fetchpriority="high" alt="Thought Desk with a page of biology lecture notes: a formula, a to-do list and a linked assignment, beside a sidebar of courses and pages." />
-            </picture>
-          </figure>
+        <div class="stage">
+          <div class="stage-panel">
+            <figure class="window">
+              <picture>
+                <source srcset="/img/notes-dark.webp" media="(prefers-color-scheme: dark)" />
+                <img src="/img/notes-light.webp" width="1280" height="800" fetchpriority="high" alt="Thought Desk with a page of biology lecture notes: a formula, a to-do list and a linked assignment, beside a sidebar of courses and pages." />
+              </picture>
+            </figure>
+          </div>
         </div>
       </section>
 
-      <section class="stats" aria-label="At a glance">
-        <div class="wrap stats-grid">
-          <div class="stat"><strong>4 MB</strong><span>to download</span></div>
-          <div class="stat"><strong>115 MB</strong><span>of memory while it's open</span></div>
-          <div class="stat"><strong>Offline</strong><span>everything works without internet</span></div>
-          <div class="stat"><strong>Open source</strong><span>the code is public on GitHub</span></div>
+      <section class="facts" aria-label="At a glance">
+        <div class="wrap facts-grid">
+          <div class="fact"><strong>4 MB</strong><span>to download</span></div>
+          <div class="fact"><strong>115 MB</strong><span>of memory while it's open</span></div>
+          <div class="fact"><strong>Offline</strong><span>your notes need no internet</span></div>
+          <div class="fact"><strong>Open source</strong><span>the code is public on GitHub</span></div>
         </div>
       </section>
 
       <section class="section" id="tour">
         <div class="wrap">
           <div class="section-head">
+            <p class="kicker">The app</p>
             <h2>One app for the whole semester</h2>
             <p>Notes link to assignments, classes land on the calendar, and flashcards live inside the pages you study from.</p>
           </div>
-          <div class="tabs" role="tablist" aria-label="Parts of Thought Desk">
-            <button type="button" role="tab" id="tab-home" aria-controls="panel-home" aria-selected="true">Home</button>
-            <button type="button" role="tab" id="tab-calendar" aria-controls="panel-calendar" aria-selected="false">Calendar</button>
-            <button type="button" role="tab" id="tab-databases" aria-controls="panel-databases" aria-selected="false">Databases</button>
-            <button type="button" role="tab" id="tab-flashcards" aria-controls="panel-flashcards" aria-selected="false">Flashcards</button>
-          </div>
-          <div class="panel" role="tabpanel" id="panel-home" aria-labelledby="tab-home">
-            <p><strong>Your day starts at Home.</strong> Today's classes, what's due soon and the open to-dos from every page, so you always know what's next.</p>
-            <div class="shot">
-              <figure class="window">
+          <div class="bento">
+            <article class="tile">
+              <div class="tile-text">
+                <h3>Your day starts at Home</h3>
+                <p>Today's classes, what's due soon and the open to-dos from every page, so you always know what's next.</p>
+              </div>
+              <figure class="peek home">
                 <picture>
                   <source srcset="/img/home-dark.webp" media="(prefers-color-scheme: dark)" />
-                  <img src="/img/home-light.webp" width="1280" height="800" loading="lazy" decoding="async" alt="Home in Thought Desk: today's classes, assignments due soon, open to-dos and recent pages." />
+                  <img src="/img/home-light.webp" width="1280" height="800" loading="lazy" decoding="async" alt="Home in Thought Desk: a greeting, a box to jot something down, today's classes and the assignments due soon." />
                 </picture>
               </figure>
-            </div>
-          </div>
-          <div class="panel" role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar">
-            <p><strong>Classes and deadlines in one calendar.</strong> Import your schedule from Canvas, Google Calendar or Outlook, drag things to another day, and get a reminder before anything's due.</p>
-            <div class="shot">
-              <figure class="window">
+            </article>
+            <article class="tile">
+              <div class="tile-text">
+                <h3>Classes and deadlines in one calendar</h3>
+                <p>Import your schedule from Canvas, Google Calendar or Outlook, drag things to another day, and get a reminder before anything's due.</p>
+              </div>
+              <figure class="peek calendar">
                 <picture>
                   <source srcset="/img/calendar-dark.webp" media="(prefers-color-scheme: dark)" />
-                  <img src="/img/calendar-light.webp" width="1280" height="800" loading="lazy" decoding="async" alt="The calendar's week view with lectures, a study group and assignments in each course's colour." />
+                  <img src="/img/calendar-light.webp" width="1280" height="800" loading="lazy" decoding="async" alt="The calendar's week view with lectures, a seminar and assignments in each course's colour." />
                 </picture>
               </figure>
-            </div>
-          </div>
-          <div class="panel" role="tabpanel" id="panel-databases" aria-labelledby="tab-databases">
-            <p><strong>Track anything.</strong> Reading lists, projects, habits or applications, as a table, board, gallery, calendar, chart or timeline, with formulas and automations.</p>
-            <div class="shot">
-              <figure class="window">
+            </article>
+            <article class="tile">
+              <div class="tile-text">
+                <h3>Track anything</h3>
+                <p>Reading lists, projects, habits or applications, as a table, board, gallery, calendar, chart or timeline, with formulas and automations.</p>
+              </div>
+              <figure class="peek database">
                 <picture>
                   <source srcset="/img/database-dark.webp" media="(prefers-color-scheme: dark)" />
-                  <img src="/img/database-light.webp" width="1280" height="800" loading="lazy" decoding="async" alt="A reading list database shown as a board, with books grouped by whether they're read." />
+                  <img src="/img/database-light.webp" width="1280" height="800" loading="lazy" decoding="async" alt="A reading list database shown as a board, with books grouped by whether they've been read." />
                 </picture>
               </figure>
-            </div>
-          </div>
-          <div class="panel" role="tabpanel" id="panel-flashcards" aria-labelledby="tab-flashcards">
-            <p><strong>Study what you wrote.</strong> Type flashcards straight into your notes. Spaced repetition brings each card back just before you'd forget it.</p>
-            <div class="shot">
-              <figure class="window">
+            </article>
+            <article class="tile">
+              <div class="tile-text">
+                <h3>Study what you wrote</h3>
+                <p>Type flashcards straight into your notes. Spaced repetition brings each card back just before you'd forget it.</p>
+              </div>
+              <figure class="peek flashcards">
                 <picture>
                   <source srcset="/img/flashcards-dark.webp" media="(prefers-color-scheme: dark)" />
-                  <img src="/img/flashcards-light.webp" width="1280" height="800" loading="lazy" decoding="async" alt="A flashcard study session: the front of a card about cells, with buttons to rate how well you knew it." />
+                  <img src="/img/flashcards-light.webp" width="1280" height="800" loading="lazy" decoding="async" alt="A flashcard study session: a card about mitochondria, with buttons to rate how well you knew it." />
                 </picture>
               </figure>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="band socrates" id="socrates">
+        <div class="wrap">
+          <div class="section-head">
+            <svg class="soc" viewBox="0 0 100 100" aria-hidden="true"><g><path class="soc-ink" d="M23,35 C22,20 33,10 50,10 C67,10 78,20 77,35" stroke-width="2.17" /><path class="soc-hair" d="M77,33 C82,31 87,36 83.5,43 C89,43.5 91,51 84.8,55.5 C91,57 91.5,66 84.2,68.5 C89,72 86,80 78,80.5 C79,86 72,91 66,89.5 C65,94 59,95.5 57,92 C56,97 44,97 43,92 C41,95.5 35,94 34,89.5 C28,91 21,86 22,80.5 C14,80 11,72 15.8,68.5 C8.5,66 9,57 15.2,55.5 C9,51 11,43.5 16.5,43 C13,36 18,31 23,33 L23.6,48 C24.5,57 32,61 38,61 C42,61 46,63.5 50,63.5 C54,63.5 58,61 62,61 C68,61 75.5,57 76.4,48 Z" stroke-width="2.17" /><path class="soc-ink" d="M41,24.5 Q50,22.4 59,24.5 M43.6,29.6 Q50,28 56.4,29.6" stroke-width="1.52" /><path class="soc-cut" d="M25.5,71 c2.6,-2.8 6.8,-1.2 5.8,2.6 M65,74 c2.6,-2.8 6.8,-1.2 5.8,2.6 M36.5,82 c2.6,-2.8 6.8,-1.2 5.8,2.6 M55,84.5 c2.6,-2.8 6.8,-1.2 5.8,2.6 M14.6,61.6 c2,-2.4 5.4,-1 4.6,2.2 M79.6,50 c2,-2.4 5.4,-1 4.6,2.2 M72,62.5 c2.4,-2.6 6.2,-1 5.2,2.4" stroke-width="1.52" /><path class="soc-ink" d="M46.8,44.5 C46.4,49.5 43.6,52.5 44.2,55.6 C44.9,59 55.1,59 55.8,55.6 C56.1,54 55.2,52.8 54,52" stroke-width="1.95" /><g transform="translate(50 43) scale(0.875) translate(-50 -44)"><g><path class="soc-ink" stroke-width="6.60" d="M37.99,44.00 Q38.00,44.00 38.01,44.00 M37.99,44.00 Q38.00,44.00 38.01,44.00" /><path class="soc-ink" stroke-width="6.60" d="M61.99,44.00 Q62.00,44.00 62.01,44.00 M61.99,44.00 Q62.00,44.00 62.01,44.00" /></g><path class="soc-ink" stroke-width="2.85" d="M30.50,35.30 L45.50,33.90" /><path class="soc-ink" stroke-width="2.85" d="M54.50,33.90 L69.50,35.30" /></g><g transform="translate(50 70.5) scale(0.8) translate(-50 -69.5)"><path class="soc-cut" stroke-width="3.20" d="M43.50,69.50L44.31,70.09L45.13,70.59L45.94,71.02L46.75,71.38L47.56,71.65L48.38,71.84L49.19,71.96L50.00,72.00L50.81,71.96L51.63,71.84L52.44,71.65L53.25,71.38L54.06,71.02L54.88,70.59L55.69,70.09L56.50,69.50" /></g></g></svg>
+            <p class="kicker">Study assistant</p>
+            <h2>Meet Socrates.</h2>
+            <p>Ask him about anything you've written. He answers from your own notes, turns them into flashcards and study plans, and never changes a thing without asking you first.</p>
+          </div>
+          <figure class="window">
+            <img src="/img/socrates-dark.webp" width="1280" height="800" loading="lazy" decoding="async" alt="Socrates in a panel beside a page of notes. He has answered a question from the notes, and offers four flashcards with Allow and Don't buttons under them." />
+          </figure>
+          <div class="points">
+            <div class="point">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" /><path d="m9 9.5 2 2 4-4" /></svg>
+              <h3>Answers from your notes</h3>
+              <p>He searches and reads what you wrote, and tells you which notes he used.</p>
+            </div>
+            <div class="point">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>
+              <h3>Asks before he changes anything</h3>
+              <p>Every new note, flashcard or edit is shown first. You allow it or you don't, and you can undo it.</p>
+            </div>
+            <div class="point">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v10" /><path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></svg>
+              <h3>Off until you turn it on</h3>
+              <p>Nothing is sent in the background, and you can keep any note away from him.</p>
+            </div>
+            <div class="point">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+              <h3>Your chats stay with you</h3>
+              <p>Conversations are kept on your computer, where you can read them again, even offline.</p>
+            </div>
+          </div>
+          <p class="fine">Socrates is an AI and can be wrong, so check what matters. He runs on Claude, a model made by Anthropic: what you ask, and the notes he reads to answer it, are sent there to be answered, and aren't used to train models. <a href="/privacy">How Socrates handles your notes</a></p>
+        </div>
+      </section>
+
+      <section class="section" id="together">
+        <div class="wrap split">
+          <div class="section-head">
+            <p class="kicker">With friends</p>
+            <h2>Write together, live</h2>
+            <p>Invite a friend to a page and write it together, seeing each other's cursors as you type. Only that page is shared; the rest of your notes stay on your computer. When you're done, you both keep the page.</p>
+          </div>
+          <div class="page-card" aria-hidden="true">
+            <div class="title">Midterm study plan</div>
+            <div class="lines">
+              <p class="line">Chapters 1 to 4, plus both labs.</p>
+              <p class="line typed">Make flashcards for the cell parts<span class="caret one" data-name="Ana"></span></p>
+              <p class="line">Quiz each other on<span class="caret two" data-name="Ben"></span> Friday</p>
+              <p class="line">Redo the practice exam</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="section tinted" id="features">
+      <section class="section ruled" id="features">
         <div class="wrap">
           <div class="section-head">
+            <p class="kicker">Features</p>
             <h2>Everything in its place</h2>
             <p>The things you'd usually spread across several apps, in one that stays out of your way.</p>
           </div>
           <div class="features">
-            <article class="feature blue">
-              <div class="badge"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4" /><path d="M2 6h4" /><path d="M2 10h4" /><path d="M2 14h4" /><path d="M2 18h4" /><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /></svg></div>
+            <article class="feature">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4" /><path d="M2 6h4" /><path d="M2 10h4" /><path d="M2 14h4" /><path d="M2 18h4" /><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /></svg>
               <h3>Write without friction</h3>
               <p>Headings, to-dos, toggles, callouts, tables, code and pictures. Type <kbd>/</kbd> for any block, or use Markdown shortcuts as you go.</p>
             </article>
-            <article class="feature purple">
-              <div class="badge"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2" /></svg></div>
+            <article class="feature">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2" /></svg>
               <h3>Math, typeset as you type</h3>
               <p>Type <code>$x^2$</code> and it becomes a formula. Paste from ChatGPT or Wikipedia and the math comes along, chemistry included.</p>
             </article>
-            <article class="feature orange">
-              <div class="badge"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5V19A9 3 0 0 0 21 19V5" /><path d="M3 12A9 3 0 0 0 21 12" /></svg></div>
+            <article class="feature">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5V19A9 3 0 0 0 21 19V5" /><path d="M3 12A9 3 0 0 0 21 12" /></svg>
               <h3>Databases, eight ways</h3>
               <p>Table, board, gallery, list, calendar, chart, timeline and form views, with formulas, relations, rollups and automations.</p>
             </article>
-            <article class="feature green">
-              <div class="badge"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" /><path d="M22 10v6" /><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" /></svg></div>
+            <article class="feature">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" /><path d="M22 10v6" /><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" /></svg>
               <h3>Made for the semester</h3>
               <p>Courses with their own colours, assignments with due dates, grades weighted the way your syllabus says, and lecture notes in one click.</p>
             </article>
-            <article class="feature red">
-              <div class="badge"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg></div>
+            <article class="feature">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
               <h3>Reminders that show up</h3>
               <p>A nudge the evening before something's due, and before each class or event, even while the app is minimized.</p>
             </article>
-            <article class="feature teal">
-              <div class="badge"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg></div>
+            <article class="feature">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
               <h3>Find anything</h3>
               <p><kbd>Ctrl+K</kbd> searches every page, assignment, event and file. Backlinks show everywhere a page is mentioned.</p>
             </article>
-            <article class="feature yellow">
-              <div class="badge"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></svg></div>
+            <article class="feature">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></svg>
               <h3>Catch ideas anywhere</h3>
               <p>Press <kbd>Ctrl+Shift+Space</kbd> from any app to save a note, a to-do, an assignment or an event without losing your place.</p>
             </article>
-            <article class="feature indigo">
-              <div class="badge"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></svg></div>
+            <article class="feature">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></svg>
               <h3>Ready to hand in</h3>
               <p>Export a page as PDF or as a Word document with real equations, or every note as Markdown that opens in Obsidian.</p>
             </article>
-            <article class="feature pink">
-              <div class="badge"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /><circle cx="17.5" cy="10.5" r=".5" fill="currentColor" /><circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /><circle cx="6.5" cy="12.5" r=".5" fill="currentColor" /><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" /></svg></div>
+            <article class="feature">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /><circle cx="17.5" cy="10.5" r=".5" fill="currentColor" /><circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /><circle cx="6.5" cy="12.5" r=".5" fill="currentColor" /><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" /></svg>
               <h3>Make it yours</h3>
               <p>Light or dark, six colour themes or one of your own, accent colours, three page fonts and keyboard shortcuts you choose.</p>
             </article>
@@ -200,22 +261,23 @@
         </div>
       </section>
 
-      <section class="section private" id="private">
+      <section class="band soft" id="private">
         <div class="wrap">
           <div class="section-head">
+            <p class="kicker">Privacy</p>
             <h2>Your notes stay on your computer</h2>
-            <p>Thought Desk doesn't keep your notes on a server. Nothing to sign up for, and nothing lost if a company changes its plans.</p>
+            <p>Thought Desk works without an account and doesn't keep your notes on a server. The online parts are optional, and each one says what it sends before you turn it on.</p>
           </div>
           <div class="promises">
             <div class="promise">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
               <h3>Kept where you choose</h3>
-              <p>Your notes live in a folder on your PC. Pick it, move it and back it up like any other files.</p>
+              <p>Your notes live in a folder on your computer. Pick it, move it and back it up like any other files.</p>
             </div>
             <div class="promise">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
               <h3>No tracking</h3>
-              <p>No analytics, no ads, no account needed. The app only goes online to check for a new version.</p>
+              <p>No analytics, no ads, no trackers. Without an account, the app only goes online to check for a new version.</p>
             </div>
             <div class="promise">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></svg>
@@ -223,12 +285,14 @@
               <p>Export every note as Markdown at any time, in folders like your sidebar, ready to open in Obsidian.</p>
             </div>
           </div>
+          <p class="fine"><a href="/privacy">Read the privacy policy</a></p>
         </div>
       </section>
 
       <section class="section">
-        <div class="wrap speed">
+        <div class="wrap split speed">
           <div class="section-head">
+            <p class="kicker">Speed</p>
             <h2>Fast, even after years of notes</h2>
             <p>Thought Desk is written in Rust and uses the browser engine your computer already has instead of bringing its own. It was tested with 7,500 pages, 17,000 flashcards and a 50,000-row database, and stays quick.</p>
           </div>
@@ -248,46 +312,71 @@
         </div>
       </section>
 
-      <section class="section tinted">
-        <div class="wrap together">
+      <section class="section ruled" id="pricing">
+        <div class="wrap">
           <div class="section-head">
-            <span class="tag">Coming soon</span>
-            <h2>Write together, live</h2>
-            <p>Invite a friend to a page and write it together, seeing each other's cursors as you type. Only that page is shared; the rest of your notes stay on your computer. When you're done, you both keep the page.</p>
+            <p class="kicker">Pricing</p>
+            <h2>Free to use. Pro if you lean on Socrates.</h2>
+            <p>Everything in Thought Desk is free. Pro is for people who ask the assistant a lot.</p>
           </div>
-          <div class="page-card" aria-hidden="true">
-            <div class="title">Midterm study plan</div>
-            <div class="lines">
-              <p class="line">Chapters 1 to 4, plus both labs.</p>
-              <p class="line typed">Make flashcards for the cell parts<span class="caret blue" data-name="Ana"></span></p>
-              <p class="line">Quiz each other on<span class="caret orange" data-name="Ben"></span> Friday</p>
-              <p class="line">Redo the practice exam</p>
-            </div>
+          <div class="plans">
+            <article class="plan">
+              <h3>Free</h3>
+              <p class="price"><strong>$0</strong><span>for good</span></p>
+              <ul>
+                <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>Notes, databases, calendar and flashcards</li>
+                <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>Writing together with friends</li>
+                <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>Socrates, with a monthly allowance for everyday questions</li>
+                <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>Every update, and the source code</li>
+              </ul>
+              <a class="button secondary" href="/download">Download</a>
+            </article>
+            <article class="plan pro">
+              <h3>Pro</h3>
+              <p class="price"><strong>$9.99</strong><span>a month</span></p>
+              <ul>
+                <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>Everything in Free</li>
+                <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>Thirty times the monthly Socrates allowance</li>
+                <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>Answers on busy days too: the daily limit free accounts share doesn't apply</li>
+                <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>Cancel in the app at any time, and change your mind within 14 days for your money back</li>
+              </ul>
+              <p class="how">Upgrade inside the app: Settings, then Assistant.</p>
+            </article>
           </div>
+          <p class="fine">Pro is sold by Polar, our reseller, and renews each month until you cancel. Tax may be added at checkout. <a href="/terms#pro">Terms</a></p>
         </div>
       </section>
 
       <section class="section" id="faq">
         <div class="wrap">
           <div class="section-head">
+            <p class="kicker">FAQ</p>
             <h2>Questions</h2>
           </div>
           <div class="faq">
             <details>
               <summary>Is Thought Desk free?<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
-              <p>Yes. It's free to download and use, and its code is open source under the GNU AGPL licence.</p>
+              <p>Yes. The app is free to download and use, and its code is open source under the GNU AGPL licence. Pro is optional: $9.99 a month for a much larger Socrates allowance.</p>
             </details>
             <details>
-              <summary>How can I support Thought Desk?<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
-              <p>Thought Desk is made by one person, with help from contributors. You can <a href="https://github.com/sponsors/kusule1351-hue">sponsor it on GitHub</a>, once or every month. The first goal is $1,000: the tools and app store fees for iPhone, iPad and Android versions, and a backend upgrade for sync, so your notes stay in step between your computer and your phone.</p>
+              <summary>Do I need an account?<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+              <p>No. Notes, databases, the calendar and flashcards all work without one. An account is only for the online parts: adding friends, writing a page together, and Socrates.</p>
+            </details>
+            <details>
+              <summary>What does Socrates see, and where does it go?<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+              <p>Only what you ask, and the notes he reads to answer that request. They go through our server to Anthropic, which makes the model, to be answered. Our server doesn't keep them, Anthropic doesn't train on them, and nothing is sent in the background. Socrates is off until you turn him on, and you can keep any note away from him. The <a href="/privacy">privacy policy</a> has the details.</p>
+            </details>
+            <details>
+              <summary>What do I get with Pro, and can I cancel?<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+              <p>Thirty times the monthly Socrates allowance, and answers even on days when the free accounts' shared limit is used up. You can cancel in the app with one button (Settings, then Assistant); Pro then lasts to the end of the month you've paid for. If you change your mind within 14 days of first subscribing, write to us and you get your money back.</p>
             </details>
             <details>
               <summary>Where are my notes kept?<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
-              <p>On your computer, in a folder you can choose in Settings → Storage. They're never uploaded. You can export them all as Markdown whenever you like.</p>
+              <p>On your computer, in a folder you can choose in Settings → Storage. They aren't uploaded unless you use a feature that sends them: writing a page with a friend, or asking Socrates about them. You can export them all as Markdown whenever you like.</p>
             </details>
             <details>
               <summary>Does it work without internet?<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
-              <p>Yes, everything works offline. The app only goes online to check for a new version.</p>
+              <p>Yes. Everything you write, plan and study works offline. Only the online parts need a connection: friends, writing together and Socrates. Your earlier chats with him can still be read offline.</p>
             </details>
             <details>
               <summary>Is there a version for Mac or Linux?<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
@@ -306,17 +395,22 @@
               <p>Paste Markdown and it keeps its headings, lists, code and math, and a database can import a CSV file. There's no one-click import from Notion yet.</p>
             </details>
             <details>
+              <summary>How can I support Thought Desk?<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+              <p>Thought Desk is made by one person, with help from contributors. You can go Pro, or <a href="https://github.com/sponsors/kusule1351-hue">sponsor it on GitHub</a>, once or every month. The first goal is $1,000: the tools and app store fees for iPhone, iPad and Android versions, and sync, so your notes stay in step between your computer and your phone.</p>
+            </details>
+            <details>
               <summary>Where can I get help?<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
-              <p>Email <a href="mailto:support@thoughtdesk.org">support@thoughtdesk.org</a>, or <a href="https://github.com/kusule1351-hue/thought-desk/issues">report a problem on GitHub</a>.</p>
+              <p>Email <a href="mailto:support@thoughtdesk.org">support@thoughtdesk.org</a>, ask in the <a href="https://discord.gg/JEaUHwz5bP">Discord</a>, or <a href="https://github.com/kusule1351-hue/thought-desk/issues">report a problem on GitHub</a>.</p>
             </details>
           </div>
         </div>
       </section>
 
-      <section class="cta tinted">
+      <section class="band soft cta">
         <div class="wrap">
-          <img src="/icon.svg" alt="" width="88" height="88" />
+          <img src="/icon.svg" alt="" width="72" height="72" />
           <h2>Your desk is ready.</h2>
+          <p class="lede">Free, open source, and yours to keep.</p>
           <div class="actions">
             <a class="button" href="/download/windows" data-system="windows">
               <svg class="os-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8.5v8.5H3zM12.5 3H21v8.5h-8.5zM3 12.5h8.5V21H3zM12.5 12.5H21V21h-8.5z" /></svg>
@@ -349,6 +443,7 @@
             <h2>Product</h2>
             <ul>
               <li><a href="/download">Download</a></li>
+              <li><a href="/#pricing">Pricing</a></li>
               <li><a href="https://github.com/kusule1351-hue/thought-desk/releases">What's new</a></li>
               <li><a href="https://github.com/kusule1351-hue/thought-desk">Source code</a></li>
               <li><a href="https://github.com/sponsors/kusule1351-hue">Sponsor</a></li>
@@ -359,6 +454,7 @@
             <ul>
               <li><a href="/#faq">Questions</a></li>
               <li><a href="mailto:support@thoughtdesk.org">Contact</a></li>
+              <li><a href="https://discord.gg/JEaUHwz5bP">Discord</a></li>
               <li><a href="https://github.com/kusule1351-hue/thought-desk/issues">Report a problem</a></li>
             </ul>
           </div>

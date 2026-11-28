@@ -1,5 +1,5 @@
-// thoughtdesk.org: the download buttons, the tour's tabs, and the header's
-// hairline once the page scrolls.
+// thoughtdesk.org: the download buttons, the version and star count, and the
+// header's hairline once the page scrolls.
 
 // The system this computer runs, as the Worker's /download tells them apart
 // (src/index.ts: systemOf). An iPad says it's a Mac, but has a touch screen.
@@ -35,30 +35,6 @@ fetch('/api/stars')
     for (const el of document.querySelectorAll('[data-stars], [data-stars-line]')) el.hidden = false;
   })
   .catch(() => {});
-
-// Tabs, with arrow keys, Home and End as the ARIA pattern has them.
-for (const list of document.querySelectorAll('[role="tablist"]')) {
-  const tabs = [...list.querySelectorAll('[role="tab"]')];
-  const select = (tab, focus) => {
-    for (const t of tabs) {
-      const on = t === tab;
-      t.setAttribute('aria-selected', String(on));
-      t.tabIndex = on ? 0 : -1;
-      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
-    }
-    if (focus) tab.focus();
-  };
-  tabs.forEach((tab, i) => {
-    tab.addEventListener('click', () => select(tab, false));
-    tab.addEventListener('keydown', (e) => {
-      const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
-      if (to === undefined) return;
-      e.preventDefault();
-      select(tabs[(to + tabs.length) % tabs.length], true);
-    });
-  });
-  select(tabs.find((t) => t.getAttribute('aria-selected') === 'true') ?? tabs[0], false);
-}
 
 const nav = document.querySelector('.nav');
 const onScroll = () => nav?.classList.toggle('scrolled', scrollY > 4);
